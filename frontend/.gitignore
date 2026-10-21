@@ -1,0 +1,9 @@
+# This .gitignore file
+node_modules
+.env
+.env.local
+dist
+build
+coverage
+*.log
+.DS_Store

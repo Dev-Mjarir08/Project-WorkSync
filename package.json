@@ -1,0 +1,10 @@
+{
+  "name": "worksync-monorepo",
+  "version": "1.0.0",
+  "description": "This root package.json file",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ]
+}
