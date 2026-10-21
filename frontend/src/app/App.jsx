@@ -1,12 +1,8 @@
-import React from 'react';
+import React from "react";
+import DashboardPage from "../features/manager/pages/DashboardPage.jsx";
 
 const App = () => {
-  return (
-    <div className="app-container">
-      <h1>This App site</h1>
-      <p>Component loaded from frontend/src/app/App.jsx</p>
-    </div>
-  );
+  return <DashboardPage />;
 };
 
 export default App;
