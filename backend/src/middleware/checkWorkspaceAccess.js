@@ -5,18 +5,31 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ROLES } from '../constants/roles.js';
 
 export const checkWorkspaceAccess = asyncHandler(async (req, res, next) => {
-  const workspaceIdentifier =
+  let workspaceIdentifier =
     req.params.workspaceId ||
     req.headers['x-workspace-id'] ||
     req.query.workspaceId ||
-    req.body.workspaceId;
+    req.body?.workspaceId;
 
-  if (!workspaceIdentifier) {
-    return next();
+  // Auto-resolve to user's first admin/owned workspace if not explicitly provided
+  if (!workspaceIdentifier && req.user) {
+    const adminMembership = await WorkspaceMember.findOne({
+      user: req.user._id,
+      role: { $in: ['admin', 'owner'] },
+      status: 'active'
+    });
+    if (adminMembership) {
+      workspaceIdentifier = adminMembership.workspace;
+    } else {
+      const ownedWs = await Workspace.findOne({ owner: req.user._id });
+      if (ownedWs) {
+        workspaceIdentifier = ownedWs._id;
+      }
+    }
   }
 
-  // Super Admin has global bypass
-  if (req.user?.role === ROLES.SUPER_ADMIN) {
+  if (!workspaceIdentifier) {
+    // If still no workspace found, let super admin continue or proceed to route handlers
     return next();
   }
 
@@ -29,13 +42,21 @@ export const checkWorkspaceAccess = asyncHandler(async (req, res, next) => {
     throw new ApiError(404, 'Workspace not found');
   }
 
+  // Super Admin has global access
+  if (req.user?.role === ROLES.SUPER_ADMIN) {
+    req.workspace = ws;
+    return next();
+  }
+
   const membership = await WorkspaceMember.findOne({
     workspace: ws._id,
     user: req.user._id,
     status: 'active'
   });
 
-  if (!membership && ws.owner?.toString() !== req.user._id.toString()) {
+  const isOwner = ws.owner?.toString() === req.user._id.toString();
+
+  if (!membership && !isOwner) {
     throw new ApiError(403, 'You do not have active access to this workspace');
   }
 
@@ -45,4 +66,3 @@ export const checkWorkspaceAccess = asyncHandler(async (req, res, next) => {
 });
 
 export default checkWorkspaceAccess;
-

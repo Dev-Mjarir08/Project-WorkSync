@@ -7,7 +7,9 @@ import { notFound } from './middleware/notFound.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import superAdminRoutes from './modules/super-admin/superAdmin.routes.js';
+import adminRoutes from './modules/admin/admin.routes.js';
 import memberRoutes from './modules/members/member.routes.js';
+import projectRoutes from './modules/projects/project.routes.js';
 
 export const app = express();
 
@@ -44,17 +46,25 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Auth Routes (Mounted under /api/v1/auth and /api/auth for smooth access)
+// Auth Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/auth', authRoutes);
 
-// Super Admin Routes (Mounted under /api/v1/super-admin, /api/super-admin, and admin aliases)
+// Super Admin Routes
 app.use('/api/v1/super-admin', superAdminRoutes);
 app.use('/api/super-admin', superAdminRoutes);
-app.use('/api/v1/admin', superAdminRoutes);
-app.use('/api/admin', superAdminRoutes);
 
-// Workspace Members & Invitations Routes (Mounted nested and top-level)
+// Workspace Admin Routes (Admin role)
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/v1/workspace-admin', adminRoutes);
+app.use('/api/v1/workspaces/:workspaceId/admin', adminRoutes);
+
+// Projects Routes
+app.use('/api/v1/projects', projectRoutes);
+app.use('/api/projects', projectRoutes);
+
+// Workspace Members & Invitations Routes
 app.use('/api/v1/workspaces/:workspaceId', memberRoutes);
 app.use('/api/workspaces/:workspaceId', memberRoutes);
 app.use('/api/v1/workspace', memberRoutes);

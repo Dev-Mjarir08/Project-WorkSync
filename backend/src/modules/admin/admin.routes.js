@@ -1,16 +1,26 @@
 import { Router } from 'express';
 import { authenticate } from '../../middleware/authenticate.js';
+import { checkWorkspaceAccess } from '../../middleware/checkWorkspaceAccess.js';
 import { authorizeWorkspaceRole } from '../../middleware/authorizeWorkspaceRole.js';
 import { WORKSPACE_ROLES } from '../../constants/roles.js';
 
+import dashboardRoutes from './dashboard/dashboard.routes.js';
+import workspaceRoutes from './workspace/workspace.routes.js';
+
 const router = Router();
 
-// Protect Admin routes with authentication and workspace admin authorization
-router.use(authenticate, authorizeWorkspaceRole(WORKSPACE_ROLES.ADMIN, WORKSPACE_ROLES.OWNER));
+// Protect all Workspace Admin routes
+router.use(
+  authenticate,
+  checkWorkspaceAccess,
+  authorizeWorkspaceRole(WORKSPACE_ROLES.OWNER, WORKSPACE_ROLES.ADMIN)
+);
 
-router.get('/dashboard', (req, res) => {
-  res.status(200).json({ success: true, message: 'Admin workspace dashboard overview' });
-});
+// 1. Workspace Dashboard APIs
+router.use('/dashboard', dashboardRoutes);
+
+// 2. Workspace Management & Settings APIs
+router.use('/workspace', workspaceRoutes);
+router.use('/', workspaceRoutes);
 
 export default router;
-
