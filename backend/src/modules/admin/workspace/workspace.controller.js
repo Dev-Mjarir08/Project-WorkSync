@@ -70,3 +70,4 @@ export const deleteWorkspace = asyncHandler(async (req, res) => {
   const data = await workspaceService.deleteWorkspace(wsId, req.user);
   return res.status(200).json(new ApiResponse(200, data, 'Workspace deleted successfully'));
 });
+

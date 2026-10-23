@@ -17,3 +17,4 @@ router.patch('/status', workspaceController.updateWorkspaceStatus);
 router.delete('/', workspaceController.deleteWorkspace);
 
 export default router;
+

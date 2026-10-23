@@ -17,7 +17,7 @@ const workspaceMemberSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: ['owner', 'admin', 'member', 'viewer'],
+        values: ['owner', 'admin', 'manager', 'member', 'viewer'],
         message: '{VALUE} is not a valid workspace role'
       },
       default: 'member'
