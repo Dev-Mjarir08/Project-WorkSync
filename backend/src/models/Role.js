@@ -11,9 +11,14 @@ const roleSchema = new mongoose.Schema(
     slug: {
       type: String,
       required: [true, 'Role slug is required'],
-      unique: true,
       lowercase: true,
       trim: true
+    },
+    workspace: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Workspace',
+      required: false,
+      index: true
     },
     description: {
       type: String,
@@ -48,6 +53,8 @@ const roleSchema = new mongoose.Schema(
   }
 );
 
+// Compound index to ensure uniqueness per workspace (or globally if workspace is null)
+roleSchema.index({ slug: 1, workspace: 1 }, { unique: true });
+
 export const Role = mongoose.model('Role', roleSchema);
 export default Role;
-

@@ -246,3 +246,4 @@ export const getMemberBoards = async (workspaceId, memberId) => {
 
   return boards;
 };
+

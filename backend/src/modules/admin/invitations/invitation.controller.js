@@ -64,3 +64,4 @@ export const getExpiredInvitations = asyncHandler(async (req, res) => {
   const data = await invitationService.getExpiredInvitations(wsId);
   return res.status(200).json(new ApiResponse(200, { invitations: data }, 'Expired invitations fetched successfully'));
 });
+

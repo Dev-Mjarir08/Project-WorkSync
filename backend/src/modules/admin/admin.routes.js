@@ -8,6 +8,9 @@ import dashboardRoutes from './dashboard/dashboard.routes.js';
 import workspaceRoutes from './workspace/workspace.routes.js';
 import memberRoutes from './members/member.routes.js';
 import invitationRoutes from './invitations/invitation.routes.js';
+import rolesRoutes from './roles/roles.routes.js';
+import boardsRoutes from './boards/boards.routes.js';
+import { getAvailablePermissions } from './roles/roles.controller.js';
 
 const router = Router();
 
@@ -27,7 +30,14 @@ router.use('/members', memberRoutes);
 // 3. Invitation Management APIs
 router.use('/invitations', invitationRoutes);
 
-// 4. Workspace Management & Settings APIs
+// 4. Workspace Roles & Permissions APIs
+router.use('/roles', rolesRoutes);
+router.get('/permissions', getAvailablePermissions);
+
+// 5. Board Management APIs
+router.use('/boards', boardsRoutes);
+
+// 6. Workspace Management & Settings APIs
 router.use('/workspace', workspaceRoutes);
 router.use('/', workspaceRoutes);
 

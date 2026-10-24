@@ -24,7 +24,18 @@ const boardSchema = new mongoose.Schema(
     isArchived: {
       type: Boolean,
       default: false
-    }
+    },
+    tasksCount: {
+      type: Number,
+      default: 0
+    },
+    members: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        role: { type: String, enum: ['editor', 'viewer', 'admin'], default: 'editor' },
+        addedAt: { type: Date, default: Date.now }
+      }
+    ]
   },
   {
     timestamps: true,

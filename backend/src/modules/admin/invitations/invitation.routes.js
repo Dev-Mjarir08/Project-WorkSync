@@ -16,3 +16,4 @@ router.post('/:invitationId/resend', invitationController.resendInvitation);
 router.delete('/:invitationId', invitationController.cancelInvitation);
 
 export default router;
+

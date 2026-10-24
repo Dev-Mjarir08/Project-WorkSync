@@ -70,3 +70,4 @@ export const getMemberBoards = asyncHandler(async (req, res) => {
   const data = await memberService.getMemberBoards(wsId, req.params.memberId);
   return res.status(200).json(new ApiResponse(200, { boards: data }, 'Member accessible boards fetched successfully'));
 });
+
