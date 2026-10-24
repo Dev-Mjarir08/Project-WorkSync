@@ -1,12 +1,16 @@
 import React from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './app/App';
+import './styles/index.css';
 
-const main = () => {
-  return (
-    <div className="main-container">
-      <h1>This main site</h1>
-      <p>Component loaded from frontend/src/main.jsx</p>
-    </div>
-  );
-};
+const rootElement = document.getElementById('root');
 
-export default main;
+if (!rootElement) {
+  throw new Error('The application root element was not found.');
+}
+
+createRoot(rootElement).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);

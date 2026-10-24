@@ -1,12 +1,11 @@
 import React from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import Router from './router';
 
-const App = () => {
-  return (
-    <div className="app-container">
-      <h1>This App site</h1>
-      <p>Component loaded from frontend/src/app/App.jsx</p>
-    </div>
-  );
-};
+const App = () => (
+  <BrowserRouter>
+    <Router />
+  </BrowserRouter>
+);
 
 export default App;
