@@ -40,6 +40,9 @@ const statIcons = {
 const formatDate = (date) =>
   new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(`${date}T12:00:00`));
 
+const getMemberInitials = (name) =>
+  name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toLocaleUpperCase();
+
 const DashboardPage = () => {
   const boards = adminService.getBoards();
   const [search, setSearch] = useState('');
@@ -80,7 +83,7 @@ const DashboardPage = () => {
           <p className="mb-2 text-sm font-semibold text-[#6542F5]">Your workspace at a glance</p>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Dashboard</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Keep projects moving and see how your team’s work is progressing.
+            Keep projects moving and see how your team's work is progressing.
           </p>
         </div>
         <Link
@@ -222,15 +225,15 @@ const DashboardPage = () => {
                       <div className="flex -space-x-2">
                         {task.assigneeIds.map((memberId) => {
                           const member = memberById.get(memberId);
-                          if (!member) return null;
+                          const memberName = member?.name ?? memberId;
                           return (
                             <span
-                              key={member.id}
-                              title={member.name}
-                              aria-label={member.name}
-                              className={`grid size-7 place-items-center rounded-full border-2 border-white text-[9px] font-bold ${member.color}`}
+                              key={member?.id ?? memberId}
+                              title={memberName}
+                              aria-label={memberName}
+                              className={`grid size-7 place-items-center rounded-full border-2 border-white text-[9px] font-bold ${member?.color ?? 'bg-slate-100 text-slate-600'}`}
                             >
-                              {member.initials}
+                              {member?.initials ?? getMemberInitials(memberName)}
                             </span>
                           );
                         })}
@@ -263,6 +266,9 @@ const DashboardPage = () => {
   );
 };
 
+const workloadTotal = workloadStatus.reduce((sum, item) => sum + item.value, 0);
+const otherWorkloadPercentage = Math.max(0, 100 - workloadTotal);
+
 const WorkloadCard = () => (
   <section aria-labelledby="workload-title" className="rounded-2xl border border-[#E6E7EC] bg-white p-5 shadow-sm shadow-slate-200/30">
     <div className="flex items-start justify-between gap-3">
@@ -272,27 +278,49 @@ const WorkloadCard = () => (
       </div>
       <span className="rounded-lg bg-[#F8F9FC] px-2.5 py-1.5 text-xs font-medium text-slate-500">28 Days</span>
     </div>
-    <div className="mt-6 space-y-5">
+    <div
+      role="group"
+      aria-label={`Workload by status: ${workloadStatus.map((item) => `${item.label} ${item.value}%`).join(', ')}, Other ${otherWorkloadPercentage}%`}
+      className="mt-6 flex h-3 overflow-hidden rounded-full bg-slate-100"
+    >
       {workloadStatus.map((item) => (
-        <div key={item.id}>
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <span className="font-medium text-slate-700">{item.label}</span>
-            <span className={`font-bold ${item.textColor}`}>{item.value}%</span>
-          </div>
-          <div
-            role="progressbar"
-            aria-label={item.label}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={item.value}
-            className="mt-2 flex h-3 gap-1 overflow-hidden rounded-full bg-slate-100 p-0.5"
-          >
-            <span className={`h-full rounded-full ${item.color}`} style={{ width: `${item.value}%` }} />
-            <span className="h-full flex-1 rounded-full bg-slate-100" />
-          </div>
-        </div>
+        <span
+          key={item.id}
+          role="img"
+          aria-label={`${item.label}: ${item.value}%`}
+          className={`h-full ${item.color}`}
+          style={{ width: `${item.value}%` }}
+        />
       ))}
+      {otherWorkloadPercentage > 0 && (
+        <span
+          role="img"
+          aria-label={`Other: ${otherWorkloadPercentage}%`}
+          className="h-full bg-slate-100"
+          style={{ width: `${otherWorkloadPercentage}%` }}
+        />
+      )}
     </div>
+    <ul className="mt-4 grid gap-3 sm:grid-cols-3">
+      {workloadStatus.map((item) => (
+        <li key={item.id} className="flex items-center justify-between gap-2 text-sm">
+          <span className="flex min-w-0 items-center gap-2 font-medium text-slate-700">
+            <span aria-hidden="true" className={`size-2.5 shrink-0 rounded-sm ${item.color}`} />
+            <span className="truncate">{item.label}</span>
+          </span>
+          <span className={`font-bold ${item.textColor}`}>{item.value}%</span>
+        </li>
+      ))}
+      {otherWorkloadPercentage > 0 && (
+        <li className="flex items-center justify-between gap-2 text-sm">
+          <span className="flex min-w-0 items-center gap-2 font-medium text-slate-700">
+            <span aria-hidden="true" className="size-2.5 shrink-0 rounded-sm bg-slate-100" />
+            <span>Other</span>
+          </span>
+          <span className="font-bold text-slate-500">{otherWorkloadPercentage}%</span>
+        </li>
+      )}
+    </ul>
     <div className="mt-6 flex items-center gap-2 border-t border-[#EEF0F4] pt-4 text-xs text-slate-500">
       <ArrowDown aria-hidden="true" className="size-4 text-[#278A8F]" />
       <span>Workload is distributed across active and completed tasks.</span>
