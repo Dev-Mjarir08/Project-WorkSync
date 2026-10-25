@@ -16,6 +16,16 @@ const taskSchema = new mongoose.Schema(
       ref: 'Board',
       index: true
     },
+    project: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      index: true
+    },
+    list: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'List',
+      index: true
+    },
     workspace: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Workspace',
@@ -37,6 +47,10 @@ const taskSchema = new mongoose.Schema(
     },
     dueDate: {
       type: Date
+    },
+    order: {
+      type: Number,
+      default: 0
     }
   },
   {

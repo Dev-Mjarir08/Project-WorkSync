@@ -13,6 +13,11 @@ const boardSchema = new mongoose.Schema(
       required: true,
       index: true
     },
+    project: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      index: true
+    },
     description: {
       type: String,
       default: ''
