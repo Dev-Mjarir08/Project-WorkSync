@@ -12,6 +12,9 @@ import rolesRoutes from './roles/roles.routes.js';
 import boardsRoutes from './boards/boards.routes.js';
 import projectsRoutes from './projects/projects.routes.js';
 import tasksRoutes from './tasks/tasks.routes.js';
+import analyticsRoutes from './analytics/analytics.routes.js';
+import activitiesRoutes from './activities/activities.routes.js';
+import auditLogsRoutes from './audit-logs/auditLogs.routes.js';
 import { getAvailablePermissions } from './roles/roles.controller.js';
 
 const router = Router();
@@ -44,6 +47,13 @@ router.use('/projects', projectsRoutes);
 
 // 7. Task Management APIs
 router.use('/tasks', tasksRoutes);
+
+// 9. Workspace Analytics APIs
+router.use('/analytics', analyticsRoutes);
+
+// 10. Activity & Audit Logs APIs
+router.use('/activities', activitiesRoutes);
+router.use('/audit-logs', auditLogsRoutes);
 
 // 8. Workspace Management & Settings APIs
 router.use('/workspace', workspaceRoutes);

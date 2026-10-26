@@ -17,6 +17,11 @@ const auditLogSchema = new mongoose.Schema(
       required: [true, 'Details are required'],
       trim: true
     },
+    workspace: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Workspace',
+      index: true
+    },
     actor: {
       user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
       name: { type: String, default: 'System Sentinel' },

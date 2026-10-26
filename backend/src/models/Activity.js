@@ -27,7 +27,22 @@ const activitySchema = new mongoose.Schema(
     },
     description: {
       type: String,
-      required: true
+      default: ''
+    },
+    details: {
+      type: String,
+      default: ''
+    },
+    entityType: {
+      type: String,
+      index: true
+    },
+    entityId: {
+      type: mongoose.Schema.Types.ObjectId,
+      index: true
+    },
+    entityName: {
+      type: String
     },
     metadata: {
       type: mongoose.Schema.Types.Mixed,
