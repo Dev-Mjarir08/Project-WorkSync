@@ -1,12 +1,7 @@
-import React from 'react';
+import AppRoutes from '../routes/AppRoutes.jsx';
 
-const router = () => {
-  return (
-    <div className="router-container">
-      <h1>This router site</h1>
-      <p>Component loaded from frontend/src/app/router.jsx</p>
-    </div>
-  );
-};
-
-export default router;
+/**
+ * Re-export centralized AppRoutes for backward compatibility.
+ * All route definitions now live in frontend/src/routes/AppRoutes.jsx.
+ */
+export default AppRoutes;

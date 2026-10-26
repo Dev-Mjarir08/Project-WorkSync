@@ -15,12 +15,11 @@ import {
   Menu,
   X,
   ChevronRight,
-  Filter,
   FolderKanban,
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 
-// Summary Cards Data in Dark Theme
+// Summary Cards Data
 const initialSummaryCards = [
   {
     title: "Total Tasks",
@@ -29,8 +28,7 @@ const initialSummaryCards = [
     change: "+4 this sprint",
     icon: ClipboardList,
     accent: "blue",
-    color: "bg-blue-500/10 text-blue-400 border border-blue-500/20",
-    glow: "hover:border-blue-500/30 hover:shadow-blue-500/5",
+    color: "bg-blue-50 text-blue-600 border border-blue-100",
   },
   {
     title: "In Progress",
@@ -39,8 +37,7 @@ const initialSummaryCards = [
     change: "33% active workload",
     icon: Clock3,
     accent: "amber",
-    color: "bg-amber-500/10 text-amber-400 border border-amber-500/20",
-    glow: "hover:border-amber-500/30 hover:shadow-amber-500/5",
+    color: "bg-amber-50 text-amber-600 border border-amber-100",
   },
   {
     title: "Completed",
@@ -49,8 +46,7 @@ const initialSummaryCards = [
     change: "50% milestone rate",
     icon: CircleCheck,
     accent: "emerald",
-    color: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
-    glow: "hover:border-emerald-500/30 hover:shadow-emerald-500/5",
+    color: "bg-emerald-50 text-emerald-600 border border-emerald-100",
   },
   {
     title: "Overdue / Risk",
@@ -59,8 +55,7 @@ const initialSummaryCards = [
     change: "Immediate priority",
     icon: AlertCircle,
     accent: "rose",
-    color: "bg-rose-500/10 text-rose-400 border border-rose-500/20",
-    glow: "hover:border-rose-500/30 hover:shadow-rose-500/5",
+    color: "bg-rose-50 text-rose-600 border border-rose-100",
   },
 ];
 
@@ -137,85 +132,72 @@ const initialTasks = [
 // Preserving original team members with workload tracking
 const teamMembersData = [
   {
-    name: "Devanshi",
-    fullName: "Devanshi Sharma",
-    role: "Manager",
-    tasks: 8,
-    capacity: 80,
+    name: "Devanshi Sharma",
+    role: "Engineering Manager",
+    tasks: 5,
+    capacity: 75,
+    status: "Available",
     avatar: "DS",
     color: "from-blue-600 to-indigo-600",
-    status: "Online",
   },
   {
-    name: "Ayan",
-    fullName: "Ayan Mukherjee",
-    role: "Admin",
-    tasks: 6,
-    capacity: 60,
+    name: "Ayan Mukherjee",
+    role: "Fullstack Admin",
+    tasks: 7,
+    capacity: 90,
+    status: "Busy",
     avatar: "AM",
     color: "from-cyan-500 to-blue-600",
-    status: "In Meeting",
   },
   {
-    name: "Rouhan",
-    fullName: "Rouhan Siddiqui",
-    role: "Employee",
-    tasks: 10,
-    capacity: 95,
+    name: "Rouhan Siddiqui",
+    role: "Frontend Dev",
+    tasks: 4,
+    capacity: 60,
+    status: "Available",
     avatar: "RS",
     color: "from-emerald-500 to-teal-600",
-    status: "Active",
   },
 ];
 
-// Active Projects Overview snapshot
+// Active Projects Snapshot
 const activeProjectsSnapshot = [
   {
     name: "WorkSync Web App",
     category: "Core Platform",
     progress: 72,
-    totalTasks: 25,
+    status: "Active",
+    statusColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
     completedTasks: 18,
-    status: "On Track",
-    statusColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/25",
+    totalTasks: 25,
   },
   {
     name: "Mobile Companion App",
     category: "Mobile",
     progress: 45,
-    totalTasks: 20,
+    status: "Active",
+    statusColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
     completedTasks: 9,
-    status: "In Progress",
-    statusColor: "bg-blue-500/10 text-blue-400 border-blue-500/25",
+    totalTasks: 20,
   },
   {
     name: "Real-Time Sync Engine",
     category: "Infrastructure",
     progress: 85,
-    totalTasks: 14,
+    status: "Active",
+    statusColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
     completedTasks: 12,
-    status: "Near Completion",
-    statusColor: "bg-cyan-500/10 text-cyan-400 border-cyan-500/25",
-  },
-  {
-    name: "Client Onboarding Portal",
-    category: "Product",
-    progress: 30,
-    totalTasks: 10,
-    completedTasks: 3,
-    status: "On Hold",
-    statusColor: "bg-amber-500/10 text-amber-400 border-amber-500/25",
+    totalTasks: 14,
   },
 ];
 
-// Activity Feed items
 const recentActivityItems = [
   {
     id: 1,
     user: "Ayan Mukherjee",
-    action: "updated task",
-    target: "Design login page",
-    status: "In Progress",
+    action: "moved task to",
+    target: "In Progress",
+    status: "Design login page",
     time: "15m ago",
     avatar: "AM",
     color: "from-cyan-500 to-blue-600",
@@ -223,7 +205,7 @@ const recentActivityItems = [
   {
     id: 2,
     user: "Rouhan Siddiqui",
-    action: "completed task",
+    action: "completed sprint deliverable",
     target: "Set up workspace",
     status: "Completed",
     time: "2h ago",
@@ -233,35 +215,25 @@ const recentActivityItems = [
   {
     id: 3,
     user: "Devanshi Sharma",
-    action: "assigned 2 tasks in",
-    target: "WorkSync Web App",
-    status: null,
+    action: "assigned priority to",
+    target: "Review task assignments",
+    status: "High Priority",
     time: "4h ago",
     avatar: "DS",
     color: "from-blue-600 to-indigo-600",
   },
-  {
-    id: 4,
-    user: "System Bot",
-    action: "flagged milestone as",
-    target: "Sprint 4 Milestone Ready",
-    status: "Verified",
-    time: "Yesterday",
-    avatar: "WS",
-    color: "from-slate-600 to-slate-800",
-  },
 ];
 
 const statusStyles = {
-  "In Progress": "bg-blue-500/10 text-blue-400 border-blue-500/25",
-  Completed: "bg-emerald-500/10 text-emerald-400 border-emerald-500/25",
-  Pending: "bg-amber-500/10 text-amber-400 border-amber-500/25",
+  "In Progress": "bg-blue-50 text-blue-700 border-blue-200",
+  Completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  Pending: "bg-amber-50 text-amber-700 border-amber-200",
 };
 
 const priorityStyles = {
-  High: "bg-rose-500/10 text-rose-400 border-rose-500/25",
-  Medium: "bg-amber-500/10 text-amber-400 border-amber-500/25",
-  Low: "bg-slate-500/10 text-slate-400 border-slate-500/25",
+  High: "bg-rose-50 text-rose-700 border-rose-200",
+  Medium: "bg-amber-50 text-amber-700 border-amber-200",
+  Low: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
 const sampleNotifications = [
@@ -345,32 +317,32 @@ const DashboardPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#070D18] text-slate-100 flex antialiased selection:bg-blue-600 selection:text-white">
-      {/* Unified Dark Theme Sidebar with Independent Scroll */}
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex antialiased selection:bg-blue-600 selection:text-white">
+      {/* Unified Light Theme Sidebar */}
       <Sidebar activeItem="dashboard" mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} />
 
       {/* Main Content Area */}
       <div className="flex-1 lg:pl-64 xl:pl-72 flex flex-col min-w-0">
         {/* Sticky Header */}
-        <header className="sticky top-0 z-20 border-b border-slate-800/80 bg-[#0B1120]/80 backdrop-blur-md px-4 py-3 sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-md px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
             {/* Left: Mobile trigger & Breadcrumbs */}
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}
-                className="rounded-xl border border-slate-800 p-2 text-slate-400 hover:bg-slate-850 hover:text-slate-200 lg:hidden"
+                className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 lg:hidden"
                 aria-label="Open mobile navigation menu"
               >
                 <Menu size={18} />
               </button>
 
-              <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
-                <span className="font-semibold text-slate-300">WorkSync</span>
-                <ChevronRight size={13} className="text-slate-600" />
+              <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
+                <span className="font-semibold text-slate-700">WorkSync</span>
+                <ChevronRight size={13} className="text-slate-400" />
                 <span>Manager</span>
-                <ChevronRight size={13} className="text-slate-600" />
-                <span className="font-medium text-blue-400">Dashboard</span>
+                <ChevronRight size={13} className="text-slate-400" />
+                <span className="font-medium text-blue-600">Dashboard</span>
               </div>
             </div>
 
@@ -378,19 +350,19 @@ const DashboardPage = () => {
             <div className="flex items-center gap-2.5 sm:gap-3">
               {/* Search bar */}
               <div className="relative hidden md:block w-64 lg:w-72">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                 <input
                   type="text"
                   placeholder="Search tasks, members... (⌘K)"
                   value={taskSearchQuery}
                   onChange={(e) => setTaskSearchQuery(e.target.value)}
-                  className="w-full rounded-xl border border-slate-800 bg-slate-900/80 py-1.5 pl-9 pr-7 text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/30 transition"
+                  className="w-full rounded-xl border border-slate-200 bg-white py-1.5 pl-9 pr-7 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition"
                 />
                 {taskSearchQuery && (
                   <button
                     type="button"
                     onClick={() => setTaskSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-500 hover:text-slate-300"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-600"
                   >
                     <X size={12} />
                   </button>
@@ -402,23 +374,23 @@ const DashboardPage = () => {
                 <button
                   type="button"
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className="relative rounded-xl border border-slate-800 bg-slate-900/60 p-2 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 focus:outline-none"
+                  className="relative rounded-xl border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 focus:outline-none shadow-xs"
                   aria-label="View notifications"
                 >
                   <Bell size={16} />
-                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-500 ring-2 ring-[#0B1120]"></span>
+                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-600 ring-2 ring-white"></span>
                 </button>
 
                 {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-800 bg-[#0F172A] p-4 shadow-2xl ring-1 ring-white/5 z-40">
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                      <h4 className="text-xs font-semibold text-slate-200">Notifications</h4>
+                  <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl z-40">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <h4 className="text-xs font-semibold text-slate-900">Notifications</h4>
                       <button
                         type="button"
                         onClick={() =>
                           setNotificationList(notificationList.map((n) => ({ ...n, unread: false })))
                         }
-                        className="text-[11px] text-blue-400 hover:text-blue-300 font-medium"
+                        className="text-[11px] text-blue-600 hover:text-blue-700 font-medium"
                       >
                         Mark all as read
                       </button>
@@ -429,12 +401,12 @@ const DashboardPage = () => {
                           key={notif.id}
                           className={`rounded-xl p-2.5 text-xs transition border ${
                             notif.unread
-                              ? "bg-blue-500/10 text-slate-200 border-blue-500/20"
-                              : "bg-slate-900/60 text-slate-400 border-slate-800/60"
+                              ? "bg-blue-50/60 text-slate-800 border-blue-100"
+                              : "bg-slate-50 text-slate-600 border-slate-100"
                           }`}
                         >
                           <p className="font-medium leading-relaxed">{notif.text}</p>
-                          <p className="mt-1 text-[10px] text-slate-500">{notif.time}</p>
+                          <p className="mt-1 text-[10px] text-slate-400">{notif.time}</p>
                         </div>
                       ))}
                     </div>
@@ -443,8 +415,8 @@ const DashboardPage = () => {
               </div>
 
               {/* Profile Avatar */}
-              <div className="flex items-center gap-2 pl-1 border-l border-slate-800">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 font-bold text-white text-xs shadow-md shadow-blue-500/20">
+              <div className="flex items-center gap-2 pl-1 border-l border-slate-200">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 font-bold text-white text-xs shadow-xs">
                   DS
                 </div>
               </div>
@@ -453,7 +425,7 @@ const DashboardPage = () => {
               <button
                 type="button"
                 onClick={() => setShowCreateTaskModal(true)}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-md shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition active:scale-[0.98]"
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition active:scale-[0.98]"
               >
                 <Plus size={15} />
                 <span>Create Task</span>
@@ -467,13 +439,13 @@ const DashboardPage = () => {
           {/* Welcome Banner */}
           <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-blue-400">
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-blue-600">
                 Manager Workspace
               </p>
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
                 Welcome back, Devanshi!
               </h1>
-              <p className="mt-1 text-xs sm:text-sm text-slate-400">
+              <p className="mt-1 text-xs sm:text-sm text-slate-500">
                 Here is an overview of your team deliverables, active sprints, and workload capacity.
               </p>
             </div>
@@ -481,7 +453,7 @@ const DashboardPage = () => {
             {/* Quick Link to Projects */}
             <Link
               to="/manager/projects"
-              className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-800 bg-[#0F172A]/80 px-3.5 py-2 text-xs font-semibold text-blue-400 shadow-sm hover:bg-slate-800 hover:text-blue-300 transition"
+              className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-blue-600 shadow-xs hover:bg-slate-50 hover:text-blue-700 transition"
             >
               <FolderKanban size={15} />
               <span>View All 6 Projects</span>
@@ -498,26 +470,26 @@ const DashboardPage = () => {
                 return (
                   <div
                     key={card.title}
-                    className={`group relative overflow-hidden rounded-2xl border border-slate-800/80 bg-[#0F172A]/70 p-4 sm:p-5 backdrop-blur-sm transition-all duration-300 hover:border-slate-700 hover:shadow-lg hover:shadow-blue-500/5 ${card.glow}`}
+                    className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs transition hover:shadow-sm"
                   >
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                        <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                           {card.title}
                         </p>
-                        <p className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+                        <p className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
                           {card.value}
                         </p>
                       </div>
 
-                      <div className={`rounded-xl p-2.5 ${card.color} transition-transform group-hover:scale-105`}>
+                      <div className={`rounded-xl p-2.5 ${card.color}`}>
                         <Icon size={20} />
                       </div>
                     </div>
 
-                    <div className="mt-3.5 flex items-center justify-between pt-2.5 border-t border-slate-800/80 text-[11px] text-slate-500">
+                    <div className="mt-3.5 flex items-center justify-between pt-2.5 border-t border-slate-100 text-[11px] text-slate-500">
                       <span>{card.description}</span>
-                      <span className="font-medium text-slate-400">{card.change}</span>
+                      <span className="font-medium text-slate-700">{card.change}</span>
                     </div>
                   </div>
                 );
@@ -528,17 +500,17 @@ const DashboardPage = () => {
           {/* Middle Row: Active Projects Progress & Velocity Insights */}
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* Active Projects Progress (2 Columns) */}
-            <div className="lg:col-span-2 rounded-2xl border border-slate-800/80 bg-[#0F172A]/80 backdrop-blur-sm p-5 sm:p-6 shadow-sm">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+            <div className="lg:col-span-2 rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                 <div>
-                  <h3 className="text-sm font-bold text-white">Project Progress Overview</h3>
-                  <p className="mt-0.5 text-xs text-slate-400">
+                  <h3 className="text-sm font-bold text-slate-900">Project Progress Overview</h3>
+                  <p className="mt-0.5 text-xs text-slate-500">
                     Live delivery milestones across active project initiatives.
                   </p>
                 </div>
                 <Link
                   to="/manager/projects"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-blue-400 hover:text-blue-300 transition"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
                 >
                   Manage Projects
                   <ChevronRight size={14} />
@@ -549,17 +521,17 @@ const DashboardPage = () => {
                 {activeProjectsSnapshot.map((proj) => (
                   <div
                     key={proj.name}
-                    className="rounded-xl border border-slate-800/80 bg-slate-900/50 p-3.5 transition hover:bg-slate-900/80 hover:border-slate-700"
+                    className="rounded-xl border border-slate-200/70 bg-slate-50/60 p-3.5 transition hover:bg-white hover:border-slate-300"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="text-xs font-bold text-white">{proj.name}</p>
-                          <span className="rounded-md bg-slate-800/80 px-2 py-0.5 text-[10px] font-semibold text-slate-300 border border-slate-700/60">
+                          <p className="text-xs font-bold text-slate-900">{proj.name}</p>
+                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 border border-slate-200/60">
                             {proj.category}
                           </span>
                         </div>
-                        <p className="mt-1 text-[11px] text-slate-400">
+                        <p className="mt-1 text-[11px] text-slate-500">
                           {proj.completedTasks} of {proj.totalTasks} deliverables completed
                         </p>
                       </div>
@@ -571,16 +543,16 @@ const DashboardPage = () => {
                           <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
                           {proj.status}
                         </span>
-                        <span className="text-xs font-extrabold text-slate-200 min-w-[38px] text-right">
+                        <span className="text-xs font-extrabold text-slate-800 min-w-[38px] text-right">
                           {proj.progress}%
                         </span>
                       </div>
                     </div>
 
                     {/* Progress Bar */}
-                    <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                    <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-400 transition-all duration-500"
+                        className="h-full rounded-full bg-blue-600 transition-all duration-300"
                         style={{ width: `${proj.progress}%` }}
                       ></div>
                     </div>
@@ -590,40 +562,40 @@ const DashboardPage = () => {
             </div>
 
             {/* Sprint Velocity & Activity Insights (1 Column) */}
-            <div className="rounded-2xl border border-slate-800/80 bg-[#0F172A]/80 backdrop-blur-sm p-5 sm:p-6 shadow-sm flex flex-col justify-between">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                   <div className="flex items-center gap-2">
-                    <div className="rounded-lg bg-blue-500/10 p-2 text-blue-400 border border-blue-500/20">
+                    <div className="rounded-lg bg-blue-50 p-2 text-blue-600 border border-blue-100">
                       <TrendingUp size={16} />
                     </div>
                     <div>
-                      <h3 className="text-xs font-bold text-white">Sprint 4 Velocity</h3>
-                      <p className="text-[10px] text-slate-400">Oct 14 - Oct 28 cycle</p>
+                      <h3 className="text-xs font-bold text-slate-900">Sprint 4 Velocity</h3>
+                      <p className="text-[10px] text-slate-500">Oct 14 - Oct 28 cycle</p>
                     </div>
                   </div>
-                  <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400 border border-emerald-500/20">
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
                     +18%
                   </span>
                 </div>
 
                 {/* Velocity Stats */}
                 <div className="mt-4 grid grid-cols-2 gap-2.5">
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-center">
-                    <p className="text-[10px] font-medium text-slate-400">Points Done</p>
-                    <p className="mt-1 text-xl font-extrabold text-white">34</p>
-                    <p className="mt-0.5 text-[10px] text-emerald-400 font-semibold">of 42 points</p>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
+                    <p className="text-[10px] font-medium text-slate-500">Points Done</p>
+                    <p className="mt-1 text-xl font-extrabold text-slate-900">34</p>
+                    <p className="mt-0.5 text-[10px] text-emerald-700 font-semibold">of 42 points</p>
                   </div>
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-center">
-                    <p className="text-[10px] font-medium text-slate-400">Days Remaining</p>
-                    <p className="mt-1 text-xl font-extrabold text-white">6</p>
-                    <p className="mt-0.5 text-[10px] text-blue-400 font-semibold">On Schedule</p>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
+                    <p className="text-[10px] font-medium text-slate-500">Days Remaining</p>
+                    <p className="mt-1 text-xl font-extrabold text-slate-900">6</p>
+                    <p className="mt-0.5 text-[10px] text-blue-700 font-semibold">On Schedule</p>
                   </div>
                 </div>
 
                 {/* Collaborative Activity Feed */}
                 <div className="mt-5">
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Recent Collaborative Activity
                   </h4>
                   <div className="mt-2.5 space-y-2.5">
@@ -635,12 +607,12 @@ const DashboardPage = () => {
                           {act.avatar}
                         </div>
                         <div className="min-w-0 flex-1 leading-snug">
-                          <p className="text-slate-300 text-[11px]">
-                            <span className="font-semibold text-white">{act.user}</span>{" "}
+                          <p className="text-slate-700 text-[11px]">
+                            <span className="font-semibold text-slate-900">{act.user}</span>{" "}
                             {act.action}{" "}
-                            <span className="font-medium text-blue-400">{act.target}</span>
+                            <span className="font-medium text-blue-600">{act.target}</span>
                           </p>
-                          <span className="text-[10px] text-slate-500">{act.time}</span>
+                          <span className="text-[10px] text-slate-400">{act.time}</span>
                         </div>
                       </div>
                     ))}
@@ -651,12 +623,12 @@ const DashboardPage = () => {
           </section>
 
           {/* Interactive Tasks Table */}
-          <section className="overflow-hidden rounded-2xl border border-slate-800/80 bg-[#0F172A]/80 backdrop-blur-sm shadow-sm">
+          <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
             {/* Table Header Controls */}
-            <div className="flex flex-col gap-3 border-b border-slate-800 p-4 sm:p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:p-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="text-sm font-bold text-white">Recent Tasks</h3>
-                <p className="mt-0.5 text-xs text-slate-400">
+                <h3 className="text-sm font-bold text-slate-900">Recent Tasks</h3>
+                <p className="mt-0.5 text-xs text-slate-500">
                   A snapshot of your team's latest deliverables and assignments.
                 </p>
               </div>
@@ -671,7 +643,7 @@ const DashboardPage = () => {
                     className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
                       taskStatusFilter === status
                         ? "bg-blue-600 text-white shadow-xs"
-                        : "bg-slate-900/80 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-slate-800"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
                     }`}
                   >
                     {status}
@@ -683,7 +655,7 @@ const DashboardPage = () => {
             {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full min-w-[700px] text-left text-xs">
-                <thead className="border-b border-slate-800 bg-slate-900/60 text-[10px] uppercase tracking-wider text-slate-400">
+                <thead className="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
                   <tr>
                     <th className="px-5 py-3 font-semibold">Task</th>
                     <th className="px-5 py-3 font-semibold">Assignee</th>
@@ -693,13 +665,13 @@ const DashboardPage = () => {
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-slate-850">
+                <tbody className="divide-y divide-slate-100 text-slate-700">
                   {filteredTasks.length > 0 ? (
                     filteredTasks.map((task) => (
-                      <tr key={task.id} className="transition hover:bg-slate-900/50">
+                      <tr key={task.id} className="transition hover:bg-slate-50">
                         {/* Task Title & Project */}
                         <td className="px-5 py-3.5">
-                          <p className="font-semibold text-slate-200">{task.title}</p>
+                          <p className="font-semibold text-slate-900">{task.title}</p>
                           <p className="mt-0.5 text-[11px] text-slate-500">{task.project}</p>
                         </td>
 
@@ -712,16 +684,16 @@ const DashboardPage = () => {
                               {task.assignee.substring(0, 2).toUpperCase()}
                             </div>
                             <div>
-                              <p className="font-medium text-slate-300">{task.assignee}</p>
+                              <p className="font-medium text-slate-800">{task.assignee}</p>
                               <p className="text-[10px] text-slate-500">{task.assigneeRole}</p>
                             </div>
                           </div>
                         </td>
 
                         {/* Due Date */}
-                        <td className="px-5 py-3.5 text-xs text-slate-400">
+                        <td className="px-5 py-3.5 text-xs text-slate-500">
                           <div className="flex items-center gap-1.5">
-                            <Calendar size={12} className="text-slate-500" />
+                            <Calendar size={12} className="text-slate-400" />
                             <span>{task.dueDate}</span>
                           </div>
                         </td>
@@ -763,12 +735,12 @@ const DashboardPage = () => {
             </div>
 
             {/* Table Footer */}
-            <div className="flex items-center justify-between border-t border-slate-800 px-5 py-3 text-xs text-slate-400">
+            <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
               <span>Showing {filteredTasks.length} of {tasks.length} tasks</span>
               <button
                 type="button"
                 onClick={() => setTaskStatusFilter("All")}
-                className="font-medium text-blue-400 hover:text-blue-300 transition text-[11px]"
+                className="font-medium text-blue-600 hover:text-blue-700 transition text-[11px]"
               >
                 Reset task filter
               </button>
@@ -776,23 +748,23 @@ const DashboardPage = () => {
           </section>
 
           {/* Team Overview & Workload Allocation */}
-          <section className="rounded-2xl border border-slate-800/80 bg-[#0F172A]/80 backdrop-blur-sm p-5 sm:p-6 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-800">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-blue-500/10 p-2.5 text-blue-400 border border-blue-500/20">
+                <div className="rounded-xl bg-blue-50 p-2.5 text-blue-600 border border-blue-100">
                   <Users size={20} />
                 </div>
 
                 <div>
-                  <h3 className="font-bold text-white text-sm">Team Overview</h3>
-                  <p className="mt-0.5 text-xs text-slate-400">
+                  <h3 className="font-bold text-slate-900 text-sm">Team Overview</h3>
+                  <p className="mt-0.5 text-xs text-slate-500">
                     Manage assignments and keep track of team member workload capacity.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="rounded-full bg-slate-900 border border-slate-800 px-3 py-1 text-xs font-medium text-slate-300">
+                <span className="rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700">
                   Total Active Capacity: 78%
                 </span>
               </div>
@@ -803,7 +775,7 @@ const DashboardPage = () => {
               {teamMembersData.map((member) => (
                 <div
                   key={member.name}
-                  className="rounded-xl border border-slate-800/80 bg-slate-900/50 p-4 transition-all hover:bg-slate-900/80 hover:border-slate-700"
+                  className="rounded-xl border border-slate-200/70 bg-slate-50/60 p-4 transition-all hover:bg-white hover:border-slate-300"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -813,38 +785,38 @@ const DashboardPage = () => {
                         {member.avatar}
                       </div>
                       <div>
-                        <p className="font-bold text-white text-xs leading-tight">{member.name}</p>
-                        <p className="text-[10px] text-slate-400">{member.role}</p>
+                        <p className="font-bold text-slate-900 text-xs leading-tight">{member.name}</p>
+                        <p className="text-[10px] text-slate-500">{member.role}</p>
                       </div>
                     </div>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
                       {member.status}
                     </span>
                   </div>
 
                   <div className="mt-3.5 flex items-center justify-between text-xs">
-                    <span className="text-slate-400 text-[11px]">Workload Capacity</span>
-                    <span className="font-bold text-slate-200">{member.capacity}%</span>
+                    <span className="text-slate-500 text-[11px]">Workload Capacity</span>
+                    <span className="font-bold text-slate-800">{member.capacity}%</span>
                   </div>
 
                   {/* Capacity Bar */}
-                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                     <div
                       className={`h-full rounded-full ${
                         member.capacity > 90
                           ? "bg-rose-500"
                           : member.capacity > 70
-                          ? "bg-blue-500"
+                          ? "bg-blue-600"
                           : "bg-emerald-500"
                       }`}
                       style={{ width: `${member.capacity}%` }}
                     ></div>
                   </div>
 
-                  <p className="mt-3 text-[11px] text-slate-400 pt-2.5 border-t border-slate-800/80 flex items-center justify-between">
+                  <p className="mt-3 text-[11px] text-slate-500 pt-2.5 border-t border-slate-200/80 flex items-center justify-between">
                     <span>Assigned deliverables</span>
-                    <span className="font-bold text-slate-200">{member.tasks} tasks</span>
+                    <span className="font-bold text-slate-800">{member.tasks} tasks</span>
                   </p>
                 </div>
               ))}
@@ -857,19 +829,19 @@ const DashboardPage = () => {
       {showCreateTaskModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
             onClick={() => setShowCreateTaskModal(false)}
           />
-          <div className="relative w-full max-w-md rounded-2xl border border-slate-800 bg-[#0F172A] p-5 sm:p-6 shadow-2xl z-10 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xl z-10 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-sm font-bold text-white">Create New Task</h3>
-                <p className="text-[11px] text-slate-400 mt-0.5">Assign a deliverable to your team member.</p>
+                <h3 className="text-sm font-bold text-slate-900">Create New Task</h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">Assign a deliverable to your team member.</p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowCreateTaskModal(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               >
                 <X size={16} />
               </button>
@@ -877,23 +849,23 @@ const DashboardPage = () => {
 
             <form onSubmit={handleCreateTaskSubmit} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300">Task Title *</label>
+                <label className="block text-[11px] font-semibold text-slate-700">Task Title *</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Implement drag-and-drop kanban"
                   value={newTask.title}
                   onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/30"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300">Project</label>
+                <label className="block text-[11px] font-semibold text-slate-700">Project</label>
                 <select
                   value={newTask.project}
                   onChange={(e) => setNewTask({ ...newTask, project: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/80 px-2.5 py-1.5 text-xs text-slate-200 focus:border-blue-500 focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                 >
                   <option value="WorkSync Web App">WorkSync Web App</option>
                   <option value="Mobile Companion App">Mobile Companion App</option>
@@ -904,11 +876,11 @@ const DashboardPage = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300">Assignee</label>
+                  <label className="block text-[11px] font-semibold text-slate-700">Assignee</label>
                   <select
                     value={newTask.assignee}
                     onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })}
-                    className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/80 px-2.5 py-1.5 text-xs text-slate-200 focus:border-blue-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                   >
                     <option value="Devanshi">Devanshi (Manager)</option>
                     <option value="Ayan">Ayan (Admin)</option>
@@ -918,11 +890,11 @@ const DashboardPage = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300">Priority</label>
+                  <label className="block text-[11px] font-semibold text-slate-700">Priority</label>
                   <select
                     value={newTask.priority}
                     onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
-                    className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/80 px-2.5 py-1.5 text-xs text-slate-200 focus:border-blue-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                   >
                     <option value="High">High</option>
                     <option value="Medium">Medium</option>
@@ -932,27 +904,27 @@ const DashboardPage = () => {
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300">Due Date</label>
+                <label className="block text-[11px] font-semibold text-slate-700">Due Date</label>
                 <input
                   type="text"
                   placeholder="e.g. Oct 30, 2026"
                   value={newTask.dueDate}
                   onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
                 />
               </div>
 
-              <div className="mt-4 flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800">
+              <div className="mt-4 flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowCreateTaskModal(false)}
-                  className="rounded-xl border border-slate-800 px-3.5 py-1.5 text-xs font-medium text-slate-400 hover:bg-slate-800"
+                  className="rounded-xl border border-slate-200 px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md hover:from-blue-500 hover:to-indigo-500"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700"
                 >
                   <Plus size={14} />
                   <span>Add Task</span>

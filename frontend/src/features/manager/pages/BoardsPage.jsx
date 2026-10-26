@@ -4,25 +4,17 @@ import {
   Kanban,
   Plus,
   Search,
-  Filter,
   Calendar,
-  Clock3,
-  CheckCircle2,
-  ArrowLeft,
-  ArrowRight,
-  MoreVertical,
   X,
   Menu,
   ChevronRight,
   ChevronLeft,
-  Sparkles,
   ExternalLink,
-  Users,
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import { initialProjects } from "./ProjectsPage.jsx";
 
-const initialBoardTasks = [
+export const initialBoardTasks = [
   {
     id: "kb-1",
     title: "Implement WebSocket connection and live presence sync",
@@ -37,7 +29,7 @@ const initialBoardTasks = [
   },
   {
     id: "kb-2",
-    title: "Design dark theme SaaS workspace layout and card tokens",
+    title: "Design light theme SaaS workspace layout and card tokens",
     column: "Done",
     priority: "Medium",
     assignee: "Priya Patel",
@@ -122,16 +114,16 @@ const initialBoardTasks = [
 ];
 
 const COLUMNS = [
-  { id: "To Do", label: "To Do", color: "border-slate-500", dot: "bg-slate-400", badge: "bg-slate-800 text-slate-300" },
-  { id: "In Progress", label: "In Progress", color: "border-blue-500", dot: "bg-blue-400", badge: "bg-blue-500/10 text-blue-400" },
-  { id: "In Review", label: "In Review", color: "border-purple-500", dot: "bg-purple-400", badge: "bg-purple-500/10 text-purple-400" },
-  { id: "Done", label: "Done", color: "border-emerald-500", dot: "bg-emerald-400", badge: "bg-emerald-500/10 text-emerald-400" },
+  { id: "To Do", label: "To Do", dot: "bg-slate-400", badge: "bg-slate-100 text-slate-700 border-slate-200" },
+  { id: "In Progress", label: "In Progress", dot: "bg-blue-500", badge: "bg-blue-50 text-blue-700 border-blue-200" },
+  { id: "In Review", label: "In Review", dot: "bg-purple-500", badge: "bg-purple-50 text-purple-700 border-purple-200" },
+  { id: "Done", label: "Done", dot: "bg-emerald-500", badge: "bg-emerald-50 text-emerald-700 border-emerald-200" },
 ];
 
 const priorityStyles = {
-  High: "bg-rose-500/10 text-rose-400 border-rose-500/25",
-  Medium: "bg-amber-500/10 text-amber-400 border-amber-500/25",
-  Low: "bg-slate-500/10 text-slate-400 border-slate-500/25",
+  High: "bg-rose-50 text-rose-700 border-rose-200",
+  Medium: "bg-amber-50 text-amber-700 border-amber-200",
+  Low: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
 const BoardsPage = () => {
@@ -145,7 +137,6 @@ const BoardsPage = () => {
 
   // Add Task Modal
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
-  const [targetColumnForNewTask, setTargetColumnForNewTask] = useState("To Do");
   const [newTask, setNewTask] = useState({
     title: "",
     priority: "High",
@@ -289,42 +280,42 @@ const BoardsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#070D18] text-slate-100 flex antialiased selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex antialiased w-full max-w-full overflow-x-hidden selection:bg-blue-600 selection:text-white">
       {/* Scroll-Fixed Sidebar */}
       <Sidebar activeItem="boards" mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} />
 
-      {/* Main Content Area */}
-      <div className="flex-1 lg:pl-64 xl:pl-72 flex flex-col min-w-0 h-screen overflow-hidden">
+      {/* Main Content Area — Constrained Viewport to Prevent Page Overflow */}
+      <div className="flex-1 lg:pl-64 xl:pl-72 flex flex-col min-w-0 w-full max-w-full h-screen overflow-hidden">
         {/* Top Header Bar */}
-        <header className="shrink-0 border-b border-slate-800/80 bg-[#0B1120]/80 backdrop-blur-md px-4 py-3 sm:px-6 lg:px-8">
+        <header className="shrink-0 border-b border-slate-200 bg-white/90 backdrop-blur-md px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
             {/* Left: Mobile Trigger & Navigation */}
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}
-                className="rounded-xl border border-slate-800 p-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200 lg:hidden"
+                className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 lg:hidden"
                 aria-label="Open mobile navigation menu"
               >
                 <Menu size={18} />
               </button>
 
-              <div className="flex items-center gap-2 text-xs text-slate-400">
+              <div className="flex items-center gap-2 text-xs text-slate-500">
                 <Link
                   to="/manager/projects"
-                  className="text-slate-400 hover:text-blue-400 transition"
+                  className="text-slate-500 hover:text-blue-600 transition"
                 >
                   Projects
                 </Link>
-                <ChevronRight size={13} className="text-slate-600" />
+                <ChevronRight size={13} className="text-slate-400" />
                 <Link
                   to={`/manager/projects/${relatedProject.id}`}
-                  className="text-slate-400 hover:text-blue-400 transition truncate max-w-[120px] sm:max-w-none"
+                  className="text-slate-500 hover:text-blue-600 transition truncate max-w-[120px] sm:max-w-none"
                 >
                   {relatedProject.name}
                 </Link>
-                <ChevronRight size={13} className="text-slate-600" />
-                <span className="font-semibold text-blue-400">Kanban Board</span>
+                <ChevronRight size={13} className="text-slate-400" />
+                <span className="font-semibold text-blue-600">Kanban Board</span>
               </div>
             </div>
 
@@ -332,10 +323,10 @@ const BoardsPage = () => {
             <div className="flex items-center gap-2.5">
               <Link
                 to={`/manager/projects/${relatedProject.id}`}
-                className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition"
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition shadow-xs"
               >
                 <span>Project Overview</span>
-                <ExternalLink size={12} className="text-slate-500" />
+                <ExternalLink size={12} className="text-slate-400" />
               </Link>
 
               <button
@@ -344,7 +335,7 @@ const BoardsPage = () => {
                   setNewTask((prev) => ({ ...prev, column: "To Do" }));
                   setShowAddTaskModal(true);
                 }}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition active:scale-[0.98]"
               >
                 <Plus size={14} />
                 <span>Add Task</span>
@@ -354,38 +345,38 @@ const BoardsPage = () => {
         </header>
 
         {/* Board Context Subheader & Controls Bar */}
-        <div className="shrink-0 border-b border-slate-800/80 bg-[#0B1120]/50 px-4 py-3 sm:px-6 lg:px-8 space-y-3">
+        <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 sm:px-6 lg:px-8 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <div className="flex items-center gap-2.5">
-                <h1 className="text-lg font-bold text-white tracking-tight">
+                <h1 className="text-lg font-bold text-slate-900 tracking-tight">
                   Sprint 4 Kanban Board
                 </h1>
-                <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold text-blue-400 border border-blue-500/20">
+                <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200/80">
                   {filteredTasks.length} Active Tasks
                 </span>
               </div>
-              <p className="mt-0.5 text-xs text-slate-400">
-                Connected to <span className="text-slate-200 font-medium">{relatedProject.name}</span> • Oct 15 – Nov 12 Delivery Cycle
+              <p className="mt-0.5 text-xs text-slate-500">
+                Connected to <span className="text-slate-800 font-medium">{relatedProject.name}</span> • Oct 15 – Nov 12 Delivery Cycle
               </p>
             </div>
 
             {/* Search & Priority Controls */}
             <div className="flex items-center gap-2.5">
               <div className="relative w-44 sm:w-56">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={13} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
                 <input
                   type="text"
                   placeholder="Filter cards..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-xl border border-slate-800 bg-slate-900/80 py-1 pl-8 pr-7 text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-200 bg-white py-1 pl-8 pr-7 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   >
                     <X size={12} />
                   </button>
@@ -395,7 +386,7 @@ const BoardsPage = () => {
               <select
                 value={selectedPriority}
                 onChange={(e) => setSelectedPriority(e.target.value)}
-                className="rounded-xl border border-slate-800 bg-slate-900/80 py-1 px-2.5 text-xs font-medium text-slate-300 focus:border-blue-500 focus:outline-none"
+                className="rounded-xl border border-slate-200 bg-white py-1 px-2.5 text-xs font-medium text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
               >
                 <option value="All">All Priorities</option>
                 <option value="High">High</option>
@@ -406,9 +397,9 @@ const BoardsPage = () => {
           </div>
         </div>
 
-        {/* Kanban Columns Horizontal Scrolling Board Container */}
-        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden p-4 sm:p-6 lg:p-8 [scrollbar-width:thin] [scrollbar-color:#334155_transparent]">
-          <div className="flex items-start gap-4 h-full min-w-[1000px] xl:min-w-0">
+        {/* Kanban Columns Horizontal Scrolling Board Container — Scoped to this container only */}
+        <div className="flex-1 min-h-0 min-w-0 w-full max-w-full overflow-x-auto overflow-y-hidden p-4 sm:p-6 [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent]">
+          <div className="flex items-stretch gap-4 h-full min-w-min pb-2">
             {COLUMNS.map((column) => {
               const columnTasks = tasksByColumn[column.id] || [];
 
@@ -417,17 +408,17 @@ const BoardsPage = () => {
                   key={column.id}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, column.id)}
-                  className="flex-1 flex flex-col h-full rounded-2xl border border-slate-800/80 bg-[#0F172A]/60 backdrop-blur-sm p-3.5 shadow-lg shadow-black/10 min-w-[260px] max-w-[340px] xl:max-w-none"
+                  className="w-72 sm:w-80 shrink-0 flex flex-col h-full rounded-2xl border border-slate-200/90 bg-slate-100/70 p-3.5 shadow-xs"
                 >
                   {/* Column Header */}
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200 shrink-0">
                     <div className="flex items-center gap-2">
                       <span className={`h-2 w-2 rounded-full ${column.dot}`}></span>
-                      <h3 className="text-xs font-bold text-white tracking-wide uppercase">
+                      <h3 className="text-xs font-bold text-slate-800 tracking-wide uppercase">
                         {column.label}
                       </h3>
                       <span
-                        className={`rounded-full px-2 py-0.2 text-[10px] font-bold border border-slate-800 ${column.badge}`}
+                        className={`rounded-full px-2 py-0.2 text-[10px] font-bold border ${column.badge}`}
                       >
                         {columnTasks.length}
                       </span>
@@ -436,7 +427,7 @@ const BoardsPage = () => {
                     <button
                       type="button"
                       onClick={() => openAddTaskForColumn(column.id)}
-                      className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+                      className="rounded-lg p-1 text-slate-500 hover:bg-white hover:text-slate-800 transition"
                       title={`Add task to ${column.label}`}
                     >
                       <Plus size={14} />
@@ -444,7 +435,7 @@ const BoardsPage = () => {
                   </div>
 
                   {/* Column Task Cards Scrollable Area */}
-                  <div className="flex-1 min-h-0 overflow-y-auto pt-3 space-y-3 pr-1 [scrollbar-width:thin] [scrollbar-color:#334155_transparent]">
+                  <div className="flex-1 min-h-0 overflow-y-auto pt-3 space-y-3 pr-1 [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent]">
                     {columnTasks.map((task) => {
                       const columnIndex = COLUMNS.findIndex((c) => c.id === column.id);
                       const canMoveLeft = columnIndex > 0;
@@ -455,7 +446,7 @@ const BoardsPage = () => {
                           key={task.id}
                           draggable
                           onDragStart={(e) => handleDragStart(e, task.id)}
-                          className="group relative rounded-xl border border-slate-800/90 bg-[#131D33]/90 p-3.5 shadow-sm hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/5 transition cursor-grab active:cursor-grabbing backdrop-blur-sm"
+                          className="group relative rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-xs hover:border-blue-300 hover:shadow-sm transition cursor-grab active:cursor-grabbing"
                         >
                           {/* Tags & Priority */}
                           <div className="flex items-center justify-between gap-1.5">
@@ -463,7 +454,7 @@ const BoardsPage = () => {
                               {task.tags.map((tag) => (
                                 <span
                                   key={tag}
-                                  className="rounded-md bg-slate-900/80 px-1.5 py-0.5 text-[9px] font-medium text-slate-400 border border-slate-800"
+                                  className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-medium text-slate-600 border border-slate-200/60"
                                 >
                                   {tag}
                                 </span>
@@ -480,12 +471,12 @@ const BoardsPage = () => {
                           </div>
 
                           {/* Task Title */}
-                          <h4 className="mt-2 text-xs font-semibold text-slate-200 leading-snug group-hover:text-white transition">
+                          <h4 className="mt-2 text-xs font-semibold text-slate-800 leading-snug group-hover:text-blue-600 transition break-words">
                             {task.title}
                           </h4>
 
                           {/* Footer: Assignee & Due Date */}
-                          <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between">
+                          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
                               <div
                                 title={`${task.assignee} (${task.assigneeRole})`}
@@ -493,19 +484,19 @@ const BoardsPage = () => {
                               >
                                 {task.assigneeAvatar}
                               </div>
-                              <span className="text-[10px] text-slate-400 font-medium truncate max-w-[90px]">
+                              <span className="text-[10px] text-slate-600 font-medium truncate max-w-[100px]">
                                 {task.assignee}
                               </span>
                             </div>
 
                             <div className="flex items-center gap-1 text-[10px] text-slate-500">
-                              <Calendar size={11} className="text-slate-600" />
+                              <Calendar size={11} className="text-slate-400" />
                               <span>{task.dueDate}</span>
                             </div>
                           </div>
 
-                          {/* Quick Status Shift Controls (Always available for touch & quick click) */}
-                          <div className="mt-2.5 pt-2 border-t border-slate-850 flex items-center justify-between text-[10px]">
+                          {/* Quick Status Shift Controls */}
+                          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
                             {canMoveLeft ? (
                               <button
                                 type="button"
@@ -513,7 +504,7 @@ const BoardsPage = () => {
                                   e.stopPropagation();
                                   handleMoveTask(task.id, "left");
                                 }}
-                                className="inline-flex items-center gap-1 text-slate-400 hover:text-blue-400 px-1.5 py-0.5 rounded hover:bg-slate-900 transition"
+                                className="inline-flex items-center gap-1 text-slate-500 hover:text-blue-600 px-1.5 py-0.5 rounded hover:bg-slate-50 transition"
                                 title={`Move to ${COLUMNS[columnIndex - 1].label}`}
                               >
                                 <ChevronLeft size={12} />
@@ -530,7 +521,7 @@ const BoardsPage = () => {
                                   e.stopPropagation();
                                   handleMoveTask(task.id, "right");
                                 }}
-                                className="inline-flex items-center gap-1 text-slate-400 hover:text-blue-400 px-1.5 py-0.5 rounded hover:bg-slate-900 transition"
+                                className="inline-flex items-center gap-1 text-slate-500 hover:text-blue-600 px-1.5 py-0.5 rounded hover:bg-slate-50 transition"
                                 title={`Move to ${COLUMNS[columnIndex + 1].label}`}
                               >
                                 <span>{COLUMNS[columnIndex + 1].label}</span>
@@ -545,12 +536,12 @@ const BoardsPage = () => {
                     })}
 
                     {columnTasks.length === 0 && (
-                      <div className="py-8 text-center border border-dashed border-slate-800/80 rounded-xl">
-                        <p className="text-[11px] text-slate-500">No cards in this column</p>
+                      <div className="py-8 text-center border border-dashed border-slate-200 rounded-xl bg-white/60">
+                        <p className="text-[11px] text-slate-400">No cards in this column</p>
                         <button
                           type="button"
                           onClick={() => openAddTaskForColumn(column.id)}
-                          className="mt-1.5 text-[10px] text-blue-400 hover:text-blue-300 font-medium"
+                          className="mt-1.5 text-[10px] text-blue-600 hover:text-blue-700 font-medium"
                         >
                           + Add a card
                         </button>
@@ -568,116 +559,115 @@ const BoardsPage = () => {
       {showAddTaskModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
             onClick={() => setShowAddTaskModal(false)}
           />
-          <div className="relative w-full max-w-md rounded-2xl border border-slate-800 bg-[#0F172A] p-5 shadow-2xl z-10 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-sm font-bold text-white">Add Card to {newTask.column}</h3>
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl z-10 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">Add Card to {newTask.column}</h3>
               <button
                 type="button"
                 onClick={() => setShowAddTaskModal(false)}
-                className="text-slate-400 hover:text-slate-200"
+                className="text-slate-400 hover:text-slate-600"
               >
                 <X size={16} />
               </button>
             </div>
 
-            <form onSubmit={handleAddTaskSubmit} className="space-y-3">
+            <form onSubmit={handleAddTaskSubmit} className="space-y-3.5">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300">Task Title *</label>
+                <label className="block text-[11px] font-semibold text-slate-700">Task Title *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Audit WebSocket reconnect exponential backoff"
+                  placeholder="e.g. Design user verification prompt"
                   value={newTask.title}
                   onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300">Target Column</label>
-                  <select
-                    value={newTask.column}
-                    onChange={(e) => setNewTask({ ...newTask, column: e.target.value })}
-                    className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-xs text-slate-200 focus:border-blue-500 focus:outline-none"
-                  >
-                    {COLUMNS.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-300">Priority</label>
+                  <label className="block text-[11px] font-semibold text-slate-700">Priority</label>
                   <select
                     value={newTask.priority}
                     onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
-                    className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-xs text-slate-200 focus:border-blue-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                   >
                     <option value="High">High</option>
                     <option value="Medium">Medium</option>
                     <option value="Low">Low</option>
                   </select>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300">Assignee</label>
+                  <label className="block text-[11px] font-semibold text-slate-700">Column</label>
                   <select
-                    value={newTask.assignee}
-                    onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })}
-                    className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-xs text-slate-200 focus:border-blue-500 focus:outline-none"
+                    value={newTask.column}
+                    onChange={(e) => setNewTask({ ...newTask, column: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                   >
-                    {["Devanshi Sharma", "Ayan Mukherjee", "Rouhan Siddiqui", "Priya Patel"].map((m) => (
-                      <option key={m} value={m}>
-                        {m}
+                    {COLUMNS.map((col) => (
+                      <option key={col.id} value={col.id}>
+                        {col.label}
                       </option>
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700">Assignee</label>
+                  <select
+                    value={newTask.assignee}
+                    onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="Rouhan Siddiqui">Rouhan Siddiqui</option>
+                    <option value="Ayan Mukherjee">Ayan Mukherjee</option>
+                    <option value="Devanshi Sharma">Devanshi Sharma</option>
+                    <option value="Priya Patel">Priya Patel</option>
+                  </select>
+                </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300">Due Date</label>
+                  <label className="block text-[11px] font-semibold text-slate-700">Due Date</label>
                   <input
                     type="text"
                     placeholder="e.g. Nov 20"
                     value={newTask.dueDate}
                     onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-                    className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300">Tags (comma separated)</label>
+                <label className="block text-[11px] font-semibold text-slate-700">Tags (comma separated)</label>
                 <input
                   type="text"
-                  placeholder="e.g. Frontend, Sprint 4"
+                  placeholder="e.g. Sockets, Realtime"
                   value={newTask.tags}
                   onChange={(e) => setNewTask({ ...newTask, tags: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
                 />
               </div>
 
-              <div className="mt-4 flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowAddTaskModal(false)}
-                  className="rounded-xl border border-slate-800 px-3 py-1.5 text-xs font-medium text-slate-400 hover:bg-slate-850"
+                  className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 shadow-md"
+                  className="rounded-xl bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition"
                 >
-                  Create Card
+                  Add Card
                 </button>
               </div>
             </form>
