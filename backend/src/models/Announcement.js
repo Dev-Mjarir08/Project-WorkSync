@@ -23,6 +23,11 @@ const announcementSchema = new mongoose.Schema(
       enum: ['all', 'admins', 'members'],
       default: 'all'
     },
+    workspace: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Workspace',
+      index: true
+    },
     status: {
       type: String,
       enum: ['draft', 'published', 'archived'],

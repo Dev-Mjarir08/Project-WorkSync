@@ -15,6 +15,12 @@ import tasksRoutes from './tasks/tasks.routes.js';
 import analyticsRoutes from './analytics/analytics.routes.js';
 import activitiesRoutes from './activities/activities.routes.js';
 import auditLogsRoutes from './audit-logs/auditLogs.routes.js';
+import announcementsRoutes from './announcements/announcements.routes.js';
+import notificationsRoutes from './notifications/notifications.routes.js';
+import {
+  getNotificationSettings,
+  updateNotificationSettings
+} from './notifications/notifications.controller.js';
 import { getAvailablePermissions } from './roles/roles.controller.js';
 
 const router = Router();
@@ -54,6 +60,14 @@ router.use('/analytics', analyticsRoutes);
 // 10. Activity & Audit Logs APIs
 router.use('/activities', activitiesRoutes);
 router.use('/audit-logs', auditLogsRoutes);
+
+// 11. Workspace Announcements APIs
+router.use('/announcements', announcementsRoutes);
+
+// 12. Notification Management APIs
+router.use('/notifications', notificationsRoutes);
+router.get('/notification-settings', getNotificationSettings);
+router.patch('/notification-settings', updateNotificationSettings);
 
 // 8. Workspace Management & Settings APIs
 router.use('/workspace', workspaceRoutes);
