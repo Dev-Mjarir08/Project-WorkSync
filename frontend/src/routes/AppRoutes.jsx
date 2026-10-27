@@ -14,6 +14,7 @@ import TeamWorkloadPage from "../features/manager/pages/TeamWorkloadPage.jsx";
 import ReportsPage from "../features/manager/pages/ReportsPage.jsx";
 import NotificationsPage from "../features/manager/pages/NotificationsPage.jsx";
 import ProfilePage from "../features/manager/pages/ProfilePage.jsx";
+import CreateTaskPage from "../features/manager/pages/CreateTaskPage.jsx";
 import TaskDetailsPage from "../features/manager/pages/TaskDetailsPage.jsx";
 
 // Auth pages
@@ -89,6 +90,7 @@ const AppRoutes = () => {
       <Route path="/manager/projects/:projectId" element={<ProjectDetailsPage />} />
       <Route path="/manager/boards/:boardId" element={<BoardsPage />} />
       <Route path="/manager/tasks" element={<TasksPage />} />
+      <Route path="/manager/tasks/create" element={<CreateTaskPage />} />
       <Route path="/manager/tasks/:taskId" element={<TaskDetailsPage />} />
       <Route path="/manager/activity" element={<ActivityPage />} />
       <Route path="/manager/assignments" element={<AssignmentsPage />} />
