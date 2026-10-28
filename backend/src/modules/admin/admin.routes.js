@@ -17,6 +17,7 @@ import activitiesRoutes from './activities/activities.routes.js';
 import auditLogsRoutes from './audit-logs/auditLogs.routes.js';
 import announcementsRoutes from './announcements/announcements.routes.js';
 import notificationsRoutes from './notifications/notifications.routes.js';
+import profileRoutes from './profile/profile.routes.js';
 import {
   getNotificationSettings,
   updateNotificationSettings
@@ -68,6 +69,9 @@ router.use('/announcements', announcementsRoutes);
 router.use('/notifications', notificationsRoutes);
 router.get('/notification-settings', getNotificationSettings);
 router.patch('/notification-settings', updateNotificationSettings);
+
+// 13. Admin Profile APIs
+router.use('/profile', profileRoutes);
 
 // 8. Workspace Management & Settings APIs
 router.use('/workspace', workspaceRoutes);
