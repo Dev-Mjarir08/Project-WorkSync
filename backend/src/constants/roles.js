@@ -1,8 +1,10 @@
-// This roles.js file
-
-export const roles = {
-  name: 'roles',
-  message: 'This roles site'
+export const ROLES = {
+  SUPER_ADMIN: 'super_admin',
+  ADMIN: 'admin',
+  MEMBER: 'member',
+  VIEWER: 'viewer'
 };
 
-export default roles;
+export const ROLE_VALUES = Object.values(ROLES);
+
+export default ROLES;

@@ -1,8 +1,3 @@
-// This auth.controller.js file
-
-export const authController = {
-  name: 'auth',
-  description: 'This auth.controller.js site / controller'
-};
-
+export * from '../modules/auth/auth.controller.js';
+import * as authController from '../modules/auth/auth.controller.js';
 export default authController;
