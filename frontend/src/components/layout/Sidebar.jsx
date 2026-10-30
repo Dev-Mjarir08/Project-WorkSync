@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, LayoutDashboard, PanelsTopLeft, Send } from 'lucide-react';
+import { Activity, Bell, LayoutDashboard, PanelsTopLeft, Send } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const links = [
@@ -7,6 +7,7 @@ const links = [
   { label: 'Boards', to: '/admin/boards', icon: PanelsTopLeft },
   { label: 'Invitations', to: '/admin/invitations', icon: Send },
   { label: 'Activity', to: '/admin/activity', icon: Activity },
+  { label: 'Notifications', to: '/admin/notifications', icon: Bell },
 ];
 
 const Sidebar = () => (
