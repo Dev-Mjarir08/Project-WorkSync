@@ -1,8 +1,3 @@
-// This superAdmin.controller.js file
-
-export const superAdminController = {
-  name: 'superAdmin',
-  description: 'This superAdmin.controller.js site / controller'
-};
-
+export * from '../modules/super-admin/superAdmin.controller.js';
+import * as superAdminController from '../modules/super-admin/superAdmin.controller.js';
 export default superAdminController;

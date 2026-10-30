@@ -16,7 +16,8 @@ const startServer = async () => {
       console.log(`===============================================`);
       console.log(`🚀 WorkSync Backend running on port ${PORT}`);
       console.log(`📡 Health Check: http://localhost:${PORT}/api/health`);
-      console.log(`🔐 Auth API:    http://localhost:${PORT}/api/v1/auth`);
+      console.log(`🔐 Auth API:        http://localhost:${PORT}/api/v1/auth`);
+      console.log(`👑 Super Admin API: http://localhost:${PORT}/api/v1/super-admin`);
       console.log(`🌍 Environment: ${ENV.NODE_ENV}`);
       console.log(`===============================================`);
     });

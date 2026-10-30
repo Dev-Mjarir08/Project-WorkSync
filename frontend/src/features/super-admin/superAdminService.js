@@ -1,6 +1,14 @@
 // Super Admin Service: provides live API interaction with resilient mock fallback
 const API_BASE_URL = 'http://localhost:8081/api';
 
+const getAuthHeaders = () => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
+  };
+};
+
 // Initial realistic data for Super Admin state
 let mockUsers = [
   {
@@ -153,6 +161,20 @@ let mockWorkspaces = [
 export const superAdminService = {
   // Get overview KPI stats
   getDashboardOverview: async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/dashboard`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && json.data.stats) {
+          return json.data;
+        }
+      }
+    } catch {
+      // Backend not running or offline, keep default mock fallback
+    }
+
     let dbStatus = 'connected';
     try {
       const res = await fetch(`${API_BASE_URL}/health`);
@@ -242,6 +264,29 @@ export const superAdminService = {
 
   // Users Management
   getUsers: async ({ search = '', role = 'all', status = 'all' } = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (search) queryParams.append('search', search);
+      if (role && role !== 'all') queryParams.append('role', role);
+      if (status && status !== 'all') queryParams.append('status', status);
+
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/users?${queryParams.toString()}`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && json.data.users) {
+          return {
+            users: json.data.users,
+            totalCount: json.data.totalCount,
+            rolesSummary: json.data.rolesSummary
+          };
+        }
+      }
+    } catch {
+      // Backend not running or offline, keep default mock fallback
+    }
+
     let filtered = [...mockUsers];
 
     if (search.trim()) {
@@ -274,8 +319,43 @@ export const superAdminService = {
     };
   },
 
+  // Get single user details by ID
+  getUserById: async (userId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/users/${userId}`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && json.data.user) {
+          return json.data.user;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+
+    return mockUsers.find(u => u.id === userId || u._id === userId) || null;
+  },
+
   // Create new user
   createUser: async (userData) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/users`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(userData)
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && json.data.user) {
+          return json.data.user;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+
     const newUser = {
       id: `usr-${Date.now()}`,
       name: userData.name,
@@ -293,7 +373,23 @@ export const superAdminService = {
 
   // Update user role
   updateUserRole: async (userId, role) => {
-    const user = mockUsers.find(u => u.id === userId);
+    try {
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/users/${userId}/role`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ role })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && json.data.user) {
+          return json.data.user;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+
+    const user = mockUsers.find(u => u.id === userId || u._id === userId);
     if (user) {
       user.role = role;
     }
@@ -301,17 +397,45 @@ export const superAdminService = {
   },
 
   // Toggle user active status
-  toggleUserStatus: async (userId) => {
-    const user = mockUsers.find(u => u.id === userId);
+  toggleUserStatus: async (userId, isActive = undefined) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/users/${userId}/status`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(typeof isActive === 'boolean' ? { isActive } : {})
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && json.data.user) {
+          return json.data.user;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+
+    const user = mockUsers.find(u => u.id === userId || u._id === userId);
     if (user) {
-      user.isActive = !user.isActive;
+      user.isActive = typeof isActive === 'boolean' ? isActive : !user.isActive;
     }
     return user;
   },
 
   // Delete user
   deleteUser: async (userId) => {
-    mockUsers = mockUsers.filter(u => u.id !== userId);
+    try {
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        return true;
+      }
+    } catch {
+      // offline fallback
+    }
+
+    mockUsers = mockUsers.filter(u => u.id !== userId && u._id !== userId);
     return true;
   },
 

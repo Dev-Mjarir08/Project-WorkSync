@@ -6,6 +6,7 @@ import corsOptions from './config/cors.js';
 import { notFound } from './middleware/notFound.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './modules/auth/auth.routes.js';
+import superAdminRoutes from './modules/super-admin/superAdmin.routes.js';
 
 export const app = express();
 
@@ -45,6 +46,12 @@ app.get('/api/health', (req, res) => {
 // Auth Routes (Mounted under /api/v1/auth and /api/auth for smooth access)
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/auth', authRoutes);
+
+// Super Admin Routes (Mounted under /api/v1/super-admin, /api/super-admin, and admin aliases)
+app.use('/api/v1/super-admin', superAdminRoutes);
+app.use('/api/super-admin', superAdminRoutes);
+app.use('/api/v1/admin', superAdminRoutes);
+app.use('/api/admin', superAdminRoutes);
 
 // Catch 404 routes
 app.use(notFound);
