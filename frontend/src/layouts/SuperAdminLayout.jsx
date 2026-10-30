@@ -14,7 +14,9 @@ import {
   Sparkles,
   ExternalLink,
   ChevronDown,
-  Database
+  Database,
+  FileText,
+  Sliders
 } from 'lucide-react';
 
 export const SuperAdminLayout = () => {
@@ -47,6 +49,22 @@ export const SuperAdminLayout = () => {
       path: '/super-admin/system-health',
       icon: Activity,
       badge: '99.9%'
+    },
+    {
+      name: 'Roles & Permissions',
+      path: '/super-admin/roles',
+      icon: ShieldCheck
+    },
+    {
+      name: 'Audit Logs',
+      path: '/super-admin/audit-logs',
+      icon: FileText,
+      badge: 'Live'
+    },
+    {
+      name: 'Platform Settings',
+      path: '/super-admin/settings',
+      icon: Sliders
     }
   ];
 

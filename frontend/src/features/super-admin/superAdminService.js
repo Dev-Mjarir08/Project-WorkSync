@@ -549,6 +549,254 @@ export const superAdminService = {
         { name: 'Notification Service', status: 'Operational', latency: '18ms' }
       ]
     };
+  },
+
+  // Audit Logs
+  getAuditLogs: async ({ search = '', category = 'all', status = 'all' } = {}) => {
+    let logs = [
+      {
+        id: 'log-101',
+        action: 'User Role Promoted',
+        category: 'user_management',
+        details: 'User Sarah Connor promoted to Platform Admin',
+        actor: { name: 'Jarir Multani', email: '08mjarir@gmail.com', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop' },
+        target: 'Sarah Connor (sarah.c@techcorp.io)',
+        ip: '127.0.0.1',
+        location: 'Mumbai, IN',
+        status: 'warning',
+        timestamp: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
+        timeAgo: '12 mins ago'
+      },
+      {
+        id: 'log-102',
+        action: 'Workspace Created',
+        category: 'workspace',
+        details: 'Tenant workspace "Fintech Mobile App Launch" provisioned with Enterprise tier',
+        actor: { name: 'Priya Sharma', email: 'priya.s@fintech.global', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&h=120&fit=crop' },
+        target: 'Workspace ws-103',
+        ip: '103.45.12.8',
+        location: 'Delhi, IN',
+        status: 'success',
+        timestamp: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
+        timeAgo: '35 mins ago'
+      },
+      {
+        id: 'log-103',
+        action: 'User Account Suspended',
+        category: 'security',
+        details: 'User account David Kim suspended by policy automation due to inactivity',
+        actor: { name: 'System Sentinel', email: 'security@worksync.internal', avatar: '' },
+        target: 'David Kim (david.kim@alpha.tech)',
+        ip: '192.168.1.1',
+        location: 'Cloud Gateway',
+        status: 'error',
+        timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+        timeAgo: '2 hours ago'
+      },
+      {
+        id: 'log-104',
+        action: 'Member Invited',
+        category: 'user_management',
+        details: 'Invited Elena Rostova to Design & UX Studio with role "member"',
+        actor: { name: 'Jarir Multani', email: '08mjarir@gmail.com', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop' },
+        target: 'Elena Rostova (elena@designhub.studio)',
+        ip: '127.0.0.1',
+        location: 'Mumbai, IN',
+        status: 'success',
+        timestamp: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
+        timeAgo: '4 hours ago'
+      },
+      {
+        id: 'log-105',
+        action: 'Security Credential Changed',
+        category: 'authentication',
+        details: 'Super Admin security credential update completed successfully',
+        actor: { name: 'Jarir Multani', email: '08mjarir@gmail.com', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop' },
+        target: 'Platform Master Account',
+        ip: '127.0.0.1',
+        location: 'Mumbai, IN',
+        status: 'info',
+        timestamp: new Date(Date.now() - 1000 * 60 * 360).toISOString(),
+        timeAgo: '6 hours ago'
+      },
+      {
+        id: 'log-106',
+        action: 'API Key Generated',
+        category: 'security',
+        details: 'Production webhook endpoint configured with HMAC SHA-256 signing secret',
+        actor: { name: 'Sarah Connor', email: 'sarah.c@techcorp.io', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&h=120&fit=crop' },
+        target: 'Integration Service',
+        ip: '185.22.14.99',
+        location: 'London, UK',
+        status: 'success',
+        timestamp: new Date(Date.now() - 1000 * 60 * 600).toISOString(),
+        timeAgo: '10 hours ago'
+      },
+      {
+        id: 'log-107',
+        action: 'Database Snapshot Backup',
+        category: 'system',
+        details: 'Scheduled MongoDB automated backup completed (3.8 GB encrypted dump)',
+        actor: { name: 'System Sentinel', email: 'backup@worksync.internal', avatar: '' },
+        target: 'Atlas Cluster ReplicaSet',
+        ip: '10.0.0.4',
+        location: 'AWS Mumbai (ap-south-1)',
+        status: 'success',
+        timestamp: new Date(Date.now() - 1000 * 60 * 1440).toISOString(),
+        timeAgo: 'Yesterday'
+      }
+    ];
+
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      logs = logs.filter(
+        l =>
+          l.action.toLowerCase().includes(q) ||
+          l.details.toLowerCase().includes(q) ||
+          l.actor.name.toLowerCase().includes(q) ||
+          l.actor.email.toLowerCase().includes(q) ||
+          l.target.toLowerCase().includes(q) ||
+          l.ip.includes(q)
+      );
+    }
+
+    if (category !== 'all') {
+      logs = logs.filter(l => l.category === category);
+    }
+
+    if (status !== 'all') {
+      logs = logs.filter(l => l.status === status);
+    }
+
+    return {
+      logs,
+      totalCount: logs.length,
+      metrics: {
+        totalEvents: 1482,
+        securityAlerts: 4,
+        activeSessions: 48,
+        complianceScore: '99.8%'
+      }
+    };
+  },
+
+  // Roles & Permissions configuration
+  getRolesPermissions: async () => {
+    return {
+      roles: [
+        {
+          id: 'super_admin',
+          name: 'Super Admin',
+          badge: 'Root Authority',
+          color: 'purple',
+          description: 'Unrestricted master access across all tenants, user roles, system configurations, and database infrastructure.',
+          usersCount: 1,
+          isSystem: true
+        },
+        {
+          id: 'admin',
+          name: 'Workspace Admin',
+          badge: 'Tenant Lead',
+          color: 'blue',
+          description: 'Full workspace administrative capabilities including inviting users, managing boards, workflows, and billing.',
+          usersCount: 2,
+          isSystem: false
+        },
+        {
+          id: 'member',
+          name: 'Team Member',
+          badge: 'Standard Access',
+          color: 'emerald',
+          description: 'Standard collaborator capable of creating tasks, updating board lists, commenting, and managing assignments.',
+          usersCount: 4,
+          isSystem: false
+        },
+        {
+          id: 'viewer',
+          name: 'Stakeholder / Viewer',
+          badge: 'Read Only',
+          color: 'slate',
+          description: 'Restricted read-only access for external clients and auditing stakeholders without editing permissions.',
+          usersCount: 1,
+          isSystem: false
+        }
+      ],
+      categories: [
+        {
+          name: 'Platform & Global Administration',
+          description: 'Master platform controls, database clusters, and tenant management',
+          permissions: [
+            { id: 'perm_super_console', name: 'Access Super Admin Console', super_admin: true, admin: false, member: false, viewer: false },
+            { id: 'perm_system_health', name: 'View Realtime Server Diagnostics & Health', super_admin: true, admin: false, member: false, viewer: false },
+            { id: 'perm_audit_logs', name: 'Audit Global Security & Activity Trails', super_admin: true, admin: false, member: false, viewer: false },
+            { id: 'perm_global_broadcast', name: 'Publish Global Platform Announcements', super_admin: true, admin: false, member: false, viewer: false }
+          ]
+        },
+        {
+          name: 'User & Identity Management',
+          description: 'User provisioning, authentication policies, and role assignment',
+          permissions: [
+            { id: 'perm_manage_users', name: 'Manage Global Users Directory', super_admin: true, admin: false, member: false, viewer: false },
+            { id: 'perm_change_role', name: 'Assign & Change Platform Roles', super_admin: true, admin: false, member: false, viewer: false },
+            { id: 'perm_toggle_status', name: 'Activate & Deactivate User Accounts', super_admin: true, admin: false, member: false, viewer: false },
+            { id: 'perm_delete_user', name: 'Permanently Delete User Accounts', super_admin: true, admin: false, member: false, viewer: false },
+            { id: 'perm_invite_members', name: 'Invite Workspace Collaborators', super_admin: true, admin: true, member: false, viewer: false }
+          ]
+        },
+        {
+          name: 'Workspace & Tenant Operations',
+          description: 'Organization provisioning, project boards, and storage quotas',
+          permissions: [
+            { id: 'perm_create_ws', name: 'Provision New Workspaces', super_admin: true, admin: true, member: true, viewer: false },
+            { id: 'perm_archive_ws', name: 'Archive & Delete Workspaces', super_admin: true, admin: true, member: false, viewer: false },
+            { id: 'perm_manage_billing', name: 'Manage Workspace Subscription & Invoicing', super_admin: true, admin: true, member: false, viewer: false },
+            { id: 'perm_adjust_storage', name: 'Override Storage & Quota Limits', super_admin: true, admin: false, member: false, viewer: false }
+          ]
+        },
+        {
+          name: 'Board & Kanban Engine',
+          description: 'Daily project execution, task management, and sprint planning',
+          permissions: [
+            { id: 'perm_create_board', name: 'Create Boards & Sprint Lists', super_admin: true, admin: true, member: true, viewer: false },
+            { id: 'perm_manage_tasks', name: 'Create, Edit, & Move Tasks', super_admin: true, admin: true, member: true, viewer: false },
+            { id: 'perm_assign_members', name: 'Assign Members to Task Cards', super_admin: true, admin: true, member: true, viewer: false },
+            { id: 'perm_delete_tasks', name: 'Delete Tasks & Archives', super_admin: true, admin: true, member: true, viewer: false },
+            { id: 'perm_comment_tasks', name: 'Post Comments & Attachments', super_admin: true, admin: true, member: true, viewer: false },
+            { id: 'perm_view_board', name: 'Read-Only Board Visibility', super_admin: true, admin: true, member: true, viewer: true }
+          ]
+        }
+      ]
+    };
+  },
+
+  // Platform Settings
+  getPlatformSettings: async () => {
+    return {
+      general: {
+        platformName: 'WorkSync Enterprise Cloud',
+        supportEmail: 'support@worksync.io',
+        maintenanceMode: false,
+        allowNewRegistrations: true,
+        defaultUserRole: 'member',
+        sessionTimeoutMinutes: 60
+      },
+      security: {
+        enforceMfa: true,
+        requireStrongPasswords: true,
+        maxLoginAttempts: 5,
+        ipWhitelistEnabled: false,
+        tokenExpiryDays: 7
+      },
+      storage: {
+        maxAttachmentSizeMb: 50,
+        workspaceQuotaGb: 20,
+        retentionDays: 365
+      }
+    };
+  },
+
+  updatePlatformSettings: async (settings) => {
+    return { success: true, settings, updatedAt: new Date().toISOString() };
   }
 };
 

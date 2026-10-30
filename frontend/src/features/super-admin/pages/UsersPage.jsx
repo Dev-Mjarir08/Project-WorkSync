@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
   Search,
@@ -15,11 +16,13 @@ import {
   Trash2,
   RefreshCw,
   X,
-  AlertCircle
+  AlertCircle,
+  Eye
 } from 'lucide-react';
 import superAdminService from '../superAdminService.js';
 
 export const UsersPage = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -226,14 +229,19 @@ export const UsersPage = () => {
                   <tr key={u.id} className="hover:bg-slate-900/40 transition-colors">
                     {/* User Info */}
                     <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-3">
+                      <div
+                        onClick={() => navigate(`/super-admin/users/${u.id || u._id}`)}
+                        className="flex items-center gap-3 cursor-pointer group"
+                      >
                         <img
                           src={u.avatar}
                           alt={u.name}
-                          className="h-9 w-9 rounded-full object-cover ring-1 ring-slate-700"
+                          className="h-9 w-9 rounded-full object-cover ring-1 ring-slate-700 group-hover:ring-indigo-500 transition-all"
                         />
                         <div>
-                          <div className="font-semibold text-white">{u.name}</div>
+                          <div className="font-semibold text-white group-hover:text-indigo-400 transition-colors">
+                            {u.name}
+                          </div>
                           <div className="text-xs text-slate-400 font-mono">{u.email}</div>
                         </div>
                       </div>
@@ -288,6 +296,14 @@ export const UsersPage = () => {
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => navigate(`/super-admin/users/${u.id || u._id}`)}
+                          title="View user details & permissions"
+                          className="p-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+
                         <button
                           onClick={() => handleToggleStatus(u.id)}
                           title={u.isActive ? 'Deactivate account' : 'Reactivate account'}
