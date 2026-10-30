@@ -6,6 +6,7 @@ import BoardsPage from '../features/admin/pages/BoardsPage';
 import CreateBoardPage from '../features/admin/pages/CreateBoardPage';
 import DashboardPage from '../features/admin/pages/DashboardPage';
 import InvitationsPage from '../features/admin/pages/InvitationsPage';
+import NotificationsPage from '../features/admin/pages/NotificationsPage';
 import AdminLayout from '../layouts/AdminLayout';
 
 const Router = () => (
@@ -15,6 +16,7 @@ const Router = () => (
       <Route path="dashboard" element={<DashboardPage />} />
       <Route path="activity" element={<ActivityPage />} />
       <Route path="invitations" element={<InvitationsPage />} />
+      <Route path="notifications" element={<NotificationsPage />} />
       <Route path="boards" element={<BoardsPage />} />
       <Route path="boards/new" element={<CreateBoardPage />} />
       <Route path="boards/:boardId" element={<BoardDetailsPage />} />
