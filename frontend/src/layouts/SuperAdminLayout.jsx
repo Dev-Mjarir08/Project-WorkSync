@@ -5,10 +5,11 @@ import {
   LayoutDashboard,
   Users,
   Building2,
+  FolderKanban,
+  Bell,
   Activity,
   ShieldCheck,
   Search,
-  Bell,
   Menu,
   X,
   LogOut,
@@ -18,7 +19,8 @@ import {
   Database,
   FileText,
   Sliders,
-  TrendingUp
+  TrendingUp,
+  User
 } from 'lucide-react';
 
 export const SuperAdminLayout = () => {
@@ -45,6 +47,16 @@ export const SuperAdminLayout = () => {
       icon: Building2
     },
     {
+      name: 'Platform Boards',
+      path: '/super-admin/boards',
+      icon: FolderKanban
+    },
+    {
+      name: 'Announcements',
+      path: '/super-admin/announcements',
+      icon: Bell
+    },
+    {
       name: 'Platform Analytics',
       path: '/super-admin/analytics',
       icon: TrendingUp
@@ -68,6 +80,11 @@ export const SuperAdminLayout = () => {
       name: 'Platform Settings',
       path: '/super-admin/settings',
       icon: Sliders
+    },
+    {
+      name: 'Admin Profile',
+      path: '/super-admin/profile',
+      icon: User
     }
   ];
 
@@ -121,36 +138,21 @@ export const SuperAdminLayout = () => {
               </button>
             </div>
 
-            {/* Platform Status Banner */}
-            <div className="mx-4 my-4 p-3 rounded-xl bg-slate-900/90 border border-slate-800/80 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-200">MongoDB Atlas</p>
-                  <p className="text-[11px] text-emerald-400 font-mono">Cluster Connected</p>
-                </div>
-              </div>
-              <Database className="h-4 w-4 text-slate-500" />
-            </div>
-
-            {/* Navigation Section */}
-            <div className="px-3 py-2 space-y-1">
+            {/* Nav Menu */}
+            <div className="px-3 py-3 space-y-1 overflow-y-auto max-h-[calc(100vh-10rem)]">
               <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
                 Core Administration
               </p>
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.path;
+                const isActive = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
                 return (
                   <NavLink
                     key={item.path}
                     to={item.path}
                     onClick={() => setSidebarOpen(false)}
                     className={({ isActive }) =>
-                      `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all group ${
+                      `flex items-center justify-between px-3.5 py-2 rounded-xl text-sm font-medium transition-all group ${
                         isActive
                           ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/25'
                           : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -161,17 +163,6 @@ export const SuperAdminLayout = () => {
                       <Icon className={`h-4 w-4 transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`} />
                       <span>{item.name}</span>
                     </div>
-                    {item.badge && (
-                      <span
-                        className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-medium ${
-                          isActive
-                            ? 'bg-indigo-700/60 text-white'
-                            : 'bg-slate-800 text-slate-400 group-hover:text-slate-300'
-                        }`}
-                      >
-                        {item.badge}
-                      </span>
-                    )}
                   </NavLink>
                 );
               })}
@@ -181,8 +172,11 @@ export const SuperAdminLayout = () => {
           {/* Bottom Super Admin Profile & Logout */}
           <div className="p-4 border-t border-slate-800/80 bg-[#0b101c]">
             <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-slate-800/60">
-              <div className="flex items-center gap-3">
-                <div className="relative">
+              <button
+                onClick={() => navigate('/super-admin/profile')}
+                className="flex items-center gap-3 text-left hover:opacity-85 transition-opacity overflow-hidden"
+              >
+                <div className="relative flex-shrink-0">
                   <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm ring-2 ring-indigo-500/30">
                     {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
                   </div>
@@ -194,11 +188,11 @@ export const SuperAdminLayout = () => {
                     {user?.role ? user.role.replace('_', ' ') : 'Super Admin'}
                   </span>
                 </div>
-              </div>
+              </button>
               <button
                 onClick={handleLogout}
                 title="Sign out"
-                className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors flex-shrink-0"
               >
                 <LogOut className="h-4 w-4" />
               </button>
@@ -213,30 +207,15 @@ export const SuperAdminLayout = () => {
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
+                className="lg:hidden p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
               >
-                <Menu className="h-5 w-5" />
+                <Menu className="h-6 w-6" />
               </button>
-
-              {/* Breadcrumb / Title preview */}
-              <div className="hidden sm:flex items-center gap-2 text-sm text-slate-400">
-                <span className="hover:text-slate-200">Super Admin</span>
-                <span>/</span>
-                <span className="text-white font-medium capitalize">
-                  {location.pathname.split('/').pop().replace('-', ' ') || 'Dashboard'}
-                </span>
-              </div>
             </div>
 
-            {/* Header Right Actions */}
+            {/* Right Header Navigation Icons */}
             <div className="flex items-center gap-3">
-              {/* Live status badge */}
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="text-slate-300 font-medium">Production v1.0.0</span>
-              </div>
-
-              {/* Notifications Dropdown */}
+              {/* Notifications */}
               <div className="relative">
                 <button
                   onClick={() => setNotificationsOpen(!notificationsOpen)}

@@ -9,11 +9,15 @@ import UsersPage from '../features/super-admin/pages/UsersPage.jsx';
 import UserDetailsPage from '../features/super-admin/pages/UserDetailsPage.jsx';
 import WorkspacesPage from '../features/super-admin/pages/WorkspacesPage.jsx';
 import WorkspaceDetailsPage from '../features/super-admin/pages/WorkspaceDetailsPage.jsx';
+import BoardsPage from '../features/super-admin/pages/BoardsPage.jsx';
+import BoardDetailsPage from '../features/super-admin/pages/BoardDetailsPage.jsx';
 import AnalyticsPage from '../features/super-admin/pages/AnalyticsPage.jsx';
+import AnnouncementsPage from '../features/super-admin/pages/AnnouncementsPage.jsx';
 import SystemHealthPage from '../features/super-admin/pages/SystemHealthPage.jsx';
 import AuditLogsPage from '../features/super-admin/pages/AuditLogsPage.jsx';
 import RolesPermissionsPage from '../features/super-admin/pages/RolesPermissionsPage.jsx';
 import SettingsPage from '../features/super-admin/pages/SettingsPage.jsx';
+import ProfilePage from '../features/super-admin/pages/ProfilePage.jsx';
 
 export const AppRoutes = () => {
   return (
@@ -34,11 +38,15 @@ export const AppRoutes = () => {
           <Route path="users/:userId" element={<UserDetailsPage />} />
           <Route path="workspaces" element={<WorkspacesPage />} />
           <Route path="workspaces/:workspaceId" element={<WorkspaceDetailsPage />} />
+          <Route path="boards" element={<BoardsPage />} />
+          <Route path="boards/:boardId" element={<BoardDetailsPage />} />
+          <Route path="announcements" element={<AnnouncementsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="system-health" element={<SystemHealthPage />} />
           <Route path="audit-logs" element={<AuditLogsPage />} />
           <Route path="roles" element={<RolesPermissionsPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
       </Route>
 
