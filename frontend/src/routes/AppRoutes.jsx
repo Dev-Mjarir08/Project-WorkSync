@@ -55,6 +55,7 @@ const AppRoutes = () => {
       <Route path="/manager/workload" element={<TeamWorkloadPage />} />
 
       <Route path="/manager/reports" element={<ReportsPage />} />
+      <Route path="/manger/reports" element={<ReportsPage />} />
       <Route path="/manager/notifications" element={<NotificationsPage />} />
       <Route path="/manager/profile" element={<ProfilePage />} />
 

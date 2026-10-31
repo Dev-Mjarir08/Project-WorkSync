@@ -53,6 +53,7 @@ const Sidebar = ({ activeItem = "projects", mobileOpen = false, setMobileOpen = 
     if (item.viewKey === "projects" && location.pathname.startsWith("/manager/projects")) return true;
     if (item.viewKey === "boards" && location.pathname.startsWith("/manager/boards")) return true;
     if (item.viewKey === "tasks" && location.pathname.startsWith("/manager/tasks")) return true;
+    if (item.viewKey === "reports" && location.pathname.includes("/reports")) return true;
     if (item.viewKey === "dashboard" && location.pathname === "/manager/dashboard") return true;
     return false;
   };

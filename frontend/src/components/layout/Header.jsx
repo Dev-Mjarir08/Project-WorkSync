@@ -62,6 +62,7 @@ const Header = ({
     if (path === "/manager/tasks/create") return "Create Task";
     if (path === "/manager/tasks") return "Tasks";
     if (path.startsWith("/manager/tasks/")) return "Task Details";
+    if (path.includes("/reports")) return "Reports & Analytics";
     return pageTitle || "Manager";
   };
 
