@@ -9,7 +9,13 @@ import {
   updateUserStatusSchema,
   updateUserRoleSchema,
   createUserSchema,
-  getUsersQuerySchema
+  getUsersQuerySchema,
+  workspaceIdParamSchema,
+  updateWorkspaceStatusSchema,
+  createWorkspaceSchema,
+  getWorkspacesQuerySchema,
+  getAuditLogsQuerySchema,
+  updatePlatformSettingsSchema
 } from './superAdmin.validation.js';
 
 const router = Router();
@@ -19,12 +25,20 @@ const router = Router();
 // =========================================================================
 router.use(authenticate, authorizePlatformRole(ROLES.SUPER_ADMIN));
 
+// ==========================================
+// 1. DASHBOARD & OVERVIEW
+// ==========================================
+
 /**
  * @route   GET /dashboard
  * @desc    Retrieve live platform statistics, system metrics, and growth charts
  * @access  Super Admin
  */
 router.get('/dashboard', superAdminController.getDashboard);
+
+// ==========================================
+// 2. USERS MANAGEMENT
+// ==========================================
 
 /**
  * @route   GET /users
@@ -92,6 +106,114 @@ router.delete(
   '/users/:userId',
   validateRequest(userIdParamSchema, 'params'),
   superAdminController.deleteUser
+);
+
+// ==========================================
+// 3. WORKSPACES MANAGEMENT
+// ==========================================
+
+/**
+ * @route   GET /workspaces
+ * @desc    Retrieve all platform workspaces with search, status/plan filtering, and pagination
+ * @access  Super Admin
+ */
+router.get(
+  '/workspaces',
+  validateRequest(getWorkspacesQuerySchema, 'query'),
+  superAdminController.getWorkspaces
+);
+
+/**
+ * @route   POST /workspaces
+ * @desc    Provision a new workspace tenant directly by Super Admin
+ * @access  Super Admin
+ */
+router.post(
+  '/workspaces',
+  validateRequest(createWorkspaceSchema, 'body'),
+  superAdminController.createWorkspace
+);
+
+/**
+ * @route   GET /workspaces/:workspaceId
+ * @desc    Retrieve full details of a specific workspace
+ * @access  Super Admin
+ */
+router.get(
+  '/workspaces/:workspaceId',
+  validateRequest(workspaceIdParamSchema, 'params'),
+  superAdminController.getWorkspaceById
+);
+
+/**
+ * @route   PATCH /workspaces/:workspaceId/status
+ * @desc    Activate, archive, or suspend workspace tenant access
+ * @access  Super Admin
+ */
+router.patch(
+  '/workspaces/:workspaceId/status',
+  validateRequest(workspaceIdParamSchema, 'params'),
+  validateRequest(updateWorkspaceStatusSchema, 'body'),
+  superAdminController.updateWorkspaceStatus
+);
+
+/**
+ * @route   DELETE /workspaces/:workspaceId
+ * @desc    Permanently delete and decommission a workspace tenant
+ * @access  Super Admin
+ */
+router.delete(
+  '/workspaces/:workspaceId',
+  validateRequest(workspaceIdParamSchema, 'params'),
+  superAdminController.deleteWorkspace
+);
+
+// ==========================================
+// 4. PLATFORM ANALYTICS
+// ==========================================
+
+/**
+ * @route   GET /analytics
+ * @desc    Retrieve deep platform-wide analytics and system telemetry
+ * @access  Super Admin
+ */
+router.get('/analytics', superAdminController.getAnalytics);
+
+// ==========================================
+// 5. AUDIT LOGS
+// ==========================================
+
+/**
+ * @route   GET /audit-logs
+ * @desc    Retrieve platform compliance and security audit logs
+ * @access  Super Admin
+ */
+router.get(
+  '/audit-logs',
+  validateRequest(getAuditLogsQuerySchema, 'query'),
+  superAdminController.getAuditLogs
+);
+
+// ==========================================
+// 6. PLATFORM SETTINGS
+// ==========================================
+
+/**
+ * @route   GET /settings
+ * @desc    Retrieve global platform configuration, security policies, and quotas
+ * @access  Super Admin
+ */
+router.get('/settings', superAdminController.getSettings);
+
+/**
+ * @route   PATCH /settings
+ * @desc    Update global platform configuration, security policies, and quotas
+ * @access  Super Admin
+ */
+router.patch(
+  '/settings',
+  validateRequest(updatePlatformSettingsSchema, 'body'),
+  superAdminController.updateSettings
 );
 
 export default router;

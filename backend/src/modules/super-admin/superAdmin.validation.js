@@ -80,10 +80,108 @@ export const getUsersQuerySchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc')
 });
 
+/**
+ * Validation schema for routes containing :workspaceId in URL params
+ */
+export const workspaceIdParamSchema = z.object({
+  workspaceId: z
+    .string({ error: 'Workspace ID is required' })
+    .trim()
+    .min(1, 'Workspace ID cannot be empty')
+});
+
+/**
+ * Validation schema for updating workspace status
+ */
+export const updateWorkspaceStatusSchema = z.object({
+  status: z.enum(['Active', 'Archived', 'Suspended']).optional(),
+  isActive: z.boolean().optional()
+});
+
+/**
+ * Validation schema for provisioning workspace by super admin
+ */
+export const createWorkspaceSchema = z.object({
+  name: z
+    .string({ error: 'Workspace name is required' })
+    .trim()
+    .min(2, 'Workspace name must be at least 2 characters long')
+    .max(100, 'Workspace name cannot exceed 100 characters'),
+  slug: z.string().trim().optional(),
+  description: z.string().max(500).optional(),
+  ownerName: z.string().trim().optional(),
+  ownerEmail: z.string().trim().email('Invalid owner email address').optional(),
+  plan: z.enum(['Starter', 'Pro', 'Enterprise']).optional().default('Pro')
+});
+
+/**
+ * Validation schema for fetching workspaces list with query filters & pagination
+ */
+export const getWorkspacesQuerySchema = z.object({
+  search: z.string().optional().default(''),
+  status: z.string().optional().default('all'),
+  plan: z.string().optional().default('all'),
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(20),
+  sortBy: z.string().optional().default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc')
+});
+
+/**
+ * Validation schema for audit logs query filters & pagination
+ */
+export const getAuditLogsQuerySchema = z.object({
+  search: z.string().optional().default(''),
+  category: z.string().optional().default('all'),
+  status: z.string().optional().default('all'),
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(20),
+  sortBy: z.string().optional().default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc')
+});
+
+/**
+ * Validation schema for updating platform settings
+ */
+export const updatePlatformSettingsSchema = z.object({
+  general: z
+    .object({
+      platformName: z.string().trim().min(1).optional(),
+      supportEmail: z.string().trim().email().optional(),
+      maintenanceMode: z.boolean().optional(),
+      allowNewRegistrations: z.boolean().optional(),
+      defaultUserRole: z.string().optional(),
+      sessionTimeoutMinutes: z.coerce.number().int().positive().optional()
+    })
+    .optional(),
+  security: z
+    .object({
+      enforceMfa: z.boolean().optional(),
+      requireStrongPasswords: z.boolean().optional(),
+      maxLoginAttempts: z.coerce.number().int().positive().optional(),
+      ipWhitelistEnabled: z.boolean().optional(),
+      tokenExpiryDays: z.coerce.number().int().positive().optional()
+    })
+    .optional(),
+  storage: z
+    .object({
+      maxAttachmentSizeMb: z.coerce.number().int().positive().optional(),
+      workspaceQuotaGb: z.coerce.number().int().positive().optional(),
+      retentionDays: z.coerce.number().int().positive().optional()
+    })
+    .optional()
+});
+
 export default {
   userIdParamSchema,
   updateUserStatusSchema,
   updateUserRoleSchema,
   createUserSchema,
-  getUsersQuerySchema
+  getUsersQuerySchema,
+  workspaceIdParamSchema,
+  updateWorkspaceStatusSchema,
+  createWorkspaceSchema,
+  getWorkspacesQuerySchema,
+  getAuditLogsQuerySchema,
+  updatePlatformSettingsSchema
 };

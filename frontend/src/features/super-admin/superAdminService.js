@@ -441,6 +441,29 @@ export const superAdminService = {
 
   // Workspaces Management
   getWorkspaces: async ({ search = '', status = 'all', plan = 'all' } = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (search) queryParams.append('search', search);
+      if (status && status !== 'all') queryParams.append('status', status);
+      if (plan && plan !== 'all') queryParams.append('plan', plan);
+
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces?${queryParams.toString()}`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && json.data.workspaces) {
+          return {
+            workspaces: json.data.workspaces,
+            totalCount: json.data.totalCount,
+            metrics: json.data.metrics
+          };
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+
     let filtered = [...mockWorkspaces];
 
     if (search.trim()) {
@@ -478,6 +501,22 @@ export const superAdminService = {
 
   // Create Workspace
   createWorkspace: async (data) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data)
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && json.data.workspace) {
+          return json.data.workspace;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+
     const newWs = {
       id: `ws-${Date.now()}`,
       name: data.name,
@@ -500,6 +539,21 @@ export const superAdminService = {
 
   // Toggle Workspace Status
   toggleWorkspaceStatus: async (wsId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces/${wsId}/status`, {
+        method: 'PATCH',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && json.data.workspace) {
+          return json.data.workspace;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+
     const ws = mockWorkspaces.find(w => w.id === wsId);
     if (ws) {
       ws.status = ws.status === 'Active' ? 'Archived' : 'Active';
@@ -509,6 +563,18 @@ export const superAdminService = {
 
   // Delete Workspace
   deleteWorkspace: async (wsId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces/${wsId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        return true;
+      }
+    } catch {
+      // offline fallback
+    }
+
     mockWorkspaces = mockWorkspaces.filter(w => w.id !== wsId);
     return true;
   },
@@ -553,6 +619,29 @@ export const superAdminService = {
 
   // Audit Logs
   getAuditLogs: async ({ search = '', category = 'all', status = 'all' } = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (search) queryParams.append('search', search);
+      if (category && category !== 'all') queryParams.append('category', category);
+      if (status && status !== 'all') queryParams.append('status', status);
+
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/audit-logs?${queryParams.toString()}`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && json.data.logs) {
+          return {
+            logs: json.data.logs,
+            totalCount: json.data.totalCount,
+            metrics: json.data.metrics
+          };
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+
     let logs = [
       {
         id: 'log-101',
@@ -771,6 +860,20 @@ export const superAdminService = {
 
   // Platform Settings
   getPlatformSettings: async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/settings`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && json.data.settings) {
+          return json.data.settings;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+
     return {
       general: {
         platformName: 'WorkSync Enterprise Cloud',
@@ -796,6 +899,22 @@ export const superAdminService = {
   },
 
   updatePlatformSettings: async (settings) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/settings`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(settings)
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && json.data.settings) {
+          return { success: true, settings: json.data.settings, updatedAt: new Date().toISOString() };
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+
     return { success: true, settings, updatedAt: new Date().toISOString() };
   }
 };

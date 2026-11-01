@@ -107,6 +107,149 @@ export const createUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, { user }, 'Platform user created successfully.'));
 });
 
+// =========================================================================
+// WORKSPACES CONTROLLERS
+// =========================================================================
+
+/**
+ * GET /workspaces
+ * Purpose: All workspaces
+ */
+export const getWorkspaces = asyncHandler(async (req, res) => {
+  const query = req.validated?.query || req.query;
+  const result = await superAdminService.getAllWorkspaces(query);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, 'Platform workspaces retrieved successfully.'));
+});
+
+/**
+ * GET /workspaces/:workspaceId
+ * Purpose: Workspace details
+ */
+export const getWorkspaceById = asyncHandler(async (req, res) => {
+  const workspaceId = req.validated?.params?.workspaceId || req.params.workspaceId;
+  const workspace = await superAdminService.getWorkspaceById(workspaceId);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { workspace }, 'Workspace details retrieved successfully.'));
+});
+
+/**
+ * PATCH /workspaces/:workspaceId/status
+ * Purpose: Activate/deactivate workspace
+ */
+export const updateWorkspaceStatus = asyncHandler(async (req, res) => {
+  const workspaceId = req.validated?.params?.workspaceId || req.params.workspaceId;
+  const body = req.validated?.body || req.body;
+
+  const workspace = await superAdminService.updateWorkspaceStatus(workspaceId, {
+    status: body?.status,
+    isActive: body?.isActive,
+    currentAdminId: req.user?._id
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { workspace }, `Workspace status updated to '${workspace.status}' successfully.`));
+});
+
+/**
+ * DELETE /workspaces/:workspaceId
+ * Purpose: Delete workspace
+ */
+export const deleteWorkspace = asyncHandler(async (req, res) => {
+  const workspaceId = req.validated?.params?.workspaceId || req.params.workspaceId;
+
+  const result = await superAdminService.deleteWorkspace(workspaceId, {
+    currentAdminId: req.user?._id
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, 'Workspace deleted successfully.'));
+});
+
+/**
+ * POST /workspaces
+ * Purpose: Create workspace
+ */
+export const createWorkspace = asyncHandler(async (req, res) => {
+  const body = req.validated?.body || req.body;
+  const workspace = await superAdminService.createWorkspace(body);
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, { workspace }, 'Workspace provisioned successfully.'));
+});
+
+// =========================================================================
+// PLATFORM ANALYTICS CONTROLLER
+// =========================================================================
+
+/**
+ * GET /analytics
+ * Purpose: Platform analytics
+ */
+export const getAnalytics = asyncHandler(async (req, res) => {
+  const data = await superAdminService.getPlatformAnalytics();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, data, 'Platform analytics retrieved successfully.'));
+});
+
+// =========================================================================
+// AUDIT LOGS CONTROLLER
+// =========================================================================
+
+/**
+ * GET /audit-logs
+ * Purpose: Platform audit logs
+ */
+export const getAuditLogs = asyncHandler(async (req, res) => {
+  const query = req.validated?.query || req.query;
+  const result = await superAdminService.getAuditLogs(query);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, 'Platform audit logs retrieved successfully.'));
+});
+
+// =========================================================================
+// PLATFORM SETTINGS CONTROLLER
+// =========================================================================
+
+/**
+ * GET /settings
+ * Purpose: Platform settings
+ */
+export const getSettings = asyncHandler(async (req, res) => {
+  const settings = await superAdminService.getPlatformSettings();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { settings }, 'Platform settings retrieved successfully.'));
+});
+
+/**
+ * PATCH /settings
+ * Purpose: Update platform settings
+ */
+export const updateSettings = asyncHandler(async (req, res) => {
+  const body = req.validated?.body || req.body;
+
+  const settings = await superAdminService.updatePlatformSettings(body, {
+    currentAdminId: req.user?._id
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { settings }, 'Platform settings updated successfully.'));
+});
+
 export default {
   getDashboard,
   getUsers,
@@ -114,5 +257,14 @@ export default {
   updateUserStatus,
   updateUserRole,
   deleteUser,
-  createUser
+  createUser,
+  getWorkspaces,
+  getWorkspaceById,
+  updateWorkspaceStatus,
+  deleteWorkspace,
+  createWorkspace,
+  getAnalytics,
+  getAuditLogs,
+  getSettings,
+  updateSettings
 };
