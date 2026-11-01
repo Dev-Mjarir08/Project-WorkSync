@@ -18,6 +18,7 @@ import {
   FolderKanban,
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
+import Header from "../../../components/layout/Header.jsx";
 
 // Summary Cards Data
 const initialSummaryCards = [
@@ -323,116 +324,12 @@ const DashboardPage = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 lg:pl-64 xl:pl-72 flex flex-col min-w-0">
-        {/* Sticky Header */}
-        <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-md px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-4">
-            {/* Left: Mobile trigger & Breadcrumbs */}
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(true)}
-                className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 lg:hidden"
-                aria-label="Open mobile navigation menu"
-              >
-                <Menu size={18} />
-              </button>
-
-              <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
-                <span className="font-semibold text-slate-700">WorkSync</span>
-                <ChevronRight size={13} className="text-slate-400" />
-                <span>Manager</span>
-                <ChevronRight size={13} className="text-slate-400" />
-                <span className="font-medium text-blue-600">Dashboard</span>
-              </div>
-            </div>
-
-            {/* Right: Search, Notifications, Avatar, Create Task */}
-            <div className="flex items-center gap-2.5 sm:gap-3">
-              {/* Search bar */}
-              <div className="relative hidden md:block w-64 lg:w-72">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                <input
-                  type="text"
-                  placeholder="Search tasks, members... (⌘K)"
-                  value={taskSearchQuery}
-                  onChange={(e) => setTaskSearchQuery(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white py-1.5 pl-9 pr-7 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition"
-                />
-                {taskSearchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setTaskSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-600"
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
-
-              {/* Notifications Bell */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className="relative rounded-xl border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 focus:outline-none shadow-xs"
-                  aria-label="View notifications"
-                >
-                  <Bell size={16} />
-                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-600 ring-2 ring-white"></span>
-                </button>
-
-                {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl z-40">
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                      <h4 className="text-xs font-semibold text-slate-900">Notifications</h4>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setNotificationList(notificationList.map((n) => ({ ...n, unread: false })))
-                        }
-                        className="text-[11px] text-blue-600 hover:text-blue-700 font-medium"
-                      >
-                        Mark all as read
-                      </button>
-                    </div>
-                    <div className="mt-3 space-y-2 max-h-60 overflow-y-auto">
-                      {notificationList.map((notif) => (
-                        <div
-                          key={notif.id}
-                          className={`rounded-xl p-2.5 text-xs transition border ${
-                            notif.unread
-                              ? "bg-blue-50/60 text-slate-800 border-blue-100"
-                              : "bg-slate-50 text-slate-600 border-slate-100"
-                          }`}
-                        >
-                          <p className="font-medium leading-relaxed">{notif.text}</p>
-                          <p className="mt-1 text-[10px] text-slate-400">{notif.time}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Profile Avatar */}
-              <div className="flex items-center gap-2 pl-1 border-l border-slate-200">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 font-bold text-white text-xs shadow-xs">
-                  DS
-                </div>
-              </div>
-
-              {/* Create Task Button */}
-              <button
-                type="button"
-                onClick={() => setShowCreateTaskModal(true)}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition active:scale-[0.98]"
-              >
-                <Plus size={15} />
-                <span>Create Task</span>
-              </button>
-            </div>
-          </div>
-        </header>
+        {/* Unified Default Header */}
+        <Header
+          setMobileOpen={setMobileMenuOpen}
+          searchQuery={taskSearchQuery}
+          onSearchChange={(e) => setTaskSearchQuery(e.target.value)}
+        />
 
         {/* Dashboard Content Body */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-7 max-w-7xl w-full mx-auto">

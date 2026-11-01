@@ -9,6 +9,7 @@ import {
   FolderKanban,
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
+import Header from "../../../components/layout/Header.jsx";
 
 // Standard realistic project catalog (exported for Boards, Details, and Tasks pages)
 export const initialProjects = [
@@ -185,30 +186,13 @@ const ProjectsPage = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 lg:pl-64 xl:pl-72 flex flex-col min-w-0">
-        {/* Top Header Bar */}
-        <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-md px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-4">
-            {/* Left: Mobile Trigger & Breadcrumbs */}
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(true)}
-                className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 lg:hidden"
-                aria-label="Open mobile navigation menu"
-              >
-                <Menu size={18} />
-              </button>
-
-              <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
-                <span className="font-semibold text-slate-700">WorkSync</span>
-                <ChevronRight size={13} className="text-slate-400" />
-                <span>Manager</span>
-                <ChevronRight size={13} className="text-slate-400" />
-                <span className="font-medium text-blue-600">Projects</span>
-              </div>
-            </div>
-          </div>
-        </header>
+        {/* Unified Default Header */}
+        <Header
+          setMobileOpen={setMobileMenuOpen}
+          searchQuery={searchQuery}
+          onSearchChange={(e) => setSearchQuery(e.target.value)}
+          searchPlaceholder="Search projects... (⌘K)"
+        />
 
         {/* Page Main Body */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">

@@ -796,7 +796,6 @@ const ReportsPage = () => {
             { label: "Insights", href: "/manager/reports" },
             { label: "Reports & Analytics" },
           ]}
-          showSearch={false}
         />
 
         {/* Main Body Container */}

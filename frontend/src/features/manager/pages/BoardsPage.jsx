@@ -12,6 +12,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
+import Header from "../../../components/layout/Header.jsx";
 import { initialProjects } from "./ProjectsPage.jsx";
 
 export const initialBoardTasks = [
@@ -286,63 +287,15 @@ const BoardsPage = () => {
 
       {/* Main Content Area — Constrained Viewport to Prevent Page Overflow */}
       <div className="flex-1 lg:pl-64 xl:pl-72 flex flex-col min-w-0 w-full max-w-full h-screen overflow-hidden">
-        {/* Top Header Bar */}
-        <header className="shrink-0 border-b border-slate-200 bg-white/90 backdrop-blur-md px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-4">
-            {/* Left: Mobile Trigger & Navigation */}
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(true)}
-                className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 lg:hidden"
-                aria-label="Open mobile navigation menu"
-              >
-                <Menu size={18} />
-              </button>
-
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <Link
-                  to="/manager/projects"
-                  className="text-slate-500 hover:text-blue-600 transition"
-                >
-                  Projects
-                </Link>
-                <ChevronRight size={13} className="text-slate-400" />
-                <Link
-                  to={`/manager/projects/${relatedProject.id}`}
-                  className="text-slate-500 hover:text-blue-600 transition truncate max-w-[120px] sm:max-w-none"
-                >
-                  {relatedProject.name}
-                </Link>
-                <ChevronRight size={13} className="text-slate-400" />
-                <span className="font-semibold text-blue-600">Kanban Board</span>
-              </div>
-            </div>
-
-            {/* Right: Project Link & Add Task CTA */}
-            <div className="flex items-center gap-2.5">
-              <Link
-                to={`/manager/projects/${relatedProject.id}`}
-                className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition shadow-xs"
-              >
-                <span>Project Overview</span>
-                <ExternalLink size={12} className="text-slate-400" />
-              </Link>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setNewTask((prev) => ({ ...prev, column: "To Do" }));
-                  setShowAddTaskModal(true);
-                }}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition active:scale-[0.98]"
-              >
-                <Plus size={14} />
-                <span>Add Task</span>
-              </button>
-            </div>
-          </div>
-        </header>
+        {/* Unified Default Header */}
+        <Header
+          setMobileOpen={setMobileMenuOpen}
+          breadcrumbs={[
+            { label: "Projects", href: "/manager/projects" },
+            { label: relatedProject.name, href: `/manager/projects/${relatedProject.id}` },
+            { label: "Kanban Board" },
+          ]}
+        />
 
         {/* Board Context Subheader & Controls Bar */}
         <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 sm:px-6 lg:px-8 space-y-3">
@@ -361,9 +314,29 @@ const BoardsPage = () => {
               </p>
             </div>
 
-            {/* Search & Priority Controls */}
-            <div className="flex items-center gap-2.5">
-              <div className="relative w-44 sm:w-56">
+            {/* Board Context Actions, Search & Priority Controls */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <Link
+                to={`/manager/projects/${relatedProject.id}`}
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 transition shadow-xs"
+              >
+                <span>Project Overview</span>
+                <ExternalLink size={12} className="text-slate-400" />
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setNewTask((prev) => ({ ...prev, column: "To Do" }));
+                  setShowAddTaskModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition active:scale-[0.98]"
+              >
+                <Plus size={13} />
+                <span>Add Card</span>
+              </button>
+
+              <div className="relative w-40 sm:w-48">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
                 <input
                   type="text"

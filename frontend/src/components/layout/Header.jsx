@@ -7,15 +7,16 @@ import {
   X,
   Bell,
   Plus,
-  Settings,
+  User,
 } from "lucide-react";
 
 /**
- * Shared Manager Header component
- * - Consistent across Manager pages
- * - Removed 'DS' logo/text
- * - Create Task button navigating to /manager/tasks/create
- * - Visual-only, non-functional Settings button immediately after Create Task
+ * Shared Default Header for Manager Pages
+ * - Navigation: Mobile menu toggle + breadcrumbs (WorkSync > Manager > [Section])
+ * - Search bar: Real-time search input with clear trigger
+ * - Notifications: Bell icon with unread status badge & dropdown preview
+ * - Create Task Button: Navigates directly to /manager/tasks/create
+ * - Profile Button: At the end, with avatar and direct link to /manager/profile
  */
 const Header = ({
   setMobileOpen,
@@ -62,7 +63,13 @@ const Header = ({
     if (path === "/manager/tasks/create") return "Create Task";
     if (path === "/manager/tasks") return "Tasks";
     if (path.startsWith("/manager/tasks/")) return "Task Details";
+    if (path === "/manager/assignments") return "Task Assignments";
+    if (path === "/manager/team") return "Team Members";
+    if (path === "/manager/workload") return "Team Workload";
     if (path.includes("/reports")) return "Reports & Analytics";
+    if (path === "/manager/activity") return "Activity";
+    if (path === "/manager/notifications") return "Notifications";
+    if (path === "/manager/profile") return "Profile";
     return pageTitle || "Manager";
   };
 
@@ -71,7 +78,7 @@ const Header = ({
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-md px-4 py-3 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between gap-4">
-        {/* Left: Mobile Trigger & Breadcrumbs */}
+        {/* 1. Left: Navigation (Mobile Menu Button & Breadcrumbs) */}
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
@@ -111,18 +118,18 @@ const Header = ({
           </div>
         </div>
 
-        {/* Right: Search, Notifications, Create Task, Settings */}
+        {/* 2. Right Actions: Searchbar -> Notification -> Create Task -> Profile Button */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {/* Search bar */}
           {showSearch && (
-            <div className="relative hidden md:block w-52 lg:w-72">
+            <div className="relative hidden md:block w-48 sm:w-56 lg:w-72">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
               <input
                 type="text"
                 placeholder={searchPlaceholder}
                 value={activeSearch}
                 onChange={handleSearchChange}
-                className="w-full rounded-xl border border-slate-200 bg-white py-1.5 pl-9 pr-7 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition"
+                className="w-full rounded-xl border border-slate-200 bg-white py-1.5 pl-9 pr-7 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition shadow-xs"
               />
               {activeSearch && (
                 <button
@@ -136,13 +143,14 @@ const Header = ({
             </div>
           )}
 
-          {/* Notifications Bell */}
+          {/* Notifications */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setShowNotifications(!showNotifications)}
               className="relative rounded-xl border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 focus:outline-none shadow-xs"
               aria-label="View notifications"
+              title="Notifications"
             >
               <Bell size={16} />
               {hasUnread && (
@@ -179,6 +187,15 @@ const Header = ({
                     </div>
                   ))}
                 </div>
+                <div className="pt-2 border-t border-slate-100 mt-2 text-center">
+                  <Link
+                    to="/manager/notifications"
+                    onClick={() => setShowNotifications(false)}
+                    className="text-[11px] font-semibold text-blue-600 hover:text-blue-700"
+                  >
+                    View all notifications
+                  </Link>
+                </div>
               </div>
             )}
           </div>
@@ -186,22 +203,22 @@ const Header = ({
           {/* Create Task Button */}
           <Link
             to="/manager/tasks/create"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition active:scale-[0.98]"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition active:scale-[0.98] shrink-0"
+            title="Create Task"
           >
             <Plus size={15} />
             <span>Create Task</span>
           </Link>
 
-          {/* Settings Button: Visual-only, non-functional, immediately following Create Task */}
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition active:scale-[0.98]"
-            title="Settings"
-            aria-label="Settings"
+          {/* Profile Button (Icon only) */}
+          <Link
+            to="/manager/profile"
+            className="flex items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 focus:outline-none shadow-xs shrink-0"
+            title="Profile"
+            aria-label="Profile"
           >
-            <Settings size={15} className="text-slate-500" />
-            <span>Settings</span>
-          </button>
+            <User size={16} />
+          </Link>
         </div>
       </div>
     </header>

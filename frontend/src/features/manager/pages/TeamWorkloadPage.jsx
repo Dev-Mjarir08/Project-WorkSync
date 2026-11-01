@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import Sidebar from "../../../components/layout/Sidebar.jsx";
+import Header from "../../../components/layout/Header.jsx";
 
 // Frontend mock data
 const employees = [
@@ -169,36 +170,13 @@ const TeamWorkloadPage = () => {
       />
 
       <div className="flex-1 lg:pl-64 xl:pl-72 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 rounded-lg hover:bg-slate-100"
-              aria-label="Open menu"
-            >
-              <Menu size={21} />
-            </button>
-
-            <div>
-              <div className="flex items-center gap-2 text-sm text-slate-400">
-                <span>Home</span>
-                <ChevronRight size={14} />
-                <span className="text-blue-600 font-medium">
-                  Team Workload
-                </span>
-              </div>
-              <h1 className="text-xl font-bold text-slate-800 mt-1">
-                Team Workload
-              </h1>
-            </div>
-          </div>
-
-          <div className="hidden sm:flex items-center gap-2 text-sm text-slate-500">
-            <Users size={17} />
-            <span>Manager Overview</span>
-          </div>
-        </header>
+        {/* Unified Default Header */}
+        <Header
+          setMobileOpen={setMobileMenuOpen}
+          searchQuery={search}
+          onSearchChange={(e) => setSearch(e.target.value)}
+          searchPlaceholder="Search workload... (⌘K)"
+        />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
           {/* Introduction */}

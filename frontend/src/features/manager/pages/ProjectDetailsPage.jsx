@@ -14,6 +14,7 @@ import {
   FolderKanban,
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
+import Header from "../../../components/layout/Header.jsx";
 import { initialProjects } from "./ProjectsPage.jsx";
 
 const initialProjectTasks = [
@@ -271,36 +272,51 @@ const ProjectDetailsPage = () => {
 
       {/* Main Content Viewport */}
       <div className="flex-1 lg:pl-64 xl:pl-72 flex flex-col min-w-0">
-        {/* Top Header Bar */}
-        <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-md px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(true)}
-                className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 lg:hidden"
-                aria-label="Open mobile navigation menu"
-              >
-                <Menu size={18} />
-              </button>
+        {/* Unified Default Header */}
+        <Header
+          setMobileOpen={setMobileMenuOpen}
+          breadcrumbs={[
+            { label: "Projects", href: "/manager/projects" },
+            { label: project.name },
+          ]}
+        />
 
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <Link
-                  to="/manager/projects"
-                  className="flex items-center gap-1.5 text-slate-500 hover:text-blue-600 transition"
-                >
-                  <ArrowLeft size={14} />
-                  <span>Projects</span>
-                </Link>
-                <ChevronRight size={13} className="text-slate-400" />
-                <span className="font-medium text-slate-800 truncate max-w-[200px] sm:max-w-xs">
+        {/* Main Content Body */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
+          {/* Back link */}
+          <div>
+            <Link
+              to="/manager/projects"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 transition"
+            >
+              <ArrowLeft size={13} />
+              <span>Back to Projects</span>
+            </Link>
+          </div>
+
+          {/* Project Title & Status Header with Project Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
                   {project.name}
+                </h1>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                    statusStyles[project.status] || statusStyles.Active
+                  }`}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
+                  {project.status}
                 </span>
               </div>
+              <p className="mt-1.5 text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
+                {project.description}
+              </p>
             </div>
 
-            {/* Header Actions */}
-            <div className="flex items-center gap-2">
+            {/* Project Specific Actions */}
+            <div className="flex items-center gap-2 shrink-0">
               <Link
                 to={`/manager/boards/${project.boardId || "board-1"}`}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition shadow-xs"
@@ -336,42 +352,6 @@ const ProjectDetailsPage = () => {
                 <Plus size={14} />
                 <span>Add Task</span>
               </button>
-            </div>
-          </div>
-        </header>
-
-        {/* Main Content Body */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
-          {/* Back link */}
-          <div>
-            <Link
-              to="/manager/projects"
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 transition"
-            >
-              <ArrowLeft size={13} />
-              <span>Back to Projects</span>
-            </Link>
-          </div>
-
-          {/* Project Title & Status Header */}
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
-                  {project.name}
-                </h1>
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                    statusStyles[project.status] || statusStyles.Active
-                  }`}
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
-                  {project.status}
-                </span>
-              </div>
-              <p className="mt-1.5 text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
-                {project.description}
-              </p>
             </div>
           </div>
 
