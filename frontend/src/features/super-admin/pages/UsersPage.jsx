@@ -98,6 +98,10 @@ export const UsersPage = () => {
         return 'bg-purple-500/15 text-purple-400 border border-purple-500/30';
       case 'admin':
         return 'bg-blue-500/15 text-blue-400 border border-blue-500/30';
+      case 'manager':
+        return 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30';
+      case 'employee':
+        return 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30';
       case 'member':
         return 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
       default:
@@ -180,6 +184,8 @@ export const UsersPage = () => {
             <option value="all">All Roles</option>
             <option value="super_admin">Super Admin</option>
             <option value="admin">Admin</option>
+            <option value="manager">Manager</option>
+            <option value="employee">Employee</option>
             <option value="member">Member</option>
             <option value="viewer">Viewer</option>
           </select>
@@ -258,6 +264,8 @@ export const UsersPage = () => {
                       >
                         <option value="super_admin">Super Admin</option>
                         <option value="admin">Admin</option>
+                        <option value="manager">Manager</option>
+                        <option value="employee">Employee</option>
                         <option value="member">Member</option>
                         <option value="viewer">Viewer</option>
                       </select>
@@ -387,8 +395,10 @@ export const UsersPage = () => {
                   onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
                 >
-                  <option value="member">Member (Standard Workspace Access)</option>
                   <option value="admin">Admin (Workspace & Team Administration)</option>
+                  <option value="manager">Manager (Project & Sprint Lead)</option>
+                  <option value="employee">Employee (Developer / Contributor)</option>
+                  <option value="member">Member (Standard Workspace Access)</option>
                   <option value="super_admin">Super Admin (Full Root Platform Control)</option>
                   <option value="viewer">Viewer (Read-only)</option>
                 </select>

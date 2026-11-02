@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Building2,
   Search,
@@ -21,6 +22,7 @@ import {
 import superAdminService from '../superAdminService.js';
 
 export const WorkspacesPage = () => {
+  const navigate = useNavigate();
   const [workspaces, setWorkspaces] = useState([]);
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -188,13 +190,17 @@ export const WorkspacesPage = () => {
             <div>
               {/* Header: Icon, Name, Plan */}
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-bold text-lg text-white shadow-md shadow-indigo-600/20">
+                <div
+                  onClick={() => navigate(`/super-admin/workspaces/${ws.id}`)}
+                  className="flex items-center gap-3 cursor-pointer group-hover:opacity-95"
+                  title="Click to view full workspace details"
+                >
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-bold text-lg text-white shadow-md shadow-indigo-600/20 group-hover:scale-105 transition-transform">
                     {ws.name.charAt(0)}
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-base group-hover:text-indigo-400 transition-colors">
-                      {ws.name}
+                    <h3 className="font-bold text-white text-base group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                      <span>{ws.name}</span>
                     </h3>
                     <p className="text-xs text-slate-400 font-mono">/{ws.slug}</p>
                   </div>
@@ -254,6 +260,14 @@ export const WorkspacesPage = () => {
               </span>
 
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigate(`/super-admin/workspaces/${ws.id}`)}
+                  className="px-2.5 py-1 rounded-lg bg-indigo-600/15 hover:bg-indigo-600/25 border border-indigo-500/30 text-xs text-indigo-300 font-medium transition-colors flex items-center gap-1"
+                  title="Inspect workspace details & boards"
+                >
+                  <span>Details</span>
+                  <ExternalLink className="h-3 w-3" />
+                </button>
                 <button
                   onClick={() => handleToggleStatus(ws.id, ws.status)}
                   className="px-2.5 py-1 rounded-lg border border-slate-700 hover:border-slate-600 text-xs text-slate-300 transition-colors"

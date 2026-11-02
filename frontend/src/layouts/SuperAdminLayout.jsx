@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
 import {
   LayoutDashboard,
   Users,
@@ -16,10 +17,12 @@ import {
   ChevronDown,
   Database,
   FileText,
-  Sliders
+  Sliders,
+  TrendingUp
 } from 'lucide-react';
 
 export const SuperAdminLayout = () => {
+  const { logout, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const location = useLocation();
@@ -43,6 +46,12 @@ export const SuperAdminLayout = () => {
       path: '/super-admin/workspaces',
       icon: Building2,
       badge: '84'
+    },
+    {
+      name: 'Platform Analytics',
+      path: '/super-admin/analytics',
+      icon: TrendingUp,
+      badge: 'New'
     },
     {
       name: 'System Health',
@@ -69,9 +78,8 @@ export const SuperAdminLayout = () => {
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    // For demo/dev, navigate to auth or reload
-    navigate('/super-admin/dashboard');
+    logout();
+    navigate('/login');
   };
 
   return (
@@ -182,16 +190,16 @@ export const SuperAdminLayout = () => {
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <img
-                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop"
-                    alt="Jarir Multani"
+                    src={user?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop"}
+                    alt={user?.name || "Jarir Multani"}
                     className="h-10 w-10 rounded-full object-cover ring-2 ring-indigo-500/30"
                   />
                   <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-slate-900" />
                 </div>
                 <div className="overflow-hidden">
-                  <h4 className="text-sm font-semibold text-white truncate">Jarir Multani</h4>
-                  <span className="text-[10px] font-semibold px-1.5 py-0.2 text-indigo-400 bg-indigo-500/10 rounded border border-indigo-500/20">
-                    Super Admin
+                  <h4 className="text-sm font-semibold text-white truncate">{user?.name || "Jarir Multani"}</h4>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.2 text-indigo-400 bg-indigo-500/10 rounded border border-indigo-500/20 capitalize">
+                    {user?.role ? user.role.replace('_', ' ') : 'Super Admin'}
                   </span>
                 </div>
               </div>

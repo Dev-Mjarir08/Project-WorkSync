@@ -1,12 +1,9 @@
 import React from 'react';
+import { Provider } from 'react-redux';
+import { store } from './store.js';
 
-const providers = () => {
-  return (
-    <div className="providers-container">
-      <h1>This providers site</h1>
-      <p>Component loaded from frontend/src/app/providers.jsx</p>
-    </div>
-  );
+export const AppProviders = ({ children }) => {
+  return <Provider store={store}>{children}</Provider>;
 };
 
-export default providers;
+export default AppProviders;

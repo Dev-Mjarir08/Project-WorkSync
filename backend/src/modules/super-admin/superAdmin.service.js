@@ -277,6 +277,8 @@ export const getDashboardStatistics = async () => {
     inactiveUsers,
     superAdminsCount,
     adminsCount,
+    managersCount,
+    employeesCount,
     membersCount,
     viewersCount,
     recentSignupsCount,
@@ -291,6 +293,8 @@ export const getDashboardStatistics = async () => {
     User.countDocuments({ isActive: false }),
     User.countDocuments({ role: ROLES.SUPER_ADMIN }),
     User.countDocuments({ role: ROLES.ADMIN }),
+    User.countDocuments({ role: ROLES.MANAGER }),
+    User.countDocuments({ role: ROLES.EMPLOYEE }),
     User.countDocuments({ role: ROLES.MEMBER }),
     User.countDocuments({ role: ROLES.VIEWER }),
     User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
@@ -360,6 +364,8 @@ export const getDashboardStatistics = async () => {
     rolesSummary: {
       superAdmin: superAdminsCount,
       admin: adminsCount,
+      manager: managersCount,
+      employee: employeesCount,
       member: membersCount,
       viewer: viewersCount,
       active: activeUsers,
@@ -435,6 +441,8 @@ export const getAllUsers = async (query = {}) => {
   const rolesSummary = {
     superAdmin: 0,
     admin: 0,
+    manager: 0,
+    employee: 0,
     member: 0,
     viewer: 0,
     active: activeCount,
@@ -444,6 +452,8 @@ export const getAllUsers = async (query = {}) => {
   roleCounts.forEach((r) => {
     if (r._id === ROLES.SUPER_ADMIN) rolesSummary.superAdmin = r.count;
     else if (r._id === ROLES.ADMIN) rolesSummary.admin = r.count;
+    else if (r._id === ROLES.MANAGER) rolesSummary.manager = r.count;
+    else if (r._id === ROLES.EMPLOYEE) rolesSummary.employee = r.count;
     else if (r._id === ROLES.MEMBER) rolesSummary.member = r.count;
     else if (r._id === ROLES.VIEWER) rolesSummary.viewer = r.count;
   });
@@ -932,6 +942,8 @@ export const getPlatformAnalytics = async () => {
     inactiveUsers,
     superAdminsCount,
     adminsCount,
+    managersCount,
+    employeesCount,
     membersCount,
     viewersCount,
     totalWorkspaces,
@@ -947,6 +959,8 @@ export const getPlatformAnalytics = async () => {
     User.countDocuments({ isActive: false }),
     User.countDocuments({ role: ROLES.SUPER_ADMIN }),
     User.countDocuments({ role: ROLES.ADMIN }),
+    User.countDocuments({ role: ROLES.MANAGER }),
+    User.countDocuments({ role: ROLES.EMPLOYEE }),
     User.countDocuments({ role: ROLES.MEMBER }),
     User.countDocuments({ role: ROLES.VIEWER }),
     Workspace.countDocuments(),
@@ -984,6 +998,8 @@ export const getPlatformAnalytics = async () => {
     roleDistribution: {
       superAdmin: superAdminsCount,
       admin: adminsCount,
+      manager: managersCount,
+      employee: employeesCount,
       member: membersCount,
       viewer: viewersCount
     },
