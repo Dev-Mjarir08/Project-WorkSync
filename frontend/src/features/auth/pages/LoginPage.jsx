@@ -20,7 +20,6 @@ import {
   Crown
 } from 'lucide-react';
 import { loginUser, clearAuthError } from '../authSlice.js';
-import { DEMO_ACCOUNTS } from '../authService.js';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -29,30 +28,17 @@ export const LoginPage = () => {
   const { loading, error, isAuthenticated, user } = useSelector((state) => state.auth);
 
   const [formData, setFormData] = useState({
-    email: '08mjarir@gmail.com',
-    password: 'password123',
+    email: '',
+    password: '',
     rememberMe: true
   });
 
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState('');
-  const [selectedDemoRole, setSelectedDemoRole] = useState('super_admin');
 
   useEffect(() => {
     dispatch(clearAuthError());
   }, [dispatch]);
-
-  // Fast demo account autofill
-  const handleSelectDemo = (account) => {
-    setSelectedDemoRole(account.role);
-    setFormData((prev) => ({
-      ...prev,
-      email: account.email,
-      password: account.password
-    }));
-    setLocalError('');
-    dispatch(clearAuthError());
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -192,42 +178,8 @@ export const LoginPage = () => {
                 Sign In
               </h2>
               <p className="text-sm text-slate-400 mt-1">
-                Enter your credentials or choose a pre-configured demo account to access your workspace.
+                Enter your credentials to access your WorkSync dashboard.
               </p>
-            </div>
-
-            {/* Quick Demo Account Selector */}
-            <div className="mb-6 p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
-                  Quick Demo Access
-                </span>
-                <span className="text-[10px] text-indigo-400 font-medium">1-Click Autofill</span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {DEMO_ACCOUNTS.map((acc) => {
-                  const isSelected = selectedDemoRole === acc.role;
-                  return (
-                    <button
-                      key={acc.role}
-                      type="button"
-                      onClick={() => handleSelectDemo(acc)}
-                      className={`px-2.5 py-2 rounded-xl text-left transition-all border ${
-                        isSelected
-                          ? 'bg-indigo-600/20 border-indigo-500/50 text-white shadow-sm'
-                          : 'bg-slate-800/40 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold truncate">{acc.label}</span>
-                        {isSelected && <CheckCircle2 className="h-3 w-3 text-indigo-400 shrink-0" />}
-                      </div>
-                      <p className="text-[10px] text-slate-500 font-mono truncate mt-0.5">{acc.email}</p>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
 
             {/* Error Banner */}

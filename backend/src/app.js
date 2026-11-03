@@ -7,6 +7,7 @@ import { notFound } from './middleware/notFound.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import superAdminRoutes from './modules/super-admin/superAdmin.routes.js';
+import memberRoutes from './modules/members/member.routes.js';
 
 export const app = express();
 
@@ -52,6 +53,14 @@ app.use('/api/v1/super-admin', superAdminRoutes);
 app.use('/api/super-admin', superAdminRoutes);
 app.use('/api/v1/admin', superAdminRoutes);
 app.use('/api/admin', superAdminRoutes);
+
+// Workspace Members & Invitations Routes (Mounted nested and top-level)
+app.use('/api/v1/workspaces/:workspaceId', memberRoutes);
+app.use('/api/workspaces/:workspaceId', memberRoutes);
+app.use('/api/v1/workspace', memberRoutes);
+app.use('/api/workspace', memberRoutes);
+app.use('/api/v1', memberRoutes);
+app.use('/api', memberRoutes);
 
 // Catch 404 routes
 app.use(notFound);

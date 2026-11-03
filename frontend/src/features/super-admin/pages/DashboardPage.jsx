@@ -465,34 +465,47 @@ export const DashboardPage = () => {
           </div>
 
           <div className="space-y-3 pt-2">
-            {topWorkspaces?.map((ws) => (
-              <div
-                key={ws.id}
-                onClick={() => navigate('/super-admin/workspaces')}
-                className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 flex items-center justify-between transition-colors cursor-pointer"
-              >
-                <div className="space-y-0.5">
-                  <h4 className="text-sm font-semibold text-white truncate max-w-[150px]">
-                    {ws.name}
-                  </h4>
-                  <p className="text-[11px] text-slate-400 font-mono">
-                    {ws.membersCount} members • {ws.boardsCount} boards
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span
-                    className={`text-[10px] px-2 py-0.5 rounded-md font-semibold uppercase ${
-                      ws.plan === 'Enterprise'
-                        ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
-                        : 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30'
-                    }`}
-                  >
-                    {ws.plan}
-                  </span>
-                  <p className="text-[10px] text-slate-500 mt-1">{ws.storageUsed}</p>
-                </div>
+            {!topWorkspaces || topWorkspaces.length === 0 ? (
+              <div className="py-8 text-center text-slate-400">
+                <Building2 className="h-8 w-8 text-slate-600 mx-auto mb-2" />
+                <p className="text-xs text-slate-400">No workspaces provisioned yet.</p>
+                <button
+                  onClick={() => navigate('/super-admin/workspaces')}
+                  className="mt-2 text-xs font-semibold text-indigo-400 hover:underline"
+                >
+                  Create workspace
+                </button>
               </div>
-            ))}
+            ) : (
+              topWorkspaces.map((ws) => (
+                <div
+                  key={ws.id}
+                  onClick={() => navigate('/super-admin/workspaces')}
+                  className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 flex items-center justify-between transition-colors cursor-pointer"
+                >
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-semibold text-white truncate max-w-[150px]">
+                      {ws.name}
+                    </h4>
+                    <p className="text-[11px] text-slate-400 font-mono">
+                      {ws.membersCount || 1} members • {ws.boardsCount || 0} boards
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-md font-semibold uppercase ${
+                        ws.plan === 'Enterprise'
+                          ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
+                          : 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30'
+                      }`}
+                    >
+                      {ws.plan}
+                    </span>
+                    <p className="text-[10px] text-slate-500 mt-1">{ws.storageUsed || '0 MB'}</p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -530,42 +543,50 @@ export const DashboardPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {recentAuditLogs?.map((log) => (
-                <tr
-                  key={log.id}
-                  onClick={() => navigate('/super-admin/audit-logs')}
-                  className="hover:bg-slate-900/60 transition-colors cursor-pointer"
-                >
-                  <td className="py-3 px-4 font-semibold text-white whitespace-nowrap">
-                    {log.action}
-                  </td>
-                  <td className="py-3 px-4 text-slate-300 text-xs">{log.details}</td>
-                  <td className="py-3 px-4 text-slate-400 text-xs font-medium whitespace-nowrap">
-                    {log.user}
-                  </td>
-                  <td className="py-3 px-4 font-mono text-xs text-slate-500 whitespace-nowrap">
-                    {log.ip}
-                  </td>
-                  <td className="py-3 px-4 whitespace-nowrap">
-                    <span
-                      className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${
-                        log.status === 'success'
-                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                          : log.status === 'warning'
-                          ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                          : log.status === 'error'
-                          ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                          : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
-                      }`}
-                    >
-                      {log.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-xs text-slate-400 text-right whitespace-nowrap">
-                    {log.time}
+              {!recentAuditLogs || recentAuditLogs.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="py-8 text-center text-slate-400 text-xs">
+                    No audit events recorded yet. Platform mutations will appear here in real time.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                recentAuditLogs.map((log) => (
+                  <tr
+                    key={log.id}
+                    onClick={() => navigate('/super-admin/audit-logs')}
+                    className="hover:bg-slate-900/60 transition-colors cursor-pointer"
+                  >
+                    <td className="py-3 px-4 font-semibold text-white whitespace-nowrap">
+                      {log.action}
+                    </td>
+                    <td className="py-3 px-4 text-slate-300 text-xs">{log.details}</td>
+                    <td className="py-3 px-4 text-slate-400 text-xs font-medium whitespace-nowrap">
+                      {log.user || log.actor?.name || 'System'}
+                    </td>
+                    <td className="py-3 px-4 font-mono text-xs text-slate-500 whitespace-nowrap">
+                      {log.ip}
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span
+                        className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${
+                          log.status === 'success'
+                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                            : log.status === 'warning'
+                            ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                            : log.status === 'error'
+                            ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                            : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                        }`}
+                      >
+                        {log.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-xs text-slate-400 text-right whitespace-nowrap">
+                      {log.time || log.timeAgo || 'Recently'}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

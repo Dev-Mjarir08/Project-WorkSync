@@ -144,19 +144,19 @@ export const UsersPage = () => {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="p-4 rounded-xl bg-[#0d1322] border border-slate-800">
           <p className="text-xs text-slate-400 font-medium">Total Accounts</p>
-          <p className="text-xl font-bold text-white mt-1">{users.length + 1475}</p>
+          <p className="text-xl font-bold text-white mt-1">{totalCount || users.length}</p>
         </div>
         <div className="p-4 rounded-xl bg-[#0d1322] border border-slate-800">
           <p className="text-xs text-emerald-400 font-medium">Active Accounts</p>
-          <p className="text-xl font-bold text-white mt-1">{summary?.active || 6}</p>
+          <p className="text-xl font-bold text-white mt-1">{summary?.active ?? users.filter(u => u.isActive).length}</p>
         </div>
         <div className="p-4 rounded-xl bg-[#0d1322] border border-slate-800">
           <p className="text-xs text-blue-400 font-medium">Platform Admins</p>
-          <p className="text-xl font-bold text-white mt-1">{summary?.admin || 2}</p>
+          <p className="text-xl font-bold text-white mt-1">{summary?.admin ?? summary?.superAdmin ?? 0}</p>
         </div>
         <div className="p-4 rounded-xl bg-[#0d1322] border border-slate-800">
           <p className="text-xs text-rose-400 font-medium">Suspended Accounts</p>
-          <p className="text-xl font-bold text-white mt-1">{summary?.inactive || 1}</p>
+          <p className="text-xl font-bold text-white mt-1">{summary?.inactive ?? users.filter(u => !u.isActive).length}</p>
         </div>
       </div>
 

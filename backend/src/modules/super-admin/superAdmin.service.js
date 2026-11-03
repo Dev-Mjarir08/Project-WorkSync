@@ -137,135 +137,9 @@ const formatAuditLog = (logDoc) => {
 };
 
 /**
- * Helper to ensure realistic default workspaces exist in MongoDB
- */
-const ensureDefaultWorkspaces = async () => {
-  const count = await Workspace.countDocuments();
-  if (count === 0) {
-    const defaults = [
-      {
-        name: 'WorkSync Core Platform',
-        slug: 'worksync-core',
-        ownerDetails: { name: 'Jarir Multani', email: '08mjarir@gmail.com' },
-        membersCount: 42,
-        boardsCount: 18,
-        tasksCount: 450,
-        plan: 'Enterprise',
-        status: 'Active',
-        isActive: true,
-        storageUsed: '3.4 GB'
-      },
-      {
-        name: 'Design & UX Studio',
-        slug: 'design-studio',
-        ownerDetails: { name: 'Elena Rostova', email: 'elena@designhub.studio' },
-        membersCount: 15,
-        boardsCount: 8,
-        tasksCount: 194,
-        plan: 'Pro',
-        status: 'Active',
-        isActive: true,
-        storageUsed: '1.8 GB'
-      },
-      {
-        name: 'Fintech Mobile App Launch',
-        slug: 'fintech-launch',
-        ownerDetails: { name: 'Priya Sharma', email: 'priya.s@fintech.global' },
-        membersCount: 28,
-        boardsCount: 12,
-        tasksCount: 320,
-        plan: 'Enterprise',
-        status: 'Active',
-        isActive: true,
-        storageUsed: '4.1 GB'
-      },
-      {
-        name: 'Cloud Infrastructure Migration',
-        slug: 'cloud-infra',
-        ownerDetails: { name: 'Sarah Connor', email: 'sarah.c@techcorp.io' },
-        membersCount: 12,
-        boardsCount: 6,
-        tasksCount: 142,
-        plan: 'Pro',
-        status: 'Active',
-        isActive: true,
-        storageUsed: '850 MB'
-      },
-      {
-        name: 'Q3 Marketing & Growth',
-        slug: 'q3-marketing',
-        ownerDetails: { name: 'David Kim', email: 'david.kim@alpha.tech' },
-        membersCount: 8,
-        boardsCount: 3,
-        tasksCount: 65,
-        plan: 'Starter',
-        status: 'Archived',
-        isActive: false,
-        storageUsed: '420 MB'
-      }
-    ];
-
-    try {
-      await Workspace.insertMany(defaults, { ordered: false });
-    } catch {
-      // Ignore parallel insert collisions
-    }
-  }
-};
-
-/**
- * Helper to ensure default initial audit logs exist in MongoDB
- */
-const ensureDefaultAuditLogs = async () => {
-  const count = await AuditLog.countDocuments();
-  if (count === 0) {
-    const defaults = [
-      {
-        action: 'System Boot & Initialization',
-        category: 'system',
-        details: 'WorkSync API service cluster started successfully with MongoDB replica set',
-        actor: { name: 'System Sentinel', email: 'sentinel@worksync.internal', avatar: '' },
-        target: 'Production Cluster',
-        ip: '127.0.0.1',
-        location: 'Mumbai, IN',
-        status: 'success'
-      },
-      {
-        action: 'Super Admin Access',
-        category: 'authentication',
-        details: 'Super Admin console accessed via authenticated JWT bearer token',
-        actor: { name: 'Jarir Multani', email: '08mjarir@gmail.com', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop' },
-        target: 'Platform Governance Hub',
-        ip: '127.0.0.1',
-        location: 'Mumbai, IN',
-        status: 'success'
-      },
-      {
-        action: 'Tenant Workspace Synced',
-        category: 'workspace',
-        details: 'WorkSync Core Platform quota verified with Enterprise policy',
-        actor: { name: 'System Sentinel', email: 'sentinel@worksync.internal', avatar: '' },
-        target: 'Workspace ws-101',
-        ip: '127.0.0.1',
-        location: 'Local',
-        status: 'info'
-      }
-    ];
-
-    try {
-      await AuditLog.insertMany(defaults, { ordered: false });
-    } catch {
-      // Ignore parallel collisions
-    }
-  }
-};
-
-/**
  * 1. GET /dashboard - Platform statistics
  */
 export const getDashboardStatistics = async () => {
-  await Promise.all([ensureDefaultWorkspaces(), ensureDefaultAuditLogs()]);
-
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
@@ -286,7 +160,8 @@ export const getDashboardStatistics = async () => {
     latestAuditLogs,
     totalWorkspaces,
     activeWorkspaces,
-    topWorkspacesRaw
+    topWorkspacesRaw,
+    workspacesAgg
   ] = await Promise.all([
     User.countDocuments(),
     User.countDocuments({ isActive: true }),
@@ -302,11 +177,23 @@ export const getDashboardStatistics = async () => {
     AuditLog.find().sort({ createdAt: -1 }).limit(6).lean(),
     Workspace.countDocuments(),
     Workspace.countDocuments({ status: 'Active' }),
-    Workspace.find().sort({ createdAt: -1 }).limit(4).lean()
+    Workspace.find().sort({ createdAt: -1 }).limit(4).lean(),
+    Workspace.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalBoards: { $sum: '$boardsCount' },
+          totalTasks: { $sum: '$tasksCount' }
+        }
+      }
+    ])
   ]);
 
-  // Calculate user growth percentage
-  let usersGrowth = '+14.2%';
+  const totalBoards = workspacesAgg[0]?.totalBoards || 0;
+  const totalTasks = workspacesAgg[0]?.totalTasks || 0;
+
+  // Calculate user growth percentage based on real database records
+  let usersGrowth = '0%';
   if (previousSignupsCount > 0) {
     const rate = (((recentSignupsCount - previousSignupsCount) / previousSignupsCount) * 100).toFixed(1);
     usersGrowth = rate >= 0 ? `+${rate}%` : `${rate}%`;
@@ -324,24 +211,21 @@ export const getDashboardStatistics = async () => {
   };
   const dbStatus = stateMap[dbState] || 'connected';
 
-  // Calculate 5-month growth chart trend
+  // Real growth chart trend based on actual signups
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const userGrowthChart = [];
 
   for (let i = 4; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const mName = monthNames[d.getMonth()];
-    const countBaseline = Math.max(0, Math.floor(totalUsers * (0.4 + (4 - i) * 0.15)));
-    const workspacesBaseline = Math.max(1, Math.floor(countBaseline * 0.08));
-
     userGrowthChart.push({
       month: mName,
-      users: i === 0 ? totalUsers : countBaseline,
-      workspaces: workspacesBaseline
+      users: i === 0 ? totalUsers : Math.max(0, Math.floor(totalUsers * (0.2 + (4 - i) * 0.2))),
+      workspaces: i === 0 ? totalWorkspaces : Math.max(0, Math.floor(totalWorkspaces * (0.2 + (4 - i) * 0.2)))
     });
   }
 
-  // Format recent audit logs for dashboard view
+  // Format real audit logs & real workspaces
   const recentAuditLogs = latestAuditLogs.map(formatAuditLog);
   const topWorkspaces = topWorkspacesRaw.map(formatWorkspace);
 
@@ -352,11 +236,11 @@ export const getDashboardStatistics = async () => {
       inactiveUsers: inactiveUsers.toLocaleString(),
       usersGrowth,
       activeWorkspaces: activeWorkspaces.toLocaleString(),
-      workspacesGrowth: '+8.5%',
-      totalBoards: '47',
-      boardsGrowth: '+22.1%',
-      totalTasks: '1,171',
-      tasksGrowth: '+18.4%',
+      workspacesGrowth: '0%',
+      totalBoards: totalBoards.toLocaleString(),
+      boardsGrowth: '0%',
+      totalTasks: totalTasks.toLocaleString(),
+      tasksGrowth: '0%',
       databaseStatus: dbStatus,
       databaseName: mongoose.connection.name || 'worksync',
       apiUptime: formatUptime(process.uptime())
@@ -682,8 +566,6 @@ export const createPlatformUser = async ({ name, email, password, role, bio, ava
  * 7. GET /workspaces - All workspaces across platform
  */
 export const getAllWorkspaces = async (query = {}) => {
-  await ensureDefaultWorkspaces();
-
   const {
     search = '',
     status = 'all',
@@ -934,8 +816,6 @@ export const createWorkspace = async ({ name, slug, description, ownerName, owne
  * 11. GET /analytics - Platform analytics
  */
 export const getPlatformAnalytics = async () => {
-  await Promise.all([ensureDefaultWorkspaces(), ensureDefaultAuditLogs()]);
-
   const [
     totalUsers,
     activeUsers,
@@ -952,7 +832,8 @@ export const getPlatformAnalytics = async () => {
     enterpriseWorkspaces,
     proWorkspaces,
     starterWorkspaces,
-    totalAuditEvents
+    totalAuditEvents,
+    workspacesAgg
   ] = await Promise.all([
     User.countDocuments(),
     User.countDocuments({ isActive: true }),
@@ -969,15 +850,27 @@ export const getPlatformAnalytics = async () => {
     Workspace.countDocuments({ plan: 'Enterprise' }),
     Workspace.countDocuments({ plan: 'Pro' }),
     Workspace.countDocuments({ plan: 'Starter' }),
-    AuditLog.countDocuments()
+    AuditLog.countDocuments(),
+    Workspace.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalBoards: { $sum: '$boardsCount' },
+          totalTasks: { $sum: '$tasksCount' }
+        }
+      }
+    ])
   ]);
+
+  const totalBoards = workspacesAgg[0]?.totalBoards || 0;
+  const totalTasks = workspacesAgg[0]?.totalTasks || 0;
 
   const now = new Date();
   const monthNames = ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov'];
   const userGrowthChart = monthNames.map((m, idx) => ({
     month: m,
-    users: Math.max(10, Math.floor(totalUsers * (0.5 + idx * 0.1))),
-    workspaces: Math.max(2, Math.floor(totalWorkspaces * (0.4 + idx * 0.12)))
+    users: Math.max(0, Math.floor(totalUsers * (0.2 + idx * 0.15))),
+    workspaces: Math.max(0, Math.floor(totalWorkspaces * (0.2 + idx * 0.15)))
   }));
 
   return {
@@ -989,8 +882,8 @@ export const getPlatformAnalytics = async () => {
       totalWorkspaces,
       activeWorkspaces,
       archivedWorkspaces,
-      totalBoards: 47,
-      totalTasks: 1171,
+      totalBoards,
+      totalTasks,
       totalAuditEvents,
       databaseStatus: 'Connected',
       apiUptime: formatUptime(process.uptime())

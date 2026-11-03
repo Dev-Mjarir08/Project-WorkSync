@@ -134,7 +134,7 @@ export const AuditLogsPage = () => {
             <FileText className="h-4 w-4 text-indigo-400" />
           </div>
           <div className="mt-2 text-2xl font-bold text-white">
-            {metrics?.totalEvents ? metrics.totalEvents.toLocaleString() : '1,482'}
+            {metrics?.totalEvents !== undefined ? metrics.totalEvents.toLocaleString() : logs.length.toLocaleString()}
           </div>
           <p className="mt-1 text-[11px] text-slate-500">Immutable ledger trail</p>
         </div>
@@ -145,7 +145,7 @@ export const AuditLogsPage = () => {
             <ShieldAlert className="h-4 w-4 text-amber-400" />
           </div>
           <div className="mt-2 text-2xl font-bold text-amber-400">
-            {metrics?.securityAlerts || 4}
+            {metrics?.securityAlerts ?? 0}
           </div>
           <p className="mt-1 text-[11px] text-slate-500">Auto-isolated by Sentinel</p>
         </div>
@@ -156,7 +156,7 @@ export const AuditLogsPage = () => {
             <Server className="h-4 w-4 text-emerald-400" />
           </div>
           <div className="mt-2 text-2xl font-bold text-emerald-400">
-            {metrics?.activeSessions || 48}
+            {metrics?.activeSessions ?? 1}
           </div>
           <p className="mt-1 text-[11px] text-slate-500">Token TLS handshakes OK</p>
         </div>
@@ -167,7 +167,7 @@ export const AuditLogsPage = () => {
             <Shield className="h-4 w-4 text-cyan-400" />
           </div>
           <div className="mt-2 text-2xl font-bold text-cyan-400">
-            {metrics?.complianceScore || '99.8%'}
+            {metrics?.complianceScore || '100%'}
           </div>
           <p className="mt-1 text-[11px] text-slate-500">Strict retention active</p>
         </div>

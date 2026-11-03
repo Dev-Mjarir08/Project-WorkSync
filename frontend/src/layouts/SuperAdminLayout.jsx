@@ -32,32 +32,27 @@ export const SuperAdminLayout = () => {
     {
       name: 'Overview',
       path: '/super-admin/dashboard',
-      icon: LayoutDashboard,
-      badge: 'Live'
+      icon: LayoutDashboard
     },
     {
       name: 'Users Management',
       path: '/super-admin/users',
-      icon: Users,
-      badge: '1.4k'
+      icon: Users
     },
     {
       name: 'Workspaces',
       path: '/super-admin/workspaces',
-      icon: Building2,
-      badge: '84'
+      icon: Building2
     },
     {
       name: 'Platform Analytics',
       path: '/super-admin/analytics',
-      icon: TrendingUp,
-      badge: 'New'
+      icon: TrendingUp
     },
     {
       name: 'System Health',
       path: '/super-admin/system-health',
-      icon: Activity,
-      badge: '99.9%'
+      icon: Activity
     },
     {
       name: 'Roles & Permissions',
@@ -67,8 +62,7 @@ export const SuperAdminLayout = () => {
     {
       name: 'Audit Logs',
       path: '/super-admin/audit-logs',
-      icon: FileText,
-      badge: 'Live'
+      icon: FileText
     },
     {
       name: 'Platform Settings',
@@ -189,15 +183,13 @@ export const SuperAdminLayout = () => {
             <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-slate-800/60">
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <img
-                    src={user?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop"}
-                    alt={user?.name || "Jarir Multani"}
-                    className="h-10 w-10 rounded-full object-cover ring-2 ring-indigo-500/30"
-                  />
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm ring-2 ring-indigo-500/30">
+                    {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
+                  </div>
                   <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-slate-900" />
                 </div>
                 <div className="overflow-hidden">
-                  <h4 className="text-sm font-semibold text-white truncate">{user?.name || "Jarir Multani"}</h4>
+                  <h4 className="text-sm font-semibold text-white truncate">{user?.name || "Super Admin"}</h4>
                   <span className="text-[10px] font-semibold px-1.5 py-0.2 text-indigo-400 bg-indigo-500/10 rounded border border-indigo-500/20 capitalize">
                     {user?.role ? user.role.replace('_', ' ') : 'Super Admin'}
                   </span>
@@ -251,28 +243,19 @@ export const SuperAdminLayout = () => {
                   className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors relative"
                 >
                   <Bell className="h-4 w-4" />
-                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-indigo-500"></span>
                 </button>
 
                 {notificationsOpen && (
                   <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-4 z-50">
                     <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                       <h4 className="text-sm font-semibold text-white">System Alerts</h4>
-                      <span className="text-xs text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full">
-                        2 new
+                      <span className="text-xs text-slate-400">
+                        All clear
                       </span>
                     </div>
-                    <div className="py-2 space-y-2">
-                      <div className="p-2.5 rounded-xl bg-slate-800/40 text-xs space-y-1">
-                        <p className="font-medium text-slate-200">MongoDB Atlas Connection</p>
-                        <p className="text-slate-400">Database replica set connected and operating normally.</p>
-                        <span className="text-[10px] text-slate-500">Just now</span>
-                      </div>
-                      <div className="p-2.5 rounded-xl bg-slate-800/40 text-xs space-y-1">
-                        <p className="font-medium text-slate-200">New User Registered</p>
-                        <p className="text-slate-400">Jarir Multani updated platform auth keys.</p>
-                        <span className="text-[10px] text-slate-500">10 mins ago</span>
-                      </div>
+                    <div className="py-4 text-center">
+                      <p className="text-xs text-slate-400">No unread alerts or notifications.</p>
+                      <p className="text-[10px] text-slate-500 mt-1">Platform services operating normally.</p>
                     </div>
                   </div>
                 )}

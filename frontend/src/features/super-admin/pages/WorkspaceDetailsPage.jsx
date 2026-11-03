@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import superAdminService from '../superAdminService.js';
 import {
   ArrowLeft,
   Building2,
@@ -23,108 +24,88 @@ import {
   AlertTriangle,
   Lock,
   Globe,
-  Settings
+  Settings,
+  RefreshCw
 } from 'lucide-react';
 
 export const WorkspaceDetailsPage = () => {
   const { workspaceId } = useParams();
   const navigate = useNavigate();
 
-  // Mock initial workspaces directory to seed state
-  const mockDatabase = {
-    'ws-101': {
-      id: 'ws-101',
-      name: 'WorkSync Core Platform',
-      slug: 'worksync-core',
-      description: 'Primary platform operational workspace hosting core infrastructure boards, system sprint tracking, and platform engineering teams.',
-      owner: { name: 'Jarir Multani', email: '08mjarir@gmail.com', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop' },
-      plan: 'Enterprise',
-      status: 'Active',
-      storageUsed: 3.4,
-      storageQuota: 20,
-      createdAt: '2026-10-21',
-      membersCount: 42,
-      boardsCount: 18,
-      tasksCount: 450,
-      members: [
-        { id: 'm-1', name: 'Jarir Multani', email: '08mjarir@gmail.com', role: 'Owner', joinedAt: '2026-10-21', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop' },
-        { id: 'm-2', name: 'Sarah Connor', email: 'sarah.c@techcorp.io', role: 'Admin', joinedAt: '2026-10-22', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&h=120&fit=crop' },
-        { id: 'm-3', name: 'Alex Rivera', email: 'alex.rivera@devops.co', role: 'Member', joinedAt: '2026-10-23', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&h=120&fit=crop' },
-        { id: 'm-4', name: 'Priya Sharma', email: 'priya.s@fintech.global', role: 'Member', joinedAt: '2026-10-26', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&h=120&fit=crop' }
-      ],
-      boards: [
-        { id: 'b-1', name: 'Core Backend Sprint 44', tasksCount: 38, listsCount: 5, lastActive: '10 mins ago', type: 'Scrum' },
-        { id: 'b-2', name: 'Frontend Architecture & UI', tasksCount: 54, listsCount: 6, lastActive: '1 hour ago', type: 'Kanban' },
-        { id: 'b-3', name: 'DevOps & CI/CD Pipeline', tasksCount: 22, listsCount: 4, lastActive: 'Yesterday', type: 'Kanban' },
-        { id: 'b-4', name: 'Security & Penetration Audit', tasksCount: 16, listsCount: 3, lastActive: '3 days ago', type: 'Task Tracker' }
-      ]
-    },
-    'ws-102': {
-      id: 'ws-102',
-      name: 'Design & UX Studio',
-      slug: 'design-studio',
-      description: 'Creative design hub specializing in product UI component libraries, mobile design systems, user journey mappings, and interactive prototypes.',
-      owner: { name: 'Elena Rostova', email: 'elena@designhub.studio', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=120&h=120&fit=crop' },
-      plan: 'Pro',
-      status: 'Active',
-      storageUsed: 1.8,
-      storageQuota: 10,
-      createdAt: '2026-10-23',
-      membersCount: 15,
-      boardsCount: 8,
-      tasksCount: 194,
-      members: [
-        { id: 'm-1', name: 'Elena Rostova', email: 'elena@designhub.studio', role: 'Owner', joinedAt: '2026-10-23', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=120&h=120&fit=crop' },
-        { id: 'm-2', name: 'David Kim', email: 'david.kim@alpha.tech', role: 'Member', joinedAt: '2026-10-25', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&h=120&fit=crop' }
-      ],
-      boards: [
-        { id: 'b-1', name: 'Design System 2.0 (Figma)', tasksCount: 42, listsCount: 4, lastActive: '2 hours ago', type: 'Kanban' },
-        { id: 'b-2', name: 'User Testing & Heuristics', tasksCount: 18, listsCount: 3, lastActive: 'Yesterday', type: 'Task Tracker' }
-      ]
-    }
-  };
-
-  const initialWorkspace = mockDatabase[workspaceId] || {
-    id: workspaceId || 'ws-custom',
-    name: workspaceId ? `Workspace (${workspaceId})` : 'Enterprise Project Space',
-    slug: workspaceId ? workspaceId.toLowerCase() : 'enterprise-project',
-    description: 'Multi-tenant organization workspace with segregated board resources, team collaboration, and cloud storage.',
-    owner: { name: 'Jarir Multani', email: '08mjarir@gmail.com', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop' },
-    plan: 'Enterprise',
-    status: 'Active',
-    storageUsed: 2.5,
-    storageQuota: 20,
-    createdAt: '2026-10-21',
-    membersCount: 24,
-    boardsCount: 12,
-    tasksCount: 280,
-    members: [
-      { id: 'm-1', name: 'Jarir Multani', email: '08mjarir@gmail.com', role: 'Owner', joinedAt: '2026-10-21', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop' },
-      { id: 'm-2', name: 'Sarah Connor', email: 'sarah.c@techcorp.io', role: 'Admin', joinedAt: '2026-10-22', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&h=120&fit=crop' }
-    ],
-    boards: [
-      { id: 'b-1', name: 'Product Roadmap & Sprint', tasksCount: 32, listsCount: 5, lastActive: '20 mins ago', type: 'Scrum' },
-      { id: 'b-2', name: 'Customer Feedback & Bugs', tasksCount: 18, listsCount: 3, lastActive: '2 hours ago', type: 'Kanban' }
-    ]
-  };
-
-  const [workspace, setWorkspace] = useState(initialWorkspace);
+  const [workspace, setWorkspace] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview'); // overview, members, boards, quotas
   const [toast, setToast] = useState(null);
   const [copiedSlug, setCopiedSlug] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({
-    name: workspace.name,
-    description: workspace.description,
-    plan: workspace.plan,
-    storageQuota: workspace.storageQuota
+    name: '',
+    description: '',
+    plan: 'Pro',
+    storageQuota: 10
   });
 
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   };
+
+  useEffect(() => {
+    const fetchWorkspace = async () => {
+      try {
+        setLoading(true);
+        const ws = await superAdminService.getWorkspaceById(workspaceId);
+        if (ws) {
+          setWorkspace({
+            ...ws,
+            storageQuota: ws.plan === 'Enterprise' ? 20 : ws.plan === 'Pro' ? 10 : 5,
+            members: ws.members || [],
+            boards: ws.boards || []
+          });
+          setEditForm({
+            name: ws.name,
+            description: ws.description || '',
+            plan: ws.plan || 'Pro',
+            storageQuota: ws.plan === 'Enterprise' ? 20 : ws.plan === 'Pro' ? 10 : 5
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load workspace details:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWorkspace();
+  }, [workspaceId]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
+        <RefreshCw className="h-8 w-8 text-indigo-400 animate-spin" />
+        <p className="text-sm text-slate-400">Loading workspace tenant details...</p>
+      </div>
+    );
+  }
+
+  if (!workspace) {
+    return (
+      <div className="p-12 text-center rounded-2xl bg-[#0d1322] border border-slate-800 space-y-4">
+        <Building2 className="h-12 w-12 text-slate-600 mx-auto" />
+        <h2 className="text-xl font-bold text-white">Workspace Not Found</h2>
+        <p className="text-xs text-slate-400 max-w-sm mx-auto">
+          The requested tenant workspace does not exist or has been decommissioned.
+        </p>
+        <button
+          onClick={() => navigate('/super-admin/workspaces')}
+          className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold"
+        >
+          Back to Workspaces
+        </button>
+      </div>
+    );
+  }
 
   const copySlug = () => {
     navigator.clipboard.writeText(workspace.slug);

@@ -1,4 +1,4 @@
-// Super Admin Service: provides live API interaction with resilient mock fallback
+// Super Admin Service: provides live API interaction with backend database
 const API_BASE_URL = 'http://localhost:8081/api';
 
 const getAuthHeaders = () => {
@@ -9,157 +9,8 @@ const getAuthHeaders = () => {
   };
 };
 
-// Initial realistic data for Super Admin state
-let mockUsers = [
-  {
-    id: 'usr-1',
-    name: 'Jarir Multani',
-    email: '08mjarir@gmail.com',
-    role: 'super_admin',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop',
-    isActive: true,
-    workspacesCount: 5,
-    lastLogin: '2 minutes ago',
-    joinedAt: '2026-10-21'
-  },
-  {
-    id: 'usr-2',
-    name: 'Sarah Connor',
-    email: 'sarah.c@techcorp.io',
-    role: 'admin',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&h=120&fit=crop',
-    isActive: true,
-    workspacesCount: 3,
-    lastLogin: '1 hour ago',
-    joinedAt: '2026-10-22'
-  },
-  {
-    id: 'usr-3',
-    name: 'Alex Rivera',
-    email: 'alex.rivera@devops.co',
-    role: 'member',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&h=120&fit=crop',
-    isActive: true,
-    workspacesCount: 2,
-    lastLogin: '3 hours ago',
-    joinedAt: '2026-10-23'
-  },
-  {
-    id: 'usr-4',
-    name: 'Elena Rostova',
-    email: 'elena@designhub.studio',
-    role: 'member',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=120&h=120&fit=crop',
-    isActive: true,
-    workspacesCount: 1,
-    lastLogin: '1 day ago',
-    joinedAt: '2026-10-24'
-  },
-  {
-    id: 'usr-5',
-    name: 'David Kim',
-    email: 'david.kim@alpha.tech',
-    role: 'viewer',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&h=120&fit=crop',
-    isActive: false,
-    workspacesCount: 1,
-    lastLogin: '5 days ago',
-    joinedAt: '2026-10-25'
-  },
-  {
-    id: 'usr-6',
-    name: 'Priya Sharma',
-    email: 'priya.s@fintech.global',
-    role: 'admin',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&h=120&fit=crop',
-    isActive: true,
-    workspacesCount: 4,
-    lastLogin: '4 hours ago',
-    joinedAt: '2026-10-26'
-  },
-  {
-    id: 'usr-7',
-    name: 'Marcus Vance',
-    email: 'marcus@cloudops.net',
-    role: 'member',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&h=120&fit=crop',
-    isActive: true,
-    workspacesCount: 2,
-    lastLogin: 'Yesterday',
-    joinedAt: '2026-10-27'
-  }
-];
-
-let mockWorkspaces = [
-  {
-    id: 'ws-101',
-    name: 'WorkSync Core Platform',
-    slug: 'worksync-core',
-    owner: { name: 'Jarir Multani', email: '08mjarir@gmail.com' },
-    membersCount: 42,
-    boardsCount: 18,
-    tasksCount: 450,
-    plan: 'Enterprise',
-    status: 'Active',
-    storageUsed: '3.4 GB',
-    createdAt: '2026-10-21'
-  },
-  {
-    id: 'ws-102',
-    name: 'Design & UX Studio',
-    slug: 'design-studio',
-    owner: { name: 'Elena Rostova', email: 'elena@designhub.studio' },
-    membersCount: 15,
-    boardsCount: 8,
-    tasksCount: 194,
-    plan: 'Pro',
-    status: 'Active',
-    storageUsed: '1.8 GB',
-    createdAt: '2026-10-23'
-  },
-  {
-    id: 'ws-103',
-    name: 'Fintech Mobile App Launch',
-    slug: 'fintech-launch',
-    owner: { name: 'Priya Sharma', email: 'priya.s@fintech.global' },
-    membersCount: 28,
-    boardsCount: 12,
-    tasksCount: 320,
-    plan: 'Enterprise',
-    status: 'Active',
-    storageUsed: '4.1 GB',
-    createdAt: '2026-10-24'
-  },
-  {
-    id: 'ws-104',
-    name: 'Cloud Infrastructure Migration',
-    slug: 'cloud-infra',
-    owner: { name: 'Sarah Connor', email: 'sarah.c@techcorp.io' },
-    membersCount: 12,
-    boardsCount: 6,
-    tasksCount: 142,
-    plan: 'Pro',
-    status: 'Active',
-    storageUsed: '850 MB',
-    createdAt: '2026-10-25'
-  },
-  {
-    id: 'ws-105',
-    name: 'Q3 Marketing & Growth',
-    slug: 'q3-marketing',
-    owner: { name: 'David Kim', email: 'david.kim@alpha.tech' },
-    membersCount: 8,
-    boardsCount: 3,
-    tasksCount: 65,
-    plan: 'Starter',
-    status: 'Archived',
-    storageUsed: '420 MB',
-    createdAt: '2026-10-26'
-  }
-];
-
 export const superAdminService = {
-  // Get overview KPI stats
+  // 1. Get overview KPI stats
   getDashboardOverview: async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/v1/super-admin/dashboard`, {
@@ -171,155 +22,77 @@ export const superAdminService = {
           return json.data;
         }
       }
-    } catch {
-      // Backend not running or offline, keep default mock fallback
+    } catch (err) {
+      console.error('Failed to fetch dashboard overview:', err);
     }
 
-    let dbStatus = 'connected';
-    try {
-      const res = await fetch(`${API_BASE_URL}/health`);
-      if (res.ok) {
-        const data = await res.json();
-        dbStatus = data?.database?.status || 'connected';
-      }
-    } catch {
-      // Backend not running or offline, keep default
-    }
-
-    const totalUsers = mockUsers.length + 1475;
-    const activeWorkspaces = mockWorkspaces.filter(w => w.status === 'Active').length + 80;
-    const totalBoards = mockWorkspaces.reduce((acc, curr) => acc + curr.boardsCount, 0) + 290;
-    const totalTasks = mockWorkspaces.reduce((acc, curr) => acc + curr.tasksCount, 0) + 14200;
-
+    // Default clean empty state for a fresh registration
     return {
       stats: {
-        totalUsers: totalUsers.toLocaleString(),
-        usersGrowth: '+14.2%',
-        activeWorkspaces: activeWorkspaces.toLocaleString(),
-        workspacesGrowth: '+8.5%',
-        totalBoards: totalBoards.toLocaleString(),
-        boardsGrowth: '+22.1%',
-        totalTasks: totalTasks.toLocaleString(),
-        tasksGrowth: '+18.4%',
-        databaseStatus: dbStatus,
-        apiUptime: '99.98%'
+        totalUsers: '0',
+        usersGrowth: '0%',
+        activeWorkspaces: '0',
+        workspacesGrowth: '0%',
+        totalBoards: '0',
+        boardsGrowth: '0%',
+        totalTasks: '0',
+        tasksGrowth: '0%',
+        databaseStatus: 'connected',
+        apiUptime: '100%'
       },
-      userGrowthChart: [
-        { month: 'Jun', users: 620, workspaces: 28 },
-        { month: 'Jul', users: 840, workspaces: 39 },
-        { month: 'Aug', users: 1100, workspaces: 54 },
-        { month: 'Sep', users: 1320, workspaces: 72 },
-        { month: 'Oct', users: totalUsers, workspaces: activeWorkspaces }
-      ],
-      recentAuditLogs: [
-        {
-          id: 'log-1',
-          action: 'User Registered',
-          details: 'New member registered via platform invite',
-          user: 'Alex Rivera',
-          ip: '192.168.1.45',
-          status: 'success',
-          time: '5 mins ago'
-        },
-        {
-          id: 'log-2',
-          action: 'Workspace Created',
-          details: 'Created workspace "Fintech Mobile App Launch"',
-          user: 'Priya Sharma',
-          ip: '103.45.12.8',
-          status: 'success',
-          time: '24 mins ago'
-        },
-        {
-          id: 'log-3',
-          action: 'Role Promoted',
-          details: 'User Sarah Connor promoted to Platform Admin',
-          user: 'Jarir Multani',
-          ip: '127.0.0.1',
-          status: 'warning',
-          time: '1 hour ago'
-        },
-        {
-          id: 'log-4',
-          action: 'Password Changed',
-          details: 'Security credential update completed',
-          user: 'Elena Rostova',
-          ip: '185.22.14.99',
-          status: 'info',
-          time: '3 hours ago'
-        },
-        {
-          id: 'log-5',
-          action: 'Account Deactivated',
-          details: 'Account suspended due to policy inactivity',
-          user: 'David Kim',
-          ip: '192.168.1.102',
-          status: 'error',
-          time: '1 day ago'
-        }
-      ],
-      topWorkspaces: mockWorkspaces.slice(0, 4)
+      userGrowthChart: [],
+      recentAuditLogs: [],
+      topWorkspaces: [],
+      rolesSummary: {
+        superAdmin: 0,
+        admin: 0,
+        manager: 0,
+        employee: 0,
+        member: 0,
+        viewer: 0,
+        active: 0,
+        inactive: 0
+      }
     };
   },
 
-  // Users Management
-  getUsers: async ({ search = '', role = 'all', status = 'all' } = {}) => {
+  // 2. Get all platform users
+  getUsers: async (query = {}) => {
+    const { search = '', role = 'all', status = 'all' } = query;
     try {
-      const queryParams = new URLSearchParams();
-      if (search) queryParams.append('search', search);
-      if (role && role !== 'all') queryParams.append('role', role);
-      if (status && status !== 'all') queryParams.append('status', status);
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      if (role && role !== 'all') params.append('role', role);
+      if (status && status !== 'all') params.append('status', status);
 
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/users?${queryParams.toString()}`, {
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/users?${params.toString()}`, {
         headers: getAuthHeaders()
       });
       if (res.ok) {
         const json = await res.json();
-        if (json.data && json.data.users) {
-          return {
-            users: json.data.users,
-            totalCount: json.data.totalCount,
-            rolesSummary: json.data.rolesSummary
-          };
-        }
+        return json.data;
       }
-    } catch {
-      // Backend not running or offline, keep default mock fallback
-    }
-
-    let filtered = [...mockUsers];
-
-    if (search.trim()) {
-      const q = search.toLowerCase().trim();
-      filtered = filtered.filter(
-        u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
-      );
-    }
-
-    if (role !== 'all') {
-      filtered = filtered.filter(u => u.role === role);
-    }
-
-    if (status !== 'all') {
-      const isActiveFilter = status === 'active';
-      filtered = filtered.filter(u => u.isActive === isActiveFilter);
+    } catch (err) {
+      console.error('Failed to fetch users:', err);
     }
 
     return {
-      users: filtered,
-      totalCount: filtered.length,
+      users: [],
+      totalCount: 0,
       rolesSummary: {
-        superAdmin: mockUsers.filter(u => u.role === 'super_admin').length,
-        admin: mockUsers.filter(u => u.role === 'admin').length,
-        member: mockUsers.filter(u => u.role === 'member').length,
-        viewer: mockUsers.filter(u => u.role === 'viewer').length,
-        active: mockUsers.filter(u => u.isActive).length,
-        inactive: mockUsers.filter(u => !u.isActive).length
+        superAdmin: 0,
+        admin: 0,
+        manager: 0,
+        employee: 0,
+        member: 0,
+        viewer: 0,
+        active: 0,
+        inactive: 0
       }
     };
   },
 
-  // Get single user details by ID
+  // 3. Get single user details by ID
   getUserById: async (userId) => {
     try {
       const res = await fetch(`${API_BASE_URL}/v1/super-admin/users/${userId}`, {
@@ -327,595 +100,431 @@ export const superAdminService = {
       });
       if (res.ok) {
         const json = await res.json();
-        if (json.data && json.data.user) {
-          return json.data.user;
-        }
+        return json.data?.user || json.data;
       }
-    } catch {
-      // offline fallback
+    } catch (err) {
+      console.error('Failed to fetch user by ID:', err);
     }
-
-    return mockUsers.find(u => u.id === userId || u._id === userId) || null;
+    return null;
   },
 
-  // Create new user
+  // 4. Create new user by super admin
   createUser: async (userData) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/users`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(userData)
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data && json.data.user) {
-          return json.data.user;
-        }
-      }
-    } catch {
-      // offline fallback
+    const res = await fetch(`${API_BASE_URL}/v1/super-admin/users`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(userData)
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.message || 'Failed to create user');
     }
-
-    const newUser = {
-      id: `usr-${Date.now()}`,
-      name: userData.name,
-      email: userData.email,
-      role: userData.role || 'member',
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(userData.name)}`,
-      isActive: true,
-      workspacesCount: 0,
-      lastLogin: 'Never',
-      joinedAt: new Date().toISOString().split('T')[0]
-    };
-    mockUsers.unshift(newUser);
-    return newUser;
+    return json.data?.user || json.data;
   },
 
-  // Update user role
-  updateUserRole: async (userId, role) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/users/${userId}/role`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ role })
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data && json.data.user) {
-          return json.data.user;
-        }
-      }
-    } catch {
-      // offline fallback
+  // 5. Toggle user active/deactivated status
+  toggleUserStatus: async (userId) => {
+    const res = await fetch(`${API_BASE_URL}/v1/super-admin/users/${userId}/status`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({})
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.message || 'Failed to update user status');
     }
-
-    const user = mockUsers.find(u => u.id === userId || u._id === userId);
-    if (user) {
-      user.role = role;
-    }
-    return user;
+    return json.data?.user || json.data;
   },
 
-  // Toggle user active status
-  toggleUserStatus: async (userId, isActive = undefined) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/users/${userId}/status`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(typeof isActive === 'boolean' ? { isActive } : {})
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data && json.data.user) {
-          return json.data.user;
-        }
-      }
-    } catch {
-      // offline fallback
+  // 6. Update user platform role
+  updateUserRole: async (userId, newRole) => {
+    const res = await fetch(`${API_BASE_URL}/v1/super-admin/users/${userId}/role`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ role: newRole })
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.message || 'Failed to update user role');
     }
-
-    const user = mockUsers.find(u => u.id === userId || u._id === userId);
-    if (user) {
-      user.isActive = typeof isActive === 'boolean' ? isActive : !user.isActive;
-    }
-    return user;
+    return json.data?.user || json.data;
   },
 
-  // Delete user
+  // 7. Delete user
   deleteUser: async (userId) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/users/${userId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-      if (res.ok) {
-        return true;
-      }
-    } catch {
-      // offline fallback
+    const res = await fetch(`${API_BASE_URL}/v1/super-admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.message || 'Failed to delete user');
     }
-
-    mockUsers = mockUsers.filter(u => u.id !== userId && u._id !== userId);
-    return true;
+    return json.data;
   },
 
-  // Workspaces Management
-  getWorkspaces: async ({ search = '', status = 'all', plan = 'all' } = {}) => {
+  // 8. Get all workspaces
+  getWorkspaces: async (query = {}) => {
+    const { search = '', status = 'all', plan = 'all' } = query;
     try {
-      const queryParams = new URLSearchParams();
-      if (search) queryParams.append('search', search);
-      if (status && status !== 'all') queryParams.append('status', status);
-      if (plan && plan !== 'all') queryParams.append('plan', plan);
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      if (status && status !== 'all') params.append('status', status);
+      if (plan && plan !== 'all') params.append('plan', plan);
 
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces?${queryParams.toString()}`, {
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces?${params.toString()}`, {
         headers: getAuthHeaders()
       });
       if (res.ok) {
         const json = await res.json();
-        if (json.data && json.data.workspaces) {
-          return {
-            workspaces: json.data.workspaces,
-            totalCount: json.data.totalCount,
-            metrics: json.data.metrics
-          };
-        }
+        return {
+          workspaces: json.data?.workspaces || [],
+          totalCount: json.data?.totalCount || 0,
+          metrics: json.data?.metrics || {
+            total: 0,
+            active: 0,
+            archived: 0,
+            enterprise: 0,
+            pro: 0,
+            starter: 0,
+            totalStorage: '0 MB'
+          }
+        };
       }
-    } catch {
-      // offline fallback
-    }
-
-    let filtered = [...mockWorkspaces];
-
-    if (search.trim()) {
-      const q = search.toLowerCase().trim();
-      filtered = filtered.filter(
-        w =>
-          w.name.toLowerCase().includes(q) ||
-          w.slug.toLowerCase().includes(q) ||
-          w.owner.name.toLowerCase().includes(q) ||
-          w.owner.email.toLowerCase().includes(q)
-      );
-    }
-
-    if (status !== 'all') {
-      filtered = filtered.filter(w => w.status.toLowerCase() === status.toLowerCase());
-    }
-
-    if (plan !== 'all') {
-      filtered = filtered.filter(w => w.plan.toLowerCase() === plan.toLowerCase());
+    } catch (err) {
+      console.error('Failed to fetch workspaces:', err);
     }
 
     return {
-      workspaces: filtered,
-      totalCount: filtered.length,
+      workspaces: [],
+      totalCount: 0,
       metrics: {
-        total: mockWorkspaces.length,
-        active: mockWorkspaces.filter(w => w.status === 'Active').length,
-        enterprise: mockWorkspaces.filter(w => w.plan === 'Enterprise').length,
-        pro: mockWorkspaces.filter(w => w.plan === 'Pro').length,
-        starter: mockWorkspaces.filter(w => w.plan === 'Starter').length,
-        totalStorage: '10.5 GB'
+        total: 0,
+        active: 0,
+        archived: 0,
+        enterprise: 0,
+        pro: 0,
+        starter: 0,
+        totalStorage: '0 MB'
       }
     };
   },
 
-  // Create Workspace
-  createWorkspace: async (data) => {
+  // 9. Get single workspace details
+  getWorkspaceById: async (workspaceId) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(data)
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data && json.data.workspace) {
-          return json.data.workspace;
-        }
-      }
-    } catch {
-      // offline fallback
-    }
-
-    const newWs = {
-      id: `ws-${Date.now()}`,
-      name: data.name,
-      slug: data.slug || data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      owner: {
-        name: data.ownerName || 'Jarir Multani',
-        email: data.ownerEmail || '08mjarir@gmail.com'
-      },
-      membersCount: 1,
-      boardsCount: 0,
-      tasksCount: 0,
-      plan: data.plan || 'Pro',
-      status: 'Active',
-      storageUsed: '50 MB',
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-    mockWorkspaces.unshift(newWs);
-    return newWs;
-  },
-
-  // Toggle Workspace Status
-  toggleWorkspaceStatus: async (wsId) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces/${wsId}/status`, {
-        method: 'PATCH',
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces/${workspaceId}`, {
         headers: getAuthHeaders()
       });
       if (res.ok) {
         const json = await res.json();
-        if (json.data && json.data.workspace) {
-          return json.data.workspace;
-        }
+        return json.data?.workspace || json.data;
       }
-    } catch {
-      // offline fallback
+    } catch (err) {
+      console.error('Failed to fetch workspace details:', err);
     }
-
-    const ws = mockWorkspaces.find(w => w.id === wsId);
-    if (ws) {
-      ws.status = ws.status === 'Active' ? 'Archived' : 'Active';
-    }
-    return ws;
+    return null;
   },
 
-  // Delete Workspace
-  deleteWorkspace: async (wsId) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces/${wsId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-      if (res.ok) {
-        return true;
-      }
-    } catch {
-      // offline fallback
+  // 10. Create new workspace
+  createWorkspace: async (wsData) => {
+    const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(wsData)
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.message || 'Failed to create workspace');
     }
-
-    mockWorkspaces = mockWorkspaces.filter(w => w.id !== wsId);
-    return true;
+    return json.data?.workspace || json.data;
   },
 
-  // System Health
-  getSystemHealth: async () => {
-    let liveHealth = null;
-    try {
-      const res = await fetch(`${API_BASE_URL}/health`);
-      if (res.ok) {
-        liveHealth = await res.json();
-      }
-    } catch {
-      // offline fallback
+  // 11. Toggle workspace status
+  toggleWorkspaceStatus: async (workspaceId) => {
+    const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces/${workspaceId}/status`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({})
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.message || 'Failed to toggle workspace status');
     }
-
-    return {
-      serverStatus: 'Healthy',
-      database: {
-        status: liveHealth?.database?.status || 'connected',
-        name: liveHealth?.database?.name || 'worksync',
-        host: 'MongoDB Atlas (ReplicaSet)',
-        ping: '24ms'
-      },
-      metrics: {
-        uptime: liveHealth?.uptime || '48h 12m',
-        cpuUsage: '14.2%',
-        memoryUsage: '382 MB / 2048 MB',
-        activeSockets: 34,
-        requestsPerMinute: 480,
-        errorRate: '0.02%'
-      },
-      services: [
-        { name: 'Auth & JWT Service', status: 'Operational', latency: '12ms' },
-        { name: 'MongoDB Database Cluster', status: 'Operational', latency: '24ms' },
-        { name: 'Socket.IO Realtime Gateway', status: 'Operational', latency: '8ms' },
-        { name: 'Task & Board Engine', status: 'Operational', latency: '15ms' },
-        { name: 'Notification Service', status: 'Operational', latency: '18ms' }
-      ]
-    };
+    return json.data;
   },
 
-  // Audit Logs
-  getAuditLogs: async ({ search = '', category = 'all', status = 'all' } = {}) => {
-    try {
-      const queryParams = new URLSearchParams();
-      if (search) queryParams.append('search', search);
-      if (category && category !== 'all') queryParams.append('category', category);
-      if (status && status !== 'all') queryParams.append('status', status);
+  // 12. Delete workspace
+  deleteWorkspace: async (workspaceId) => {
+    const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces/${workspaceId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.message || 'Failed to delete workspace');
+    }
+    return json.data;
+  },
 
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/audit-logs?${queryParams.toString()}`, {
+  // 13. Get platform analytics
+  getAnalytics: async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/analytics`, {
         headers: getAuthHeaders()
       });
       if (res.ok) {
         const json = await res.json();
-        if (json.data && json.data.logs) {
-          return {
-            logs: json.data.logs,
-            totalCount: json.data.totalCount,
-            metrics: json.data.metrics
-          };
-        }
+        return json.data;
       }
-    } catch {
-      // offline fallback
-    }
-
-    let logs = [
-      {
-        id: 'log-101',
-        action: 'User Role Promoted',
-        category: 'user_management',
-        details: 'User Sarah Connor promoted to Platform Admin',
-        actor: { name: 'Jarir Multani', email: '08mjarir@gmail.com', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop' },
-        target: 'Sarah Connor (sarah.c@techcorp.io)',
-        ip: '127.0.0.1',
-        location: 'Mumbai, IN',
-        status: 'warning',
-        timestamp: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
-        timeAgo: '12 mins ago'
-      },
-      {
-        id: 'log-102',
-        action: 'Workspace Created',
-        category: 'workspace',
-        details: 'Tenant workspace "Fintech Mobile App Launch" provisioned with Enterprise tier',
-        actor: { name: 'Priya Sharma', email: 'priya.s@fintech.global', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&h=120&fit=crop' },
-        target: 'Workspace ws-103',
-        ip: '103.45.12.8',
-        location: 'Delhi, IN',
-        status: 'success',
-        timestamp: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
-        timeAgo: '35 mins ago'
-      },
-      {
-        id: 'log-103',
-        action: 'User Account Suspended',
-        category: 'security',
-        details: 'User account David Kim suspended by policy automation due to inactivity',
-        actor: { name: 'System Sentinel', email: 'security@worksync.internal', avatar: '' },
-        target: 'David Kim (david.kim@alpha.tech)',
-        ip: '192.168.1.1',
-        location: 'Cloud Gateway',
-        status: 'error',
-        timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-        timeAgo: '2 hours ago'
-      },
-      {
-        id: 'log-104',
-        action: 'Member Invited',
-        category: 'user_management',
-        details: 'Invited Elena Rostova to Design & UX Studio with role "member"',
-        actor: { name: 'Jarir Multani', email: '08mjarir@gmail.com', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop' },
-        target: 'Elena Rostova (elena@designhub.studio)',
-        ip: '127.0.0.1',
-        location: 'Mumbai, IN',
-        status: 'success',
-        timestamp: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
-        timeAgo: '4 hours ago'
-      },
-      {
-        id: 'log-105',
-        action: 'Security Credential Changed',
-        category: 'authentication',
-        details: 'Super Admin security credential update completed successfully',
-        actor: { name: 'Jarir Multani', email: '08mjarir@gmail.com', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop' },
-        target: 'Platform Master Account',
-        ip: '127.0.0.1',
-        location: 'Mumbai, IN',
-        status: 'info',
-        timestamp: new Date(Date.now() - 1000 * 60 * 360).toISOString(),
-        timeAgo: '6 hours ago'
-      },
-      {
-        id: 'log-106',
-        action: 'API Key Generated',
-        category: 'security',
-        details: 'Production webhook endpoint configured with HMAC SHA-256 signing secret',
-        actor: { name: 'Sarah Connor', email: 'sarah.c@techcorp.io', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&h=120&fit=crop' },
-        target: 'Integration Service',
-        ip: '185.22.14.99',
-        location: 'London, UK',
-        status: 'success',
-        timestamp: new Date(Date.now() - 1000 * 60 * 600).toISOString(),
-        timeAgo: '10 hours ago'
-      },
-      {
-        id: 'log-107',
-        action: 'Database Snapshot Backup',
-        category: 'system',
-        details: 'Scheduled MongoDB automated backup completed (3.8 GB encrypted dump)',
-        actor: { name: 'System Sentinel', email: 'backup@worksync.internal', avatar: '' },
-        target: 'Atlas Cluster ReplicaSet',
-        ip: '10.0.0.4',
-        location: 'AWS Mumbai (ap-south-1)',
-        status: 'success',
-        timestamp: new Date(Date.now() - 1000 * 60 * 1440).toISOString(),
-        timeAgo: 'Yesterday'
-      }
-    ];
-
-    if (search.trim()) {
-      const q = search.toLowerCase().trim();
-      logs = logs.filter(
-        l =>
-          l.action.toLowerCase().includes(q) ||
-          l.details.toLowerCase().includes(q) ||
-          l.actor.name.toLowerCase().includes(q) ||
-          l.actor.email.toLowerCase().includes(q) ||
-          l.target.toLowerCase().includes(q) ||
-          l.ip.includes(q)
-      );
-    }
-
-    if (category !== 'all') {
-      logs = logs.filter(l => l.category === category);
-    }
-
-    if (status !== 'all') {
-      logs = logs.filter(l => l.status === status);
+    } catch (err) {
+      console.error('Failed to fetch platform analytics:', err);
     }
 
     return {
-      logs,
-      totalCount: logs.length,
-      metrics: {
-        totalEvents: 1482,
-        securityAlerts: 4,
-        activeSessions: 48,
-        complianceScore: '99.8%'
+      overview: {
+        totalUsers: 0,
+        activeUsers: 0,
+        inactiveUsers: 0,
+        userActiveRatio: '0%',
+        totalWorkspaces: 0,
+        activeWorkspaces: 0,
+        archivedWorkspaces: 0,
+        totalBoards: 0,
+        totalTasks: 0,
+        totalAuditEvents: 0,
+        databaseStatus: 'Connected',
+        apiUptime: '100%'
+      },
+      roleDistribution: {
+        superAdmin: 0,
+        admin: 0,
+        manager: 0,
+        employee: 0,
+        member: 0,
+        viewer: 0
+      },
+      workspaceDistribution: {
+        enterprise: 0,
+        pro: 0,
+        starter: 0
+      },
+      growthTrends: [],
+      infrastructure: {
+        serverUptime: '100%',
+        memoryUsage: 'Healthy',
+        cpuLoad: '0.1%',
+        networkRequestsPerMin: 0,
+        errorRate: '0%'
       }
     };
   },
 
-  // Roles & Permissions configuration
-  getRolesPermissions: async () => {
+  // 14. Get platform audit logs
+  getAuditLogs: async (query = {}) => {
+    const { search = '', category = 'all', status = 'all', page = 1, limit = 20 } = query;
+    try {
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      if (category && category !== 'all') params.append('category', category);
+      if (status && status !== 'all') params.append('status', status);
+      params.append('page', page);
+      params.append('limit', limit);
+
+      const res = await fetch(`${API_BASE_URL}/v1/super-admin/audit-logs?${params.toString()}`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const json = await res.json();
+        return json.data;
+      }
+    } catch (err) {
+      console.error('Failed to fetch audit logs:', err);
+    }
+
     return {
-      roles: [
-        {
-          id: 'super_admin',
-          name: 'Super Admin',
-          badge: 'Root Authority',
-          color: 'purple',
-          description: 'Unrestricted master access across all tenants, user roles, system configurations, and database infrastructure.',
-          usersCount: 1,
-          isSystem: true
-        },
-        {
-          id: 'admin',
-          name: 'Workspace Admin',
-          badge: 'Tenant Lead',
-          color: 'blue',
-          description: 'Full workspace administrative capabilities including inviting users, managing boards, workflows, and billing.',
-          usersCount: 2,
-          isSystem: false
-        },
-        {
-          id: 'member',
-          name: 'Team Member',
-          badge: 'Standard Access',
-          color: 'emerald',
-          description: 'Standard collaborator capable of creating tasks, updating board lists, commenting, and managing assignments.',
-          usersCount: 4,
-          isSystem: false
-        },
-        {
-          id: 'viewer',
-          name: 'Stakeholder / Viewer',
-          badge: 'Read Only',
-          color: 'slate',
-          description: 'Restricted read-only access for external clients and auditing stakeholders without editing permissions.',
-          usersCount: 1,
-          isSystem: false
-        }
-      ],
-      categories: [
-        {
-          name: 'Platform & Global Administration',
-          description: 'Master platform controls, database clusters, and tenant management',
-          permissions: [
-            { id: 'perm_super_console', name: 'Access Super Admin Console', super_admin: true, admin: false, member: false, viewer: false },
-            { id: 'perm_system_health', name: 'View Realtime Server Diagnostics & Health', super_admin: true, admin: false, member: false, viewer: false },
-            { id: 'perm_audit_logs', name: 'Audit Global Security & Activity Trails', super_admin: true, admin: false, member: false, viewer: false },
-            { id: 'perm_global_broadcast', name: 'Publish Global Platform Announcements', super_admin: true, admin: false, member: false, viewer: false }
-          ]
-        },
-        {
-          name: 'User & Identity Management',
-          description: 'User provisioning, authentication policies, and role assignment',
-          permissions: [
-            { id: 'perm_manage_users', name: 'Manage Global Users Directory', super_admin: true, admin: false, member: false, viewer: false },
-            { id: 'perm_change_role', name: 'Assign & Change Platform Roles', super_admin: true, admin: false, member: false, viewer: false },
-            { id: 'perm_toggle_status', name: 'Activate & Deactivate User Accounts', super_admin: true, admin: false, member: false, viewer: false },
-            { id: 'perm_delete_user', name: 'Permanently Delete User Accounts', super_admin: true, admin: false, member: false, viewer: false },
-            { id: 'perm_invite_members', name: 'Invite Workspace Collaborators', super_admin: true, admin: true, member: false, viewer: false }
-          ]
-        },
-        {
-          name: 'Workspace & Tenant Operations',
-          description: 'Organization provisioning, project boards, and storage quotas',
-          permissions: [
-            { id: 'perm_create_ws', name: 'Provision New Workspaces', super_admin: true, admin: true, member: true, viewer: false },
-            { id: 'perm_archive_ws', name: 'Archive & Delete Workspaces', super_admin: true, admin: true, member: false, viewer: false },
-            { id: 'perm_manage_billing', name: 'Manage Workspace Subscription & Invoicing', super_admin: true, admin: true, member: false, viewer: false },
-            { id: 'perm_adjust_storage', name: 'Override Storage & Quota Limits', super_admin: true, admin: false, member: false, viewer: false }
-          ]
-        },
-        {
-          name: 'Board & Kanban Engine',
-          description: 'Daily project execution, task management, and sprint planning',
-          permissions: [
-            { id: 'perm_create_board', name: 'Create Boards & Sprint Lists', super_admin: true, admin: true, member: true, viewer: false },
-            { id: 'perm_manage_tasks', name: 'Create, Edit, & Move Tasks', super_admin: true, admin: true, member: true, viewer: false },
-            { id: 'perm_assign_members', name: 'Assign Members to Task Cards', super_admin: true, admin: true, member: true, viewer: false },
-            { id: 'perm_delete_tasks', name: 'Delete Tasks & Archives', super_admin: true, admin: true, member: true, viewer: false },
-            { id: 'perm_comment_tasks', name: 'Post Comments & Attachments', super_admin: true, admin: true, member: true, viewer: false },
-            { id: 'perm_view_board', name: 'Read-Only Board Visibility', super_admin: true, admin: true, member: true, viewer: true }
-          ]
-        }
-      ]
+      logs: [],
+      totalCount: 0,
+      summary: {
+        total: 0,
+        success: 0,
+        warning: 0,
+        failure: 0
+      }
     };
   },
 
-  // Platform Settings
-  getPlatformSettings: async () => {
+  // 15. Get platform settings
+  getSettings: async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/v1/super-admin/settings`, {
         headers: getAuthHeaders()
       });
       if (res.ok) {
         const json = await res.json();
-        if (json.data && json.data.settings) {
-          return json.data.settings;
-        }
+        return json.data?.settings || json.data;
       }
-    } catch {
-      // offline fallback
+    } catch (err) {
+      console.error('Failed to fetch platform settings:', err);
     }
 
     return {
-      general: {
-        platformName: 'WorkSync Enterprise Cloud',
-        supportEmail: 'support@worksync.io',
-        maintenanceMode: false,
-        allowNewRegistrations: true,
-        defaultUserRole: 'member',
-        sessionTimeoutMinutes: 60
-      },
-      security: {
-        enforceMfa: true,
-        requireStrongPasswords: true,
-        maxLoginAttempts: 5,
-        ipWhitelistEnabled: false,
-        tokenExpiryDays: 7
-      },
-      storage: {
-        maxAttachmentSizeMb: 50,
-        workspaceQuotaGb: 20,
-        retentionDays: 365
-      }
+      platformName: 'WorkSync',
+      supportEmail: 'support@worksync.io',
+      allowRegistration: true,
+      requireEmailVerification: false,
+      mfaRequiredForAdmins: false,
+      sessionTimeoutMinutes: 1440,
+      defaultWorkspaceStorageMB: 5120,
+      maxBoardsPerWorkspace: 50,
+      maintenanceMode: false
     };
   },
 
-  updatePlatformSettings: async (settings) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/settings`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(settings)
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data && json.data.settings) {
-          return { success: true, settings: json.data.settings, updatedAt: new Date().toISOString() };
-        }
-      }
-    } catch {
-      // offline fallback
+  // 16. Update platform settings
+  updateSettings: async (settings) => {
+    const res = await fetch(`${API_BASE_URL}/v1/super-admin/settings`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(settings)
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.message || 'Failed to update settings');
     }
+    return json.data?.settings || json.data;
+  },
 
-    return { success: true, settings, updatedAt: new Date().toISOString() };
+  // =========================================================================
+  // WORKSPACE MEMBERS & INVITATIONS APIS
+  // =========================================================================
+
+  // 17. GET /workspaces/:workspaceId/dashboard
+  getWorkspaceDashboard: async (workspaceId) => {
+    const url = workspaceId
+      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/dashboard`
+      : `${API_BASE_URL}/v1/dashboard`;
+
+    const res = await fetch(url, { headers: getAuthHeaders() });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to load workspace dashboard');
+    return json.data;
+  },
+
+  // 18. GET /workspaces/:workspaceId/members
+  getWorkspaceMembers: async (workspaceId, query = {}) => {
+    const url = workspaceId
+      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/members`
+      : `${API_BASE_URL}/v1/members`;
+
+    const params = new URLSearchParams(query);
+    const res = await fetch(`${url}?${params.toString()}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to load workspace members');
+    return json.data;
+  },
+
+  // 19. POST /workspaces/:workspaceId/members - Add existing user
+  addWorkspaceMember: async (workspaceId, memberData) => {
+    const url = workspaceId
+      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/members`
+      : `${API_BASE_URL}/v1/members`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(memberData)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to add member to workspace');
+    return json.data;
+  },
+
+  // 20. GET /workspaces/:workspaceId/members/:memberId
+  getMemberDetails: async (workspaceId, memberId) => {
+    const url = workspaceId
+      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/members/${memberId}`
+      : `${API_BASE_URL}/v1/members/${memberId}`;
+
+    const res = await fetch(url, { headers: getAuthHeaders() });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to fetch member details');
+    return json.data;
+  },
+
+  // 21. PATCH /workspaces/:workspaceId/members/:memberId/role
+  updateMemberRole: async (workspaceId, memberId, role) => {
+    const url = workspaceId
+      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/members/${memberId}/role`
+      : `${API_BASE_URL}/v1/members/${memberId}/role`;
+
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ role })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to update member role');
+    return json.data;
+  },
+
+  // 22. DELETE /workspaces/:workspaceId/members/:memberId
+  removeWorkspaceMember: async (workspaceId, memberId) => {
+    const url = workspaceId
+      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/members/${memberId}`
+      : `${API_BASE_URL}/v1/members/${memberId}`;
+
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to remove member from workspace');
+    return json.data;
+  },
+
+  // 23. POST /workspaces/:workspaceId/invitations - Invite new member
+  inviteMember: async (workspaceId, inviteData) => {
+    const url = workspaceId
+      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/invitations`
+      : `${API_BASE_URL}/v1/invitations`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(inviteData)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to dispatch invitation');
+    return json.data;
+  },
+
+  // 24. GET /workspaces/:workspaceId/invitations
+  getWorkspaceInvitations: async (workspaceId, query = {}) => {
+    const url = workspaceId
+      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/invitations`
+      : `${API_BASE_URL}/v1/invitations`;
+
+    const params = new URLSearchParams(query);
+    const res = await fetch(`${url}?${params.toString()}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to load invitations');
+    return json.data;
+  },
+
+  // 25. DELETE /workspaces/:workspaceId/invitations/:invitationId - Cancel invitation
+  cancelInvitation: async (workspaceId, invitationId) => {
+    const url = workspaceId
+      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/invitations/${invitationId}`
+      : `${API_BASE_URL}/v1/invitations/${invitationId}`;
+
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to cancel invitation');
+    return json.data;
   }
 };
 
