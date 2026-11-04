@@ -1,6 +1,7 @@
 import {
   Activity,
   Bell,
+  BriefcaseBusiness,
   LayoutDashboard,
   ListTodo,
   PanelsTopLeft,
@@ -12,6 +13,7 @@ const links = [
   { label: "Dashboard", to: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Tasks", to: "/admin/tasks", icon: ListTodo },
   { label: "Boards", to: "/admin/boards", icon: PanelsTopLeft },
+  { label: "Workspace", to: "/admin/workspace", icon: BriefcaseBusiness },
   { label: "Invitations", to: "/admin/invitations", icon: Send },
   { label: "Activity", to: "/admin/activity", icon: Activity },
   { label: "Notifications", to: "/admin/notifications", icon: Bell },
