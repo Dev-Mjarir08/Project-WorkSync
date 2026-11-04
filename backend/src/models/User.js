@@ -49,7 +49,17 @@ const userSchema = new mongoose.Schema(
     lastLogin: {
       type: Date,
       default: null
-    }
+    },
+    sessions: [
+      {
+        ip: { type: String, default: '127.0.0.1' },
+        userAgent: { type: String, default: 'Chrome / Windows' },
+        device: { type: String, default: 'Desktop' },
+        createdAt: { type: Date, default: Date.now },
+        lastActive: { type: Date, default: Date.now },
+        isValid: { type: Boolean, default: true }
+      }
+    ]
   },
   {
     timestamps: true,

@@ -1,22 +1,27 @@
 import { Router } from 'express';
-import * as superAdminController from './superAdmin.controller.js';
 import { authenticate } from '../../middleware/authenticate.js';
 import { authorizePlatformRole } from '../../middleware/authorizePlatformRole.js';
-import { validateRequest } from '../../middleware/validateRequest.js';
 import { ROLES } from '../../constants/roles.js';
-import {
-  userIdParamSchema,
-  updateUserStatusSchema,
-  updateUserRoleSchema,
-  createUserSchema,
-  getUsersQuerySchema,
-  workspaceIdParamSchema,
-  updateWorkspaceStatusSchema,
-  createWorkspaceSchema,
-  getWorkspacesQuerySchema,
-  getAuditLogsQuerySchema,
-  updatePlatformSettingsSchema
-} from './superAdmin.validation.js';
+
+import dashboardRoutes from './dashboard/dashboard.routes.js';
+import usersRoutes from './users/users.routes.js';
+import workspacesRoutes from './workspaces/workspaces.routes.js';
+import adminsRoutes from './admins/admins.routes.js';
+import rolesRoutes from './roles/roles.routes.js';
+import boardsRoutes from './boards/boards.routes.js';
+import analyticsRoutes from './analytics/analytics.routes.js';
+import auditLogsRoutes from './audit-logs/auditLogs.routes.js';
+import announcementsRoutes from './announcements/announcements.routes.js';
+import settingsRoutes from './settings/settings.routes.js';
+import systemRoutes from './system/system.routes.js';
+import profileRoutes from './profile/profile.routes.js';
+
+import { getPermissions } from './roles/roles.controller.js';
+import { getSystemHealth } from './system/system.controller.js';
+import { getAnalyticsOverview } from './analytics/analytics.controller.js';
+import { updateGeneralSettings } from './settings/settings.controller.js';
+import { validateRequest } from '../../middleware/validateRequest.js';
+import { updateGeneralSettingsSchema } from './superAdmin.validation.js';
 
 const router = Router();
 
@@ -25,195 +30,26 @@ const router = Router();
 // =========================================================================
 router.use(authenticate, authorizePlatformRole(ROLES.SUPER_ADMIN));
 
-// ==========================================
-// 1. DASHBOARD & OVERVIEW
-// ==========================================
+// =========================================================================
+// Feature-Wise Sub-Routers
+// =========================================================================
+router.use('/dashboard', dashboardRoutes);
+router.use('/users', usersRoutes);
+router.use('/workspaces', workspacesRoutes);
+router.use('/admins', adminsRoutes);
+router.use('/roles', rolesRoutes);
+router.use('/boards', boardsRoutes);
+router.use('/analytics', analyticsRoutes);
+router.use('/audit-logs', auditLogsRoutes);
+router.use('/announcements', announcementsRoutes);
+router.use('/settings', settingsRoutes);
+router.use('/system', systemRoutes);
+router.use('/profile', profileRoutes);
 
-/**
- * @route   GET /dashboard
- * @desc    Retrieve live platform statistics, system metrics, and growth charts
- * @access  Super Admin
- */
-router.get('/dashboard', superAdminController.getDashboard);
-
-// ==========================================
-// 2. USERS MANAGEMENT
-// ==========================================
-
-/**
- * @route   GET /users
- * @desc    Retrieve all platform users with search, role/status filtering, and pagination
- * @access  Super Admin
- */
-router.get(
-  '/users',
-  validateRequest(getUsersQuerySchema, 'query'),
-  superAdminController.getUsers
-);
-
-/**
- * @route   POST /users
- * @desc    Create a new user account directly on the platform
- * @access  Super Admin
- */
-router.post(
-  '/users',
-  validateRequest(createUserSchema, 'body'),
-  superAdminController.createUser
-);
-
-/**
- * @route   GET /users/:userId
- * @desc    Retrieve full user profile and account details by user ID
- * @access  Super Admin
- */
-router.get(
-  '/users/:userId',
-  validateRequest(userIdParamSchema, 'params'),
-  superAdminController.getUserById
-);
-
-/**
- * @route   PATCH /users/:userId/status
- * @desc    Activate or deactivate user account access
- * @access  Super Admin
- */
-router.patch(
-  '/users/:userId/status',
-  validateRequest(userIdParamSchema, 'params'),
-  validateRequest(updateUserStatusSchema, 'body'),
-  superAdminController.updateUserStatus
-);
-
-/**
- * @route   PATCH /users/:userId/role
- * @desc    Manage and change user platform role (super_admin, admin, member, viewer)
- * @access  Super Admin
- */
-router.patch(
-  '/users/:userId/role',
-  validateRequest(userIdParamSchema, 'params'),
-  validateRequest(updateUserRoleSchema, 'body'),
-  superAdminController.updateUserRole
-);
-
-/**
- * @route   DELETE /users/:userId
- * @desc    Delete user account from the platform
- * @access  Super Admin
- */
-router.delete(
-  '/users/:userId',
-  validateRequest(userIdParamSchema, 'params'),
-  superAdminController.deleteUser
-);
-
-// ==========================================
-// 3. WORKSPACES MANAGEMENT
-// ==========================================
-
-/**
- * @route   GET /workspaces
- * @desc    Retrieve all platform workspaces with search, status/plan filtering, and pagination
- * @access  Super Admin
- */
-router.get(
-  '/workspaces',
-  validateRequest(getWorkspacesQuerySchema, 'query'),
-  superAdminController.getWorkspaces
-);
-
-/**
- * @route   POST /workspaces
- * @desc    Provision a new workspace tenant directly by Super Admin
- * @access  Super Admin
- */
-router.post(
-  '/workspaces',
-  validateRequest(createWorkspaceSchema, 'body'),
-  superAdminController.createWorkspace
-);
-
-/**
- * @route   GET /workspaces/:workspaceId
- * @desc    Retrieve full details of a specific workspace
- * @access  Super Admin
- */
-router.get(
-  '/workspaces/:workspaceId',
-  validateRequest(workspaceIdParamSchema, 'params'),
-  superAdminController.getWorkspaceById
-);
-
-/**
- * @route   PATCH /workspaces/:workspaceId/status
- * @desc    Activate, archive, or suspend workspace tenant access
- * @access  Super Admin
- */
-router.patch(
-  '/workspaces/:workspaceId/status',
-  validateRequest(workspaceIdParamSchema, 'params'),
-  validateRequest(updateWorkspaceStatusSchema, 'body'),
-  superAdminController.updateWorkspaceStatus
-);
-
-/**
- * @route   DELETE /workspaces/:workspaceId
- * @desc    Permanently delete and decommission a workspace tenant
- * @access  Super Admin
- */
-router.delete(
-  '/workspaces/:workspaceId',
-  validateRequest(workspaceIdParamSchema, 'params'),
-  superAdminController.deleteWorkspace
-);
-
-// ==========================================
-// 4. PLATFORM ANALYTICS
-// ==========================================
-
-/**
- * @route   GET /analytics
- * @desc    Retrieve deep platform-wide analytics and system telemetry
- * @access  Super Admin
- */
-router.get('/analytics', superAdminController.getAnalytics);
-
-// ==========================================
-// 5. AUDIT LOGS
-// ==========================================
-
-/**
- * @route   GET /audit-logs
- * @desc    Retrieve platform compliance and security audit logs
- * @access  Super Admin
- */
-router.get(
-  '/audit-logs',
-  validateRequest(getAuditLogsQuerySchema, 'query'),
-  superAdminController.getAuditLogs
-);
-
-// ==========================================
-// 6. PLATFORM SETTINGS
-// ==========================================
-
-/**
- * @route   GET /settings
- * @desc    Retrieve global platform configuration, security policies, and quotas
- * @access  Super Admin
- */
-router.get('/settings', superAdminController.getSettings);
-
-/**
- * @route   PATCH /settings
- * @desc    Update global platform configuration, security policies, and quotas
- * @access  Super Admin
- */
-router.patch(
-  '/settings',
-  validateRequest(updatePlatformSettingsSchema, 'body'),
-  superAdminController.updateSettings
-);
+// Root-level endpoints and backwards-compatibility aliases
+router.get('/permissions', getPermissions);
+router.get('/health', getSystemHealth);
+router.get('/analytics', getAnalyticsOverview);
+router.patch('/settings', validateRequest(updateGeneralSettingsSchema, 'body'), updateGeneralSettings);
 
 export default router;

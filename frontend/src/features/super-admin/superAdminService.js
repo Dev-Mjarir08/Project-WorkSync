@@ -1,5 +1,5 @@
 // Super Admin Service: provides live API interaction with backend database
-const API_BASE_URL = 'http://localhost:8081/api';
+const API_BASE_URL = 'http://localhost:8081/api/v1/super-admin';
 
 const getAuthHeaders = () => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -10,64 +10,77 @@ const getAuthHeaders = () => {
 };
 
 export const superAdminService = {
-  // 1. Get overview KPI stats
+  // ==========================================
+  // 1. DASHBOARD OVERVIEW & METRICS
+  // ==========================================
   getDashboardOverview: async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/dashboard`, {
-        headers: getAuthHeaders()
-      });
+      const res = await fetch(`${API_BASE_URL}/dashboard`, { headers: getAuthHeaders() });
       if (res.ok) {
         const json = await res.json();
-        if (json.data && json.data.stats) {
-          return json.data;
-        }
+        return json.data;
       }
     } catch (err) {
       console.error('Failed to fetch dashboard overview:', err);
     }
-
-    // Default clean empty state for a fresh registration
     return {
-      stats: {
-        totalUsers: '0',
-        usersGrowth: '0%',
-        activeWorkspaces: '0',
-        workspacesGrowth: '0%',
-        totalBoards: '0',
-        boardsGrowth: '0%',
-        totalTasks: '0',
-        tasksGrowth: '0%',
-        databaseStatus: 'connected',
-        apiUptime: '100%'
-      },
-      userGrowthChart: [],
-      recentAuditLogs: [],
-      topWorkspaces: [],
-      rolesSummary: {
-        superAdmin: 0,
-        admin: 0,
-        manager: 0,
-        employee: 0,
-        member: 0,
-        viewer: 0,
-        active: 0,
-        inactive: 0
-      }
+      stats: { totalUsers: 0, activeUsers: 0, totalWorkspaces: 0, activeWorkspaces: 0, totalBoards: 0, totalTasks: 0 },
+      recentUsers: [],
+      recentWorkspaces: [],
+      recentActivities: []
     };
   },
 
-  // 2. Get all platform users
+  getDashboardStats: async () => {
+    const res = await fetch(`${API_BASE_URL}/dashboard/stats`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getUserGrowth: async (days = 30) => {
+    const res = await fetch(`${API_BASE_URL}/dashboard/user-growth?days=${days}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getWorkspaceGrowth: async (days = 30) => {
+    const res = await fetch(`${API_BASE_URL}/dashboard/workspace-growth?days=${days}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getRecentUsers: async (limit = 10) => {
+    const res = await fetch(`${API_BASE_URL}/dashboard/recent-users?limit=${limit}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data?.users || json.data || [];
+  },
+
+  getRecentWorkspaces: async (limit = 10) => {
+    const res = await fetch(`${API_BASE_URL}/dashboard/recent-workspaces?limit=${limit}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data?.workspaces || json.data || [];
+  },
+
+  getRecentActivities: async (limit = 15) => {
+    const res = await fetch(`${API_BASE_URL}/dashboard/recent-activities?limit=${limit}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data?.activities || json.data || [];
+  },
+
+  // ==========================================
+  // 2. USER MANAGEMENT
+  // ==========================================
   getUsers: async (query = {}) => {
-    const { search = '', role = 'all', status = 'all' } = query;
+    const { search = '', role = 'all', status = 'all', page = 1, limit = 20 } = query;
     try {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
       if (role && role !== 'all') params.append('role', role);
       if (status && status !== 'all') params.append('status', status);
+      params.append('page', page);
+      params.append('limit', limit);
 
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/users?${params.toString()}`, {
-        headers: getAuthHeaders()
-      });
+      const res = await fetch(`${API_BASE_URL}/users?${params.toString()}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const json = await res.json();
         return json.data;
@@ -75,455 +88,686 @@ export const superAdminService = {
     } catch (err) {
       console.error('Failed to fetch users:', err);
     }
-
-    return {
-      users: [],
-      totalCount: 0,
-      rolesSummary: {
-        superAdmin: 0,
-        admin: 0,
-        manager: 0,
-        employee: 0,
-        member: 0,
-        viewer: 0,
-        active: 0,
-        inactive: 0
-      }
-    };
+    return { users: [], totalCount: 0 };
   },
 
-  // 3. Get single user details by ID
   getUserById: async (userId) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/users/${userId}`, {
-        headers: getAuthHeaders()
-      });
-      if (res.ok) {
-        const json = await res.json();
-        return json.data?.user || json.data;
-      }
-    } catch (err) {
-      console.error('Failed to fetch user by ID:', err);
-    }
-    return null;
+    const res = await fetch(`${API_BASE_URL}/users/${userId}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to fetch user');
+    return json.data?.user || json.data;
   },
 
-  // 4. Create new user by super admin
   createUser: async (userData) => {
-    const res = await fetch(`${API_BASE_URL}/v1/super-admin/users`, {
+    const res = await fetch(`${API_BASE_URL}/users`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(userData)
     });
     const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.message || 'Failed to create user');
-    }
+    if (!res.ok) throw new Error(json.message || 'Failed to create user');
     return json.data?.user || json.data;
   },
 
-  // 5. Toggle user active/deactivated status
-  toggleUserStatus: async (userId) => {
-    const res = await fetch(`${API_BASE_URL}/v1/super-admin/users/${userId}/status`, {
+  updateUser: async (userId, updateData) => {
+    const res = await fetch(`${API_BASE_URL}/users/${userId}`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
-      body: JSON.stringify({})
+      body: JSON.stringify(updateData)
     });
     const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.message || 'Failed to update user status');
-    }
+    if (!res.ok) throw new Error(json.message || 'Failed to update user');
     return json.data?.user || json.data;
   },
 
-  // 6. Update user platform role
+  updateUserStatus: async (userId, statusData = {}) => {
+    const res = await fetch(`${API_BASE_URL}/users/${userId}/status`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(statusData)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to update user status');
+    return json.data?.user || json.data;
+  },
+
+  toggleUserStatus: async (userId) => {
+    return superAdminService.updateUserStatus(userId, {});
+  },
+
   updateUserRole: async (userId, newRole) => {
-    const res = await fetch(`${API_BASE_URL}/v1/super-admin/users/${userId}/role`, {
+    const res = await fetch(`${API_BASE_URL}/users/${userId}/role`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
       body: JSON.stringify({ role: newRole })
     });
     const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.message || 'Failed to update user role');
-    }
+    if (!res.ok) throw new Error(json.message || 'Failed to update user role');
     return json.data?.user || json.data;
   },
 
-  // 7. Delete user
   deleteUser: async (userId) => {
-    const res = await fetch(`${API_BASE_URL}/v1/super-admin/users/${userId}`, {
+    const res = await fetch(`${API_BASE_URL}/users/${userId}`, {
       method: 'DELETE',
       headers: getAuthHeaders()
     });
     const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.message || 'Failed to delete user');
-    }
+    if (!res.ok) throw new Error(json.message || 'Failed to delete user');
     return json.data;
   },
 
-  // 8. Get all workspaces
+  getUserWorkspaces: async (userId) => {
+    const res = await fetch(`${API_BASE_URL}/users/${userId}/workspaces`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getUserActivities: async (userId, limit = 20) => {
+    const res = await fetch(`${API_BASE_URL}/users/${userId}/activities?limit=${limit}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getUserSessions: async (userId) => {
+    const res = await fetch(`${API_BASE_URL}/users/${userId}/sessions`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  revokeUserSessions: async (userId) => {
+    const res = await fetch(`${API_BASE_URL}/users/${userId}/sessions`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    const json = await res.json();
+    return json.data;
+  },
+
+  // ==========================================
+  // 3. WORKSPACE MANAGEMENT
+  // ==========================================
   getWorkspaces: async (query = {}) => {
-    const { search = '', status = 'all', plan = 'all' } = query;
+    const { search = '', status = 'all', plan = 'all', page = 1, limit = 20 } = query;
     try {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
       if (status && status !== 'all') params.append('status', status);
       if (plan && plan !== 'all') params.append('plan', plan);
+      params.append('page', page);
+      params.append('limit', limit);
 
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces?${params.toString()}`, {
-        headers: getAuthHeaders()
-      });
+      const res = await fetch(`${API_BASE_URL}/workspaces?${params.toString()}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const json = await res.json();
-        return {
-          workspaces: json.data?.workspaces || [],
-          totalCount: json.data?.totalCount || 0,
-          metrics: json.data?.metrics || {
-            total: 0,
-            active: 0,
-            archived: 0,
-            enterprise: 0,
-            pro: 0,
-            starter: 0,
-            totalStorage: '0 MB'
-          }
-        };
+        return json.data;
       }
     } catch (err) {
       console.error('Failed to fetch workspaces:', err);
     }
-
-    return {
-      workspaces: [],
-      totalCount: 0,
-      metrics: {
-        total: 0,
-        active: 0,
-        archived: 0,
-        enterprise: 0,
-        pro: 0,
-        starter: 0,
-        totalStorage: '0 MB'
-      }
-    };
+    return { workspaces: [], totalCount: 0 };
   },
 
-  // 9. Get single workspace details
-  getWorkspaceById: async (workspaceId) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces/${workspaceId}`, {
-        headers: getAuthHeaders()
-      });
-      if (res.ok) {
-        const json = await res.json();
-        return json.data?.workspace || json.data;
-      }
-    } catch (err) {
-      console.error('Failed to fetch workspace details:', err);
-    }
-    return null;
-  },
-
-  // 10. Create new workspace
   createWorkspace: async (wsData) => {
-    const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces`, {
+    const res = await fetch(`${API_BASE_URL}/workspaces`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(wsData)
     });
     const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.message || 'Failed to create workspace');
-    }
+    if (!res.ok) throw new Error(json.message || 'Failed to create workspace');
     return json.data?.workspace || json.data;
   },
 
-  // 11. Toggle workspace status
+  getWorkspaceById: async (workspaceId) => {
+    const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Workspace not found');
+    return json.data?.workspace || json.data;
+  },
+
+  updateWorkspace: async (workspaceId, updateData) => {
+    const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(updateData)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to update workspace');
+    return json.data?.workspace || json.data;
+  },
+
+  updateWorkspaceStatus: async (workspaceId, statusData = {}) => {
+    const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/status`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(statusData)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to update workspace status');
+    return json.data?.workspace || json.data;
+  },
+
   toggleWorkspaceStatus: async (workspaceId) => {
-    const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces/${workspaceId}/status`, {
+    return superAdminService.updateWorkspaceStatus(workspaceId, {});
+  },
+
+  deleteWorkspace: async (workspaceId) => {
+    const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to delete workspace');
+    return json.data;
+  },
+
+  getWorkspaceMembers: async (workspaceId, query = {}) => {
+    const params = new URLSearchParams(query);
+    const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/members?${params.toString()}`, {
+      headers: getAuthHeaders()
+    });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getWorkspaceBoards: async (workspaceId) => {
+    const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/boards`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getWorkspaceActivities: async (workspaceId, limit = 20) => {
+    const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/activities?limit=${limit}`, {
+      headers: getAuthHeaders()
+    });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getWorkspaceAnalytics: async (workspaceId) => {
+    const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/analytics`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  // ==========================================
+  // 4. WORKSPACE ADMIN MANAGEMENT
+  // ==========================================
+  getAllAdmins: async (query = {}) => {
+    const res = await fetch(`${API_BASE_URL}/admins`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  assignWorkspaceAdmin: async (workspaceId, adminData) => {
+    const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/admins`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(adminData)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to assign admin');
+    return json.data;
+  },
+
+  getWorkspaceAdmins: async (workspaceId) => {
+    const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/admins`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  updateWorkspaceAdmin: async (workspaceId, adminId, data) => {
+    const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/admins/${adminId}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to update admin assignment');
+    return json.data;
+  },
+
+  removeWorkspaceAdmin: async (workspaceId, adminId) => {
+    const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/admins/${adminId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to remove admin assignment');
+    return json.data;
+  },
+
+  // ==========================================
+  // 5. PLATFORM ROLES & PERMISSIONS
+  // ==========================================
+  getRoles: async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/roles`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const json = await res.json();
+        return json.data?.roles || json.data || [];
+      }
+    } catch (err) {
+      console.error('Failed to fetch roles:', err);
+    }
+    return [];
+  },
+
+  getRoleById: async (roleId) => {
+    const res = await fetch(`${API_BASE_URL}/roles/${roleId}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data?.role || json.data;
+  },
+
+  createRole: async (roleData) => {
+    const res = await fetch(`${API_BASE_URL}/roles`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(roleData)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to create role');
+    return json.data?.role || json.data;
+  },
+
+  updateRole: async (roleId, roleData) => {
+    const res = await fetch(`${API_BASE_URL}/roles/${roleId}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(roleData)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to update role');
+    return json.data?.role || json.data;
+  },
+
+  deleteRole: async (roleId) => {
+    const res = await fetch(`${API_BASE_URL}/roles/${roleId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to delete role');
+    return json.data;
+  },
+
+  getPermissions: async () => {
+    const res = await fetch(`${API_BASE_URL}/permissions`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  updateRolePermissions: async (roleId, permissions) => {
+    const res = await fetch(`${API_BASE_URL}/roles/${roleId}/permissions`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ permissions })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to update permissions');
+    return json.data?.role || json.data;
+  },
+
+  // ==========================================
+  // 6. BOARD MANAGEMENT
+  // ==========================================
+  getBoards: async (query = {}) => {
+    const params = new URLSearchParams(query);
+    const res = await fetch(`${API_BASE_URL}/boards?${params.toString()}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getBoardById: async (boardId) => {
+    const res = await fetch(`${API_BASE_URL}/boards/${boardId}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data?.board || json.data;
+  },
+
+  updateBoard: async (boardId, data) => {
+    const res = await fetch(`${API_BASE_URL}/boards/${boardId}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    return json.data?.board || json.data;
+  },
+
+  updateBoardStatus: async (boardId, isArchived) => {
+    const res = await fetch(`${API_BASE_URL}/boards/${boardId}/status`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ isArchived })
+    });
+    const json = await res.json();
+    return json.data?.board || json.data;
+  },
+
+  deleteBoard: async (boardId) => {
+    const res = await fetch(`${API_BASE_URL}/boards/${boardId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getBoardTasks: async (boardId) => {
+    const res = await fetch(`${API_BASE_URL}/boards/${boardId}/tasks`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  // ==========================================
+  // 7. PLATFORM ANALYTICS
+  // ==========================================
+  getAnalyticsOverview: async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/analytics/overview`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const json = await res.json();
+        return json.data;
+      }
+    } catch (err) {
+      console.error('Failed to fetch analytics:', err);
+    }
+    return { overview: { totalUsers: 0, activeUsers: 0, totalWorkspaces: 0, activeWorkspaces: 0, totalBoards: 0, totalTasks: 0 } };
+  },
+
+  getAnalytics: async () => {
+    return superAdminService.getAnalyticsOverview();
+  },
+
+  getUserAnalytics: async () => {
+    const res = await fetch(`${API_BASE_URL}/analytics/users`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getWorkspaceAnalyticsData: async () => {
+    const res = await fetch(`${API_BASE_URL}/analytics/workspaces`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getBoardAnalytics: async () => {
+    const res = await fetch(`${API_BASE_URL}/analytics/boards`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getTaskAnalytics: async () => {
+    const res = await fetch(`${API_BASE_URL}/analytics/tasks`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getActivityAnalytics: async () => {
+    const res = await fetch(`${API_BASE_URL}/analytics/activity`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getEngagementAnalytics: async () => {
+    const res = await fetch(`${API_BASE_URL}/analytics/engagement`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  // ==========================================
+  // 8. AUDIT LOGS
+  // ==========================================
+  getAuditLogs: async (query = {}) => {
+    const params = new URLSearchParams(query);
+    const res = await fetch(`${API_BASE_URL}/audit-logs?${params.toString()}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getAuditLogById: async (logId) => {
+    const res = await fetch(`${API_BASE_URL}/audit-logs/${logId}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data?.log || json.data;
+  },
+
+  getUserAuditLogs: async (userId) => {
+    const res = await fetch(`${API_BASE_URL}/audit-logs/users/${userId}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  getWorkspaceAuditLogs: async (workspaceId) => {
+    const res = await fetch(`${API_BASE_URL}/audit-logs/workspaces/${workspaceId}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  // ==========================================
+  // 9. ANNOUNCEMENTS
+  // ==========================================
+  getAnnouncements: async (query = {}) => {
+    const params = new URLSearchParams(query);
+    const res = await fetch(`${API_BASE_URL}/announcements?${params.toString()}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
+  createAnnouncement: async (data) => {
+    const res = await fetch(`${API_BASE_URL}/announcements`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    return json.data?.announcement || json.data;
+  },
+
+  getAnnouncementById: async (announcementId) => {
+    const res = await fetch(`${API_BASE_URL}/announcements/${announcementId}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data?.announcement || json.data;
+  },
+
+  updateAnnouncement: async (announcementId, data) => {
+    const res = await fetch(`${API_BASE_URL}/announcements/${announcementId}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    return json.data?.announcement || json.data;
+  },
+
+  deleteAnnouncement: async (announcementId) => {
+    const res = await fetch(`${API_BASE_URL}/announcements/${announcementId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    const json = await res.json();
+    return json.data;
+  },
+
+  publishAnnouncement: async (announcementId) => {
+    const res = await fetch(`${API_BASE_URL}/announcements/${announcementId}/publish`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
       body: JSON.stringify({})
     });
     const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.message || 'Failed to toggle workspace status');
-    }
-    return json.data;
+    return json.data?.announcement || json.data;
   },
 
-  // 12. Delete workspace
-  deleteWorkspace: async (workspaceId) => {
-    const res = await fetch(`${API_BASE_URL}/v1/super-admin/workspaces/${workspaceId}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
+  archiveAnnouncement: async (announcementId) => {
+    const res = await fetch(`${API_BASE_URL}/announcements/${announcementId}/archive`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({})
     });
     const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.message || 'Failed to delete workspace');
-    }
-    return json.data;
+    return json.data?.announcement || json.data;
   },
 
-  // 13. Get platform analytics
-  getAnalytics: async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/analytics`, {
-        headers: getAuthHeaders()
-      });
-      if (res.ok) {
-        const json = await res.json();
-        return json.data;
-      }
-    } catch (err) {
-      console.error('Failed to fetch platform analytics:', err);
-    }
-
-    return {
-      overview: {
-        totalUsers: 0,
-        activeUsers: 0,
-        inactiveUsers: 0,
-        userActiveRatio: '0%',
-        totalWorkspaces: 0,
-        activeWorkspaces: 0,
-        archivedWorkspaces: 0,
-        totalBoards: 0,
-        totalTasks: 0,
-        totalAuditEvents: 0,
-        databaseStatus: 'Connected',
-        apiUptime: '100%'
-      },
-      roleDistribution: {
-        superAdmin: 0,
-        admin: 0,
-        manager: 0,
-        employee: 0,
-        member: 0,
-        viewer: 0
-      },
-      workspaceDistribution: {
-        enterprise: 0,
-        pro: 0,
-        starter: 0
-      },
-      growthTrends: [],
-      infrastructure: {
-        serverUptime: '100%',
-        memoryUsage: 'Healthy',
-        cpuLoad: '0.1%',
-        networkRequestsPerMin: 0,
-        errorRate: '0%'
-      }
-    };
-  },
-
-  // 14. Get platform audit logs
-  getAuditLogs: async (query = {}) => {
-    const { search = '', category = 'all', status = 'all', page = 1, limit = 20 } = query;
-    try {
-      const params = new URLSearchParams();
-      if (search) params.append('search', search);
-      if (category && category !== 'all') params.append('category', category);
-      if (status && status !== 'all') params.append('status', status);
-      params.append('page', page);
-      params.append('limit', limit);
-
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/audit-logs?${params.toString()}`, {
-        headers: getAuthHeaders()
-      });
-      if (res.ok) {
-        const json = await res.json();
-        return json.data;
-      }
-    } catch (err) {
-      console.error('Failed to fetch audit logs:', err);
-    }
-
-    return {
-      logs: [],
-      totalCount: 0,
-      summary: {
-        total: 0,
-        success: 0,
-        warning: 0,
-        failure: 0
-      }
-    };
-  },
-
-  // 15. Get platform settings
+  // ==========================================
+  // 10. PLATFORM SETTINGS
+  // ==========================================
   getSettings: async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/v1/super-admin/settings`, {
-        headers: getAuthHeaders()
-      });
+      const res = await fetch(`${API_BASE_URL}/settings`, { headers: getAuthHeaders() });
       if (res.ok) {
         const json = await res.json();
         return json.data?.settings || json.data;
       }
     } catch (err) {
-      console.error('Failed to fetch platform settings:', err);
+      console.error('Failed to fetch settings:', err);
     }
-
     return {
-      platformName: 'WorkSync',
-      supportEmail: 'support@worksync.io',
-      allowRegistration: true,
-      requireEmailVerification: false,
-      mfaRequiredForAdmins: false,
-      sessionTimeoutMinutes: 1440,
-      defaultWorkspaceStorageMB: 5120,
-      maxBoardsPerWorkspace: 50,
-      maintenanceMode: false
+      general: { platformName: 'WorkSync', supportEmail: 'support@worksync.io' },
+      security: { enforceMfa: false }
     };
   },
 
-  // 16. Update platform settings
+  updateGeneralSettings: async (data) => {
+    const res = await fetch(`${API_BASE_URL}/settings/general`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    return json.data?.general || json.data;
+  },
+
+  updateSecuritySettings: async (data) => {
+    const res = await fetch(`${API_BASE_URL}/settings/security`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    return json.data?.security || json.data;
+  },
+
+  updateRegistrationSettings: async (data) => {
+    const res = await fetch(`${API_BASE_URL}/settings/registration`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    return json.data?.registration || json.data;
+  },
+
+  updateNotificationSettings: async (data) => {
+    const res = await fetch(`${API_BASE_URL}/settings/notifications`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    return json.data?.notifications || json.data;
+  },
+
+  getSecurityConfiguration: async () => {
+    const res = await fetch(`${API_BASE_URL}/settings/security`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
+
   updateSettings: async (settings) => {
-    const res = await fetch(`${API_BASE_URL}/v1/super-admin/settings`, {
-      method: 'PATCH',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(settings)
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.message || 'Failed to update settings');
+    return superAdminService.updateGeneralSettings(settings);
+  },
+
+  // ==========================================
+  // 11. SYSTEM HEALTH & MONITORING
+  // ==========================================
+  getSystemHealth: async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/system/health`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const json = await res.json();
+        return json.data;
+      }
+    } catch (err) {
+      console.error('Failed to fetch system health:', err);
     }
-    return json.data?.settings || json.data;
+    return { status: 'healthy', uptime: '100%', database: { connected: true, name: 'worksync' } };
   },
 
-  // =========================================================================
-  // WORKSPACE MEMBERS & INVITATIONS APIS
-  // =========================================================================
-
-  // 17. GET /workspaces/:workspaceId/dashboard
-  getWorkspaceDashboard: async (workspaceId) => {
-    const url = workspaceId
-      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/dashboard`
-      : `${API_BASE_URL}/v1/dashboard`;
-
-    const res = await fetch(url, { headers: getAuthHeaders() });
+  getSystemDatabase: async () => {
+    const res = await fetch(`${API_BASE_URL}/system/database`, { headers: getAuthHeaders() });
     const json = await res.json();
-    if (!res.ok) throw new Error(json.message || 'Failed to load workspace dashboard');
     return json.data;
   },
 
-  // 18. GET /workspaces/:workspaceId/members
-  getWorkspaceMembers: async (workspaceId, query = {}) => {
-    const url = workspaceId
-      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/members`
-      : `${API_BASE_URL}/v1/members`;
-
-    const params = new URLSearchParams(query);
-    const res = await fetch(`${url}?${params.toString()}`, { headers: getAuthHeaders() });
+  getSystemCache: async () => {
+    const res = await fetch(`${API_BASE_URL}/system/cache`, { headers: getAuthHeaders() });
     const json = await res.json();
-    if (!res.ok) throw new Error(json.message || 'Failed to load workspace members');
     return json.data;
   },
 
-  // 19. POST /workspaces/:workspaceId/members - Add existing user
-  addWorkspaceMember: async (workspaceId, memberData) => {
-    const url = workspaceId
-      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/members`
-      : `${API_BASE_URL}/v1/members`;
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(memberData)
-    });
+  getSystemSockets: async () => {
+    const res = await fetch(`${API_BASE_URL}/system/sockets`, { headers: getAuthHeaders() });
     const json = await res.json();
-    if (!res.ok) throw new Error(json.message || 'Failed to add member to workspace');
     return json.data;
   },
 
-  // 20. GET /workspaces/:workspaceId/members/:memberId
-  getMemberDetails: async (workspaceId, memberId) => {
-    const url = workspaceId
-      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/members/${memberId}`
-      : `${API_BASE_URL}/v1/members/${memberId}`;
-
-    const res = await fetch(url, { headers: getAuthHeaders() });
+  getSystemMetrics: async () => {
+    const res = await fetch(`${API_BASE_URL}/system/metrics`, { headers: getAuthHeaders() });
     const json = await res.json();
-    if (!res.ok) throw new Error(json.message || 'Failed to fetch member details');
     return json.data;
   },
 
-  // 21. PATCH /workspaces/:workspaceId/members/:memberId/role
-  updateMemberRole: async (workspaceId, memberId, role) => {
-    const url = workspaceId
-      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/members/${memberId}/role`
-      : `${API_BASE_URL}/v1/members/${memberId}/role`;
+  // ==========================================
+  // 12. SUPER ADMIN PROFILE
+  // ==========================================
+  getProfile: async () => {
+    const res = await fetch(`${API_BASE_URL}/profile`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data?.profile || json.data;
+  },
 
-    const res = await fetch(url, {
+  updateProfile: async (data) => {
+    const res = await fetch(`${API_BASE_URL}/profile`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ role })
+      body: JSON.stringify(data)
     });
     const json = await res.json();
-    if (!res.ok) throw new Error(json.message || 'Failed to update member role');
-    return json.data;
+    return json.data?.profile || json.data;
   },
 
-  // 22. DELETE /workspaces/:workspaceId/members/:memberId
-  removeWorkspaceMember: async (workspaceId, memberId) => {
-    const url = workspaceId
-      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/members/${memberId}`
-      : `${API_BASE_URL}/v1/members/${memberId}`;
-
-    const res = await fetch(url, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.message || 'Failed to remove member from workspace');
-    return json.data;
-  },
-
-  // 23. POST /workspaces/:workspaceId/invitations - Invite new member
-  inviteMember: async (workspaceId, inviteData) => {
-    const url = workspaceId
-      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/invitations`
-      : `${API_BASE_URL}/v1/invitations`;
-
-    const res = await fetch(url, {
-      method: 'POST',
+  updateAvatar: async (avatarUrl) => {
+    const res = await fetch(`${API_BASE_URL}/profile/avatar`, {
+      method: 'PATCH',
       headers: getAuthHeaders(),
-      body: JSON.stringify(inviteData)
+      body: JSON.stringify({ avatar: avatarUrl })
     });
     const json = await res.json();
-    if (!res.ok) throw new Error(json.message || 'Failed to dispatch invitation');
     return json.data;
   },
 
-  // 24. GET /workspaces/:workspaceId/invitations
-  getWorkspaceInvitations: async (workspaceId, query = {}) => {
-    const url = workspaceId
-      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/invitations`
-      : `${API_BASE_URL}/v1/invitations`;
-
-    const params = new URLSearchParams(query);
-    const res = await fetch(`${url}?${params.toString()}`, { headers: getAuthHeaders() });
+  changePassword: async (passwordData) => {
+    const res = await fetch(`${API_BASE_URL}/profile/change-password`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(passwordData)
+    });
     const json = await res.json();
-    if (!res.ok) throw new Error(json.message || 'Failed to load invitations');
     return json.data;
   },
 
-  // 25. DELETE /workspaces/:workspaceId/invitations/:invitationId - Cancel invitation
-  cancelInvitation: async (workspaceId, invitationId) => {
-    const url = workspaceId
-      ? `${API_BASE_URL}/v1/workspaces/${workspaceId}/invitations/${invitationId}`
-      : `${API_BASE_URL}/v1/invitations/${invitationId}`;
+  getProfileSessions: async () => {
+    const res = await fetch(`${API_BASE_URL}/profile/sessions`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    return json.data;
+  },
 
-    const res = await fetch(url, {
+  revokeProfileSession: async (sessionId) => {
+    const res = await fetch(`${API_BASE_URL}/profile/sessions/${sessionId}`, {
       method: 'DELETE',
       headers: getAuthHeaders()
     });
     const json = await res.json();
-    if (!res.ok) throw new Error(json.message || 'Failed to cancel invitation');
     return json.data;
   }
 };

@@ -17,6 +17,18 @@ const platformSettingSchema = new mongoose.Schema(
       ipWhitelistEnabled: { type: Boolean, default: false },
       tokenExpiryDays: { type: Number, default: 7 }
     },
+    registration: {
+      allowNewRegistrations: { type: Boolean, default: true },
+      defaultUserRole: { type: String, default: 'member' },
+      requireEmailVerification: { type: Boolean, default: false },
+      allowedEmailDomains: { type: [String], default: [] }
+    },
+    notifications: {
+      emailAlerts: { type: Boolean, default: true },
+      securityAlerts: { type: Boolean, default: true },
+      digestFrequency: { type: String, default: 'daily' },
+      slackWebhookUrl: { type: String, default: '' }
+    },
     storage: {
       maxAttachmentSizeMb: { type: Number, default: 50 },
       workspaceQuotaGb: { type: Number, default: 20 },
