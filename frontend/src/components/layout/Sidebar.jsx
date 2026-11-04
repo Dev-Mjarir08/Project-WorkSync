@@ -2,6 +2,7 @@ import {
   Activity,
   Bell,
   LayoutDashboard,
+  ListTodo,
   PanelsTopLeft,
   Send,
 } from "lucide-react";
@@ -9,6 +10,7 @@ import { NavLink } from "react-router-dom";
 
 const links = [
   { label: "Dashboard", to: "/admin/dashboard", icon: LayoutDashboard },
+  { label: "Tasks", to: "/admin/tasks", icon: ListTodo },
   { label: "Boards", to: "/admin/boards", icon: PanelsTopLeft },
   { label: "Invitations", to: "/admin/invitations", icon: Send },
   { label: "Activity", to: "/admin/activity", icon: Activity },
