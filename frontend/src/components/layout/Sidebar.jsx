@@ -13,6 +13,7 @@ import {
   Bell,
   Sparkles,
   X,
+  CalendarDays
 } from "lucide-react";
 
 export const managerNavSections = [
@@ -23,6 +24,7 @@ export const managerNavSections = [
       { name: "Projects", icon: FolderKanban, path: "/manager/projects", viewKey: "projects", badge: "6" },
       { name: "Tasks", icon: ListTodo, path: "/manager/tasks", viewKey: "tasks", badge: "24" },
       { name: "Kanban Boards", icon: Kanban, path: "/manager/boards/board-1", viewKey: "boards" },
+      { name: "Calendar", icon: CalendarDays, path: "/manager/calendar", viewKey: "calendar" },
     ],
   },
   {

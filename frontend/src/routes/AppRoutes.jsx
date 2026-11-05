@@ -17,6 +17,7 @@ import NotificationsPage from "../features/manager/pages/NotificationsPage.jsx";
 import ProfilePage from "../features/manager/pages/ProfilePage.jsx";
 import CreateTaskPage from "../features/manager/pages/CreateTaskPage.jsx";
 import TaskDetailsPage from "../features/manager/pages/TaskDetailsPage.jsx";
+import CalendarPage from "../features/manager/pages/CalendarPage.jsx";
 
 // Auth pages
 import LoginPage from "../features/auth/pages/LoginPage.jsx";
@@ -58,6 +59,7 @@ const AppRoutes = () => {
       <Route path="/manger/reports" element={<ReportsPage />} />
       <Route path="/manager/notifications" element={<NotificationsPage />} />
       <Route path="/manager/profile" element={<ProfilePage />} />
+      <Route path="/manager/calendar" element={<CalendarPage />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
