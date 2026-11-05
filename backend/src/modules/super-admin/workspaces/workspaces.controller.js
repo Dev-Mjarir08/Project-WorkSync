@@ -54,3 +54,19 @@ export const getWorkspaceAnalytics = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, result, 'Workspace analytics retrieved successfully'));
 });
 
+export const getWorkspaceProjects = asyncHandler(async (req, res) => {
+  const result = await workspacesService.getWorkspaceProjects(req.params.workspaceId);
+  return res.status(200).json(new ApiResponse(200, result, 'Workspace projects retrieved successfully'));
+});
+
+export const createWorkspaceProject = asyncHandler(async (req, res) => {
+  const result = await workspacesService.createWorkspaceProject(req.params.workspaceId, req.body, req.user);
+  return res.status(201).json(new ApiResponse(201, { project: result }, 'Workspace project created successfully'));
+});
+
+export const addWorkspaceMember = asyncHandler(async (req, res) => {
+  const result = await workspacesService.addWorkspaceMember(req.params.workspaceId, req.body, req.user);
+  return res.status(201).json(new ApiResponse(201, { member: result }, 'Workspace member added successfully'));
+});
+
+

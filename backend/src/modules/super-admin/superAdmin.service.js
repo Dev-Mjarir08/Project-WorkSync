@@ -480,6 +480,7 @@ export const getUserById = async (userId) => {
 
 export const createUser = async ({ name, email, password, role = 'member', bio = '' }, actorAdmin) => {
   const normalizedEmail = email.toLowerCase().trim();
+  const userPassword = password || 'WorkSync@2026';
 
   const existing = await User.findOne({ email: normalizedEmail });
   if (existing) {
@@ -489,7 +490,7 @@ export const createUser = async ({ name, email, password, role = 'member', bio =
   const user = await User.create({
     name: name.trim(),
     email: normalizedEmail,
-    password,
+    password: userPassword,
     role,
     bio,
     sessions: [

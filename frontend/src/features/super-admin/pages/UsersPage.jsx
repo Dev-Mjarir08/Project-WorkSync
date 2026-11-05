@@ -17,79 +17,123 @@ import {
   RefreshCw,
   X,
   AlertCircle,
-  Eye
+  Eye,
+  EyeOff,
+  Sparkles
 } from 'lucide-react';
+import { useSuperAdmin } from '../../../context/SuperAdminContext.jsx';
 import superAdminService from '../superAdminService.js';
 
 export const UsersPage = () => {
   const navigate = useNavigate();
-  const [users, setUsers] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const {
+    usersState,
+    loadUsers,
+    createUser,
+    updateUserRole,
+    toggleUserStatus,
+    deleteUser,
+    loadWorkspaces
+  } = useSuperAdmin();
+
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
   // Modal State
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'member' });
+  const [showPassword, setShowPassword] = useState(false);
+  const [workspacesList, setWorkspacesList] = useState([]);
+  const [creating, setCreating] = useState(false);
   const [actionMessage, setActionMessage] = useState(null);
 
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const res = await superAdminService.getUsers({
-        search,
-        role: roleFilter,
-        status: statusFilter
-      });
-      setUsers(res.users);
-      setSummary(res.rolesSummary);
-    } catch (err) {
-      console.error('Failed to load users:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [newUser, setNewUser] = useState({
+    name: '',
+    email: '',
+    password: 'WorkSync@2026',
+    role: 'member',
+    workspaceId: ''
+  });
 
   useEffect(() => {
-    fetchUsers();
+    loadUsers({
+      search,
+      role: roleFilter,
+      status: statusFilter
+    });
+    loadWorkspaces().then(list => setWorkspacesList(list || []));
   }, [search, roleFilter, statusFilter]);
 
-  const showToast = (msg) => {
-    setActionMessage(msg);
-    setTimeout(() => setActionMessage(null), 3000);
+  const showToast = (msg, isError = false) => {
+    setActionMessage({ text: msg, isError });
+    setTimeout(() => setActionMessage(null), 3500);
   };
 
   const handleRoleChange = async (userId, newRole) => {
-    await superAdminService.updateUserRole(userId, newRole);
-    showToast(`Role updated to ${newRole}`);
-    fetchUsers();
+    await updateUserRole(userId, newRole);
   };
 
   const handleToggleStatus = async (userId) => {
-    await superAdminService.toggleUserStatus(userId);
-    showToast('Account status updated');
-    fetchUsers();
+    await toggleUserStatus(userId);
   };
 
   const handleDeleteUser = async (userId, name) => {
     if (window.confirm(`Are you sure you want to remove user "${name}" from the platform?`)) {
-      await superAdminService.deleteUser(userId);
-      showToast(`User ${name} removed`);
-      fetchUsers();
+      await deleteUser(userId, name);
     }
+  };
+
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+    let pwd = '';
+    for (let i = 0; i < 10; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setNewUser(prev => ({ ...prev, password: pwd }));
+    showToast('Temporary password generated');
   };
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
-    if (!newUser.name || !newUser.email) return;
+    if (!newUser.name.trim() || !newUser.email.trim()) {
+      showToast('Name and email are required', true);
+      return;
+    }
 
-    await superAdminService.createUser(newUser);
-    setShowAddModal(false);
-    setNewUser({ name: '', email: '', role: 'member' });
-    showToast('New user created successfully');
-    fetchUsers();
+    try {
+      setCreating(true);
+      const payload = {
+        name: newUser.name.trim(),
+        email: newUser.email.trim(),
+        password: newUser.password || 'WorkSync@2026',
+        role: newUser.role
+      };
+
+      const created = await createUser(payload);
+
+      // If a workspace was selected, assign the user to that workspace immediately
+      if (newUser.workspaceId && created) {
+        const userId = created.id || created._id;
+        await superAdminService.addWorkspaceMember(newUser.workspaceId, {
+          userId,
+          role: newUser.role === 'admin' ? 'admin' : (newUser.role === 'manager' ? 'manager' : 'member')
+        }).catch(err => console.error('Workspace assignment error:', err));
+      }
+
+      setShowAddModal(false);
+      setNewUser({
+        name: '',
+        email: '',
+        password: 'WorkSync@2026',
+        role: 'member',
+        workspaceId: ''
+      });
+      showToast('User provisioned successfully');
+    } catch (err) {
+      showToast(err.message || 'Failed to create user', true);
+    } finally {
+      setCreating(false);
+    }
   };
 
   const getRoleBadge = (role) => {
@@ -99,87 +143,109 @@ export const UsersPage = () => {
       case 'admin':
         return 'bg-blue-500/15 text-blue-400 border border-blue-500/30';
       case 'manager':
-        return 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30';
+        return 'bg-amber-500/15 text-amber-400 border border-amber-500/30';
       case 'employee':
         return 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30';
       case 'member':
         return 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+      case 'viewer':
+        return 'bg-slate-500/15 text-slate-400 border border-slate-500/30';
       default:
-        return 'bg-slate-700/40 text-slate-400 border border-slate-700';
+        return 'bg-slate-500/15 text-slate-400 border border-slate-500/30';
     }
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Toast Feedback */}
+    <div className="space-y-6 animate-fadeIn pb-12">
+      {/* Toast Notification */}
       {actionMessage && (
-        <div className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl bg-indigo-600 text-white text-sm font-medium shadow-2xl flex items-center gap-2 animate-bounce">
-          <CheckCircle className="h-4 w-4" />
-          <span>{actionMessage}</span>
+        <div
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-2xl border text-sm font-medium transition-all ${
+            actionMessage.isError
+              ? 'bg-rose-950/90 text-rose-200 border-rose-800'
+              : 'bg-emerald-950/90 text-emerald-200 border-emerald-800'
+          }`}
+        >
+          {actionMessage.isError ? (
+            <AlertCircle className="h-5 w-5 text-rose-400" />
+          ) : (
+            <CheckCircle className="h-5 w-5 text-emerald-400" />
+          )}
+          <span>{actionMessage.text}</span>
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-800/60">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
-            <Users className="h-7 w-7 text-indigo-400" />
-            <span>Platform Users</span>
-          </h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Global directory of user accounts, platform roles, security credentials, and organization memberships.
+          <div className="flex items-center gap-2.5 mb-1">
+            <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <Users className="h-5 w-5" />
+            </span>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Platform User Management</h1>
+          </div>
+          <p className="text-xs sm:text-sm text-slate-400">
+            Provision, manage roles, inspect security sessions and oversee team members across workspaces.
           </p>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-lg shadow-indigo-600/20 transition-all self-start sm:self-auto"
-        >
-          <UserPlus className="h-4 w-4" />
-          <span>Add New User</span>
-        </button>
-      </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => loadUsers({ search, role: roleFilter, status: statusFilter }, true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs sm:text-sm text-slate-300 font-medium transition-colors"
+          >
+            <RefreshCw className={`h-4 w-4 ${usersState.loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
 
-      {/* Role & Status Stat Badges */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 rounded-xl bg-[#0d1322] border border-slate-800">
-          <p className="text-xs text-slate-400 font-medium">Total Accounts</p>
-          <p className="text-xl font-bold text-white mt-1">{totalCount || users.length}</p>
-        </div>
-        <div className="p-4 rounded-xl bg-[#0d1322] border border-slate-800">
-          <p className="text-xs text-emerald-400 font-medium">Active Accounts</p>
-          <p className="text-xl font-bold text-white mt-1">{summary?.active ?? users.filter(u => u.isActive).length}</p>
-        </div>
-        <div className="p-4 rounded-xl bg-[#0d1322] border border-slate-800">
-          <p className="text-xs text-blue-400 font-medium">Platform Admins</p>
-          <p className="text-xl font-bold text-white mt-1">{summary?.admin ?? summary?.superAdmin ?? 0}</p>
-        </div>
-        <div className="p-4 rounded-xl bg-[#0d1322] border border-slate-800">
-          <p className="text-xs text-rose-400 font-medium">Suspended Accounts</p>
-          <p className="text-xl font-bold text-white mt-1">{summary?.inactive ?? users.filter(u => !u.isActive).length}</p>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-indigo-600/25 transition-all"
+          >
+            <UserPlus className="h-4 w-4" />
+            <span>Provision User</span>
+          </button>
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="p-4 rounded-2xl bg-[#0d1322] border border-slate-800 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-        {/* Search Input */}
-        <div className="relative flex-1">
+      {/* Role Summary Badges */}
+      {usersState.summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+          {Object.entries(usersState.summary).map(([role, count]) => (
+            <div
+              key={role}
+              onClick={() => setRoleFilter(roleFilter === role ? 'all' : role)}
+              className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                roleFilter === role
+                  ? 'bg-indigo-600/15 border-indigo-500/50 shadow-md ring-1 ring-indigo-500/30'
+                  : 'bg-[#0d1322] border-slate-800/80 hover:border-slate-700'
+              }`}
+            >
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{role.replace('_', ' ')}</div>
+              <div className="text-lg font-extrabold text-white mt-0.5">{count}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Filters & Search */}
+      <div className="bg-[#0d1322] border border-slate-800/80 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+        <div className="flex-1 min-w-[240px] relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by user name or email address..."
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+            placeholder="Search by full name, email or role..."
+            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
           />
         </div>
 
-        {/* Filter Dropdowns */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 focus:outline-none focus:border-indigo-500"
+            className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-medium text-slate-300 focus:outline-none focus:border-indigo-500"
           >
             <option value="all">All Roles</option>
             <option value="super_admin">Super Admin</option>
@@ -193,158 +259,146 @@ export const UsersPage = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 focus:outline-none focus:border-indigo-500"
+            className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-medium text-slate-300 focus:outline-none focus:border-indigo-500"
           >
-            <option value="all">All Status</option>
+            <option value="all">All Statuses</option>
             <option value="active">Active Only</option>
-            <option value="inactive">Inactive Only</option>
+            <option value="inactive">Suspended / Inactive</option>
           </select>
         </div>
       </div>
 
       {/* Users Table */}
-      <div className="rounded-2xl bg-[#0d1322] border border-slate-800 overflow-hidden shadow-xl">
+      <div className="bg-[#0d1322] border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-300">
-            <thead className="bg-slate-900/90 text-xs uppercase font-semibold text-slate-400 border-b border-slate-800">
-              <tr>
+          <table className="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-slate-800 bg-slate-900/50 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 <th className="py-3.5 px-4">User</th>
-                <th className="py-3.5 px-4">Role</th>
-                <th className="py-3.5 px-4">Tenants</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">Last Activity</th>
+                <th className="py-3.5 px-4">Platform Role</th>
+                <th className="py-3.5 px-4">Account Status</th>
+                <th className="py-3.5 px-4">Last Active</th>
+                <th className="py-3.5 px-4">Joined Date</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {loading ? (
+            <tbody className="divide-y divide-slate-800/60 text-slate-300">
+              {usersState.loading ? (
                 <tr>
-                  <td colSpan="6" className="py-12 text-center text-slate-400">
-                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-indigo-400" />
-                    Fetching user records...
+                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                    <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                    <p className="text-xs">Loading platform accounts...</p>
                   </td>
                 </tr>
-              ) : users.length === 0 ? (
+              ) : usersState.list.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="py-12 text-center text-slate-400">
+                  <td colSpan={6} className="py-12 text-center text-slate-500">
                     No users found matching your filters.
                   </td>
                 </tr>
               ) : (
-                users.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-900/40 transition-colors">
-                    {/* User Info */}
-                    <td className="py-3.5 px-4">
-                      <div
-                        onClick={() => navigate(`/super-admin/users/${u.id || u._id}`)}
-                        className="flex items-center gap-3 cursor-pointer group"
-                      >
-                        <img
-                          src={u.avatar}
-                          alt={u.name}
-                          className="h-9 w-9 rounded-full object-cover ring-1 ring-slate-700 group-hover:ring-indigo-500 transition-all"
-                        />
-                        <div>
-                          <div className="font-semibold text-white group-hover:text-indigo-400 transition-colors">
-                            {u.name}
+                usersState.list.map((u) => {
+                  const uid = u.id || u._id;
+                  return (
+                    <tr key={uid} className="hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          {u.avatar ? (
+                            <img src={u.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
+                          ) : (
+                            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white font-bold text-xs flex items-center justify-center shadow">
+                              {u.name?.charAt(0)?.toUpperCase() || 'U'}
+                            </div>
+                          )}
+                          <div>
+                            <button
+                              onClick={() => navigate(`/super-admin/users/${uid}`)}
+                              className="font-semibold text-white hover:text-indigo-400 transition-colors text-left"
+                            >
+                              {u.name}
+                            </button>
+                            <div className="text-xs text-slate-400">{u.email}</div>
                           </div>
-                          <div className="text-xs text-slate-400 font-mono">{u.email}</div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Role Selector */}
-                    <td className="py-3.5 px-4">
-                      <select
-                        value={u.role}
-                        onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                        className={`text-xs font-semibold uppercase px-2 py-1 rounded-md bg-slate-900 border cursor-pointer ${getRoleBadge(
-                          u.role
-                        )}`}
-                      >
-                        <option value="super_admin">Super Admin</option>
-                        <option value="admin">Admin</option>
-                        <option value="manager">Manager</option>
-                        <option value="employee">Employee</option>
-                        <option value="member">Member</option>
-                        <option value="viewer">Viewer</option>
-                      </select>
-                    </td>
-
-                    {/* Workspaces Count */}
-                    <td className="py-3.5 px-4">
-                      <span className="text-xs font-mono text-slate-300 bg-slate-800/70 px-2 py-0.5 rounded">
-                        {u.workspacesCount} workspaces
-                      </span>
-                    </td>
-
-                    {/* Status */}
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-0.5 rounded-full ${
-                          u.isActive
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                        }`}
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            u.isActive ? 'bg-emerald-500' : 'bg-rose-500'
-                          }`}
-                        />
-                        {u.isActive ? 'Active' : 'Deactivated'}
-                      </span>
-                    </td>
-
-                    {/* Last Login */}
-                    <td className="py-3.5 px-4 text-xs text-slate-400 whitespace-nowrap">
-                      {u.lastLogin}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => navigate(`/super-admin/users/${u.id || u._id}`)}
-                          title="View user details & permissions"
-                          className="p-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors"
+                      <td className="py-3 px-4">
+                        <select
+                          value={u.role || 'member'}
+                          onChange={(e) => handleRoleChange(uid, e.target.value)}
+                          className={`text-xs font-bold px-2.5 py-1 rounded-lg border focus:outline-none cursor-pointer ${getRoleBadge(u.role)}`}
                         >
-                          <Eye className="h-4 w-4" />
-                        </button>
+                          <option value="super_admin" className="bg-slate-900 text-white">Super Admin</option>
+                          <option value="admin" className="bg-slate-900 text-white">Admin</option>
+                          <option value="manager" className="bg-slate-900 text-white">Manager</option>
+                          <option value="employee" className="bg-slate-900 text-white">Employee</option>
+                          <option value="member" className="bg-slate-900 text-white">Member</option>
+                          <option value="viewer" className="bg-slate-900 text-white">Viewer</option>
+                        </select>
+                      </td>
 
+                      <td className="py-3 px-4">
                         <button
-                          onClick={() => handleToggleStatus(u.id)}
-                          title={u.isActive ? 'Deactivate account' : 'Reactivate account'}
-                          className={`p-1.5 rounded-lg border text-xs transition-colors ${
+                          onClick={() => handleToggleStatus(uid)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${
                             u.isActive
-                              ? 'border-slate-700 text-slate-400 hover:text-amber-400 hover:bg-amber-500/10'
-                              : 'border-emerald-700/50 text-emerald-400 hover:bg-emerald-500/10'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                              : 'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20'
                           }`}
                         >
-                          {u.isActive ? 'Deactivate' : 'Activate'}
+                          {u.isActive ? (
+                            <>
+                              <CheckCircle className="h-3.5 w-3.5" />
+                              <span>Active</span>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="h-3.5 w-3.5" />
+                              <span>Suspended</span>
+                            </>
+                          )}
                         </button>
+                      </td>
 
-                        <button
-                          onClick={() => handleDeleteUser(u.id, u.name)}
-                          title="Delete user"
-                          className="p-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      <td className="py-3 px-4 text-xs text-slate-400">
+                        {u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : 'Never'}
+                      </td>
+
+                      <td className="py-3 px-4 text-xs text-slate-400">
+                        {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}
+                      </td>
+
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => navigate(`/super-admin/users/${uid}`)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-400 transition-colors"
+                            title="Inspect Profile"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(uid, u.name)}
+                            className="p-1.5 text-slate-400 hover:text-rose-400 transition-colors"
+                            title="Delete User"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Add User Modal */}
+      {/* Provision User Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0d1322] border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0f172a] border border-slate-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative space-y-4">
             <button
               onClick={() => setShowAddModal(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-white"
@@ -352,71 +406,128 @@ export const UsersPage = () => {
               <X className="h-5 w-5" />
             </button>
 
-            <h3 className="text-lg font-bold text-white mb-1">Provision New User</h3>
-            <p className="text-xs text-slate-400 mb-6">
-              Create an account with platform permissions and an auto-generated temporary key.
-            </p>
+            <div>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <UserPlus className="h-5 w-5 text-indigo-400" />
+                <span>Provision Platform Account</span>
+              </h3>
+              <p className="text-xs text-slate-400">
+                Create a new user with predefined role and auto-generated security credentials.
+              </p>
+            </div>
 
-            <form onSubmit={handleCreateUser} className="space-y-4">
+            <form onSubmit={handleCreateUser} className="space-y-3.5">
               <div>
                 <label className="block text-xs font-semibold uppercase text-slate-400 mb-1">
-                  Full Name
+                  Full Name *
                 </label>
                 <input
                   type="text"
                   required
                   value={newUser.name}
                   onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                  placeholder="e.g. Rachel Adams"
+                  placeholder="e.g. John Doe"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase text-slate-400 mb-1">
-                  Email Address
+                  Email Address *
                 </label>
                 <input
                   type="email"
                   required
                   value={newUser.email}
                   onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                  placeholder="e.g. rachel@worksync.io"
+                  placeholder="e.g. john@worksync.io"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
+              {/* Password with generator */}
               <div>
-                <label className="block text-xs font-semibold uppercase text-slate-400 mb-1">
-                  Platform Role
-                </label>
-                <select
-                  value={newUser.role}
-                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
-                >
-                  <option value="admin">Admin (Workspace & Team Administration)</option>
-                  <option value="manager">Manager (Project & Sprint Lead)</option>
-                  <option value="employee">Employee (Developer / Contributor)</option>
-                  <option value="member">Member (Standard Workspace Access)</option>
-                  <option value="super_admin">Super Admin (Full Root Platform Control)</option>
-                  <option value="viewer">Viewer (Read-only)</option>
-                </select>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold uppercase text-slate-400">
+                    Temporary Password *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={generateRandomPassword}
+                    className="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1"
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    <span>Generate Strong</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={newUser.password}
+                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold uppercase text-slate-400 mb-1">
+                    Platform Role *
+                  </label>
+                  <select
+                    value={newUser.role}
+                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="super_admin">Super Admin (Root Access)</option>
+                    <option value="admin">Admin (Workspace Lead)</option>
+                    <option value="manager">Manager (Project Lead)</option>
+                    <option value="employee">Employee (Contributor)</option>
+                    <option value="member">Member (Standard User)</option>
+                    <option value="viewer">Viewer (Read-only)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase text-slate-400 mb-1">
+                    Assign To Workspace
+                  </label>
+                  <select
+                    value={newUser.workspaceId}
+                    onChange={(e) => setNewUser({ ...newUser, workspaceId: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="">None (Platform only)</option>
+                    {workspacesList.map(ws => (
+                      <option key={ws.id || ws._id} value={ws.id || ws._id}>{ws.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="pt-4 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm text-slate-300 font-medium"
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm text-white font-semibold shadow-lg shadow-indigo-600/25"
+                  disabled={creating}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs text-white font-bold shadow-lg shadow-indigo-600/25"
                 >
-                  Provision User
+                  {creating ? 'Provisioning...' : 'Provision Account'}
                 </button>
               </div>
             </form>

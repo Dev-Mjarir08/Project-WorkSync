@@ -3,6 +3,7 @@ import { Workspace } from '../../../models/Workspace.js';
 import { WorkspaceMember } from '../../../models/WorkspaceMember.js';
 import { Board } from '../../../models/Board.js';
 import { Task } from '../../../models/Task.js';
+import { Project } from '../../../models/Project.js';
 import { User } from '../../../models/User.js';
 import { AuditLog } from '../../../models/AuditLog.js';
 import { Activity } from '../../../models/Activity.js';
@@ -407,4 +408,95 @@ export const getWorkspaceAnalytics = async (workspaceIdentifier) => {
     tasksBreakdown: statusBreakdown
   };
 };
+
+export const getWorkspaceProjects = async (workspaceIdentifier) => {
+  const ws = await resolveWorkspaceDoc(workspaceIdentifier);
+
+  const projects = await Project.find({ workspace: ws._id })
+    .populate('lead', 'name email avatar')
+    .populate('members', 'name email avatar')
+    .sort({ createdAt: -1 });
+
+  return {
+    workspaceId: ws._id.toString(),
+    totalProjects: projects.length,
+    projects: projects.map(p => ({
+      id: p._id.toString(),
+      name: p.name,
+      key: p.key,
+      description: p.description,
+      status: p.status,
+      lead: p.lead ? { id: p.lead._id.toString(), name: p.lead.name, email: p.lead.email } : null,
+      membersCount: p.members?.length || 0,
+      createdAt: p.createdAt
+    }))
+  };
+};
+
+export const createWorkspaceProject = async (workspaceIdentifier, data, actorAdmin) => {
+  const ws = await resolveWorkspaceDoc(workspaceIdentifier);
+  if (!data.name || !data.name.trim()) throw new ApiError(400, 'Project name is required');
+
+  const cleanName = data.name.trim();
+  const projectKey = (data.key || cleanName.slice(0, 3).toUpperCase()).replace(/[^A-Z0-9]/g, '');
+
+  const project = await Project.create({
+    workspace: ws._id,
+    name: cleanName,
+    key: projectKey,
+    description: data.description || '',
+    status: data.status || 'active',
+    lead: data.lead || actorAdmin._id,
+    members: data.members || [actorAdmin._id],
+    startDate: data.startDate,
+    dueDate: data.dueDate
+  });
+
+  await recordAudit({
+    action: 'Workspace Project Created',
+    details: `Super Admin created project "${project.name}" in workspace "${ws.name}"`,
+    actor: actorAdmin,
+    target: project.name,
+    targetId: project._id.toString()
+  });
+
+  return project;
+};
+
+export const addWorkspaceMember = async (workspaceIdentifier, data, actorAdmin) => {
+  const ws = await resolveWorkspaceDoc(workspaceIdentifier);
+  const userId = data.userId || data.user;
+  if (!userId) throw new ApiError(400, 'User ID is required');
+
+  const user = await User.findById(userId);
+  if (!user) throw new ApiError(404, 'User not found');
+
+  const existingMember = await WorkspaceMember.findOne({ workspace: ws._id, user: user._id });
+  if (existingMember) {
+    existingMember.role = data.role || existingMember.role;
+    existingMember.status = 'active';
+    await existingMember.save();
+    return existingMember;
+  }
+
+  const member = await WorkspaceMember.create({
+    workspace: ws._id,
+    user: user._id,
+    role: data.role || 'member',
+    status: 'active'
+  });
+
+  await Workspace.findByIdAndUpdate(ws._id, { $inc: { membersCount: 1 } });
+
+  await recordAudit({
+    action: 'Workspace Member Added',
+    details: `User ${user.name} added to workspace "${ws.name}" with role ${member.role}`,
+    actor: actorAdmin,
+    target: user.name,
+    targetId: user._id.toString()
+  });
+
+  return member;
+};
+
 

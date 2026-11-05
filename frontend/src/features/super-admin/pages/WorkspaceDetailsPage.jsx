@@ -39,6 +39,12 @@ export const WorkspaceDetailsPage = () => {
   const [copiedSlug, setCopiedSlug] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [showAddBoardModal, setShowAddBoardModal] = useState(false);
+  const [usersList, setUsersList] = useState([]);
+  const [newMemberForm, setNewMemberForm] = useState({ userId: '', role: 'member' });
+  const [newBoardForm, setNewBoardForm] = useState({ name: '', description: '', isProject: false, projectKey: '' });
+
   const [editForm, setEditForm] = useState({
     name: '',
     description: '',
@@ -51,34 +57,81 @@ export const WorkspaceDetailsPage = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  useEffect(() => {
-    const fetchWorkspace = async () => {
-      try {
-        setLoading(true);
-        const ws = await superAdminService.getWorkspaceById(workspaceId);
-        if (ws) {
-          setWorkspace({
-            ...ws,
-            storageQuota: ws.plan === 'Enterprise' ? 20 : ws.plan === 'Pro' ? 10 : 5,
-            members: ws.members || [],
-            boards: ws.boards || []
-          });
-          setEditForm({
-            name: ws.name,
-            description: ws.description || '',
-            plan: ws.plan || 'Pro',
-            storageQuota: ws.plan === 'Enterprise' ? 20 : ws.plan === 'Pro' ? 10 : 5
-          });
-        }
-      } catch (err) {
-        console.error('Failed to load workspace details:', err);
-      } finally {
-        setLoading(false);
+  const reloadWorkspace = async () => {
+    try {
+      const [ws, usersRes] = await Promise.all([
+        superAdminService.getWorkspaceById(workspaceId),
+        superAdminService.getUsers()
+      ]);
+      if (ws) {
+        setWorkspace({
+          ...ws,
+          storageQuota: ws.plan === 'Enterprise' ? 20 : ws.plan === 'Pro' ? 10 : 5,
+          members: ws.members || [],
+          boards: ws.boards || []
+        });
+        setEditForm({
+          name: ws.name,
+          description: ws.description || '',
+          plan: ws.plan || 'Pro',
+          storageQuota: ws.plan === 'Enterprise' ? 20 : ws.plan === 'Pro' ? 10 : 5
+        });
       }
-    };
+      setUsersList(usersRes?.users || []);
+    } catch (err) {
+      console.error('Failed to load workspace details:', err);
+    }
+  };
 
-    fetchWorkspace();
+  useEffect(() => {
+    setLoading(true);
+    reloadWorkspace().finally(() => setLoading(false));
   }, [workspaceId]);
+
+  const handleAddMember = async (e) => {
+    e.preventDefault();
+    if (!newMemberForm.userId) {
+      showToast('Please select a user to add');
+      return;
+    }
+    try {
+      await superAdminService.addWorkspaceMember(workspaceId, newMemberForm);
+      showToast('Member assigned to workspace successfully');
+      setShowAddMemberModal(false);
+      setNewMemberForm({ userId: '', role: 'member' });
+      reloadWorkspace();
+    } catch (err) {
+      showToast(err.message || 'Failed to add member');
+    }
+  };
+
+  const handleCreateBoardOrProject = async (e) => {
+    e.preventDefault();
+    if (!newBoardForm.name.trim()) return;
+
+    try {
+      if (newBoardForm.isProject) {
+        await superAdminService.createWorkspaceProject(workspaceId, {
+          name: newBoardForm.name.trim(),
+          key: newBoardForm.projectKey || newBoardForm.name.slice(0, 3).toUpperCase(),
+          description: newBoardForm.description
+        });
+        showToast('Project created successfully');
+      } else {
+        await superAdminService.createBoard({
+          name: newBoardForm.name.trim(),
+          description: newBoardForm.description,
+          workspace: workspaceId
+        });
+        showToast('Board created successfully');
+      }
+      setShowAddBoardModal(false);
+      setNewBoardForm({ name: '', description: '', isProject: false, projectKey: '' });
+      reloadWorkspace();
+    } catch (err) {
+      showToast(err.message || 'Failed to create board/project');
+    }
+  };
 
   if (loading) {
     return (
@@ -392,7 +445,7 @@ export const WorkspaceDetailsPage = () => {
               <p className="text-xs text-slate-400">Active users holding privileges inside this tenant workspace.</p>
             </div>
             <button
-              onClick={() => showToast('Invitation modal triggered')}
+              onClick={() => setShowAddMemberModal(true)}
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md transition-all"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -442,7 +495,7 @@ export const WorkspaceDetailsPage = () => {
               <p className="text-xs text-slate-400">Active agile boards provisioned inside this workspace.</p>
             </div>
             <button
-              onClick={() => showToast('Create Board modal triggered')}
+              onClick={() => setShowAddBoardModal(true)}
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md transition-all"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -581,6 +634,168 @@ export const WorkspaceDetailsPage = () => {
                   className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold"
                 >
                   Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Add Member */}
+      {showAddMemberModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0f172a] border border-slate-800 p-6 rounded-2xl max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Users className="h-5 w-5 text-indigo-400" />
+                <span>Assign Member to Workspace</span>
+              </h3>
+              <button onClick={() => setShowAddMemberModal(false)} className="text-slate-400 hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddMember} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-400 font-semibold uppercase mb-1">Select User *</label>
+                <select
+                  required
+                  value={newMemberForm.userId}
+                  onChange={(e) => setNewMemberForm({ ...newMemberForm, userId: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="">Choose platform user...</option>
+                  {usersList.map(u => (
+                    <option key={u.id || u._id} value={u.id || u._id}>
+                      {u.name} ({u.email}) - {u.role}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-semibold uppercase mb-1">Workspace Role *</label>
+                <select
+                  value={newMemberForm.role}
+                  onChange={(e) => setNewMemberForm({ ...newMemberForm, role: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="member">Member (Standard Access)</option>
+                  <option value="manager">Manager (Team Lead)</option>
+                  <option value="admin">Admin (Workspace Admin)</option>
+                  <option value="viewer">Viewer (Read-only)</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddMemberModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold"
+                >
+                  Assign Member
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Create Board or Project */}
+      {showAddBoardModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0f172a] border border-slate-800 p-6 rounded-2xl max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <FolderKanban className="h-5 w-5 text-indigo-400" />
+                <span>Create Board / Project</span>
+              </h3>
+              <button onClick={() => setShowAddBoardModal(false)} className="text-slate-400 hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateBoardOrProject} className="space-y-3.5 text-xs">
+              <div className="flex items-center gap-3 p-2 bg-slate-900 rounded-xl border border-slate-800">
+                <label className="flex items-center gap-2 text-slate-300 font-medium cursor-pointer">
+                  <input
+                    type="radio"
+                    name="entityType"
+                    checked={!newBoardForm.isProject}
+                    onChange={() => setNewBoardForm({ ...newBoardForm, isProject: false })}
+                    className="accent-indigo-500"
+                  />
+                  <span>Kanban Board</span>
+                </label>
+                <label className="flex items-center gap-2 text-slate-300 font-medium cursor-pointer">
+                  <input
+                    type="radio"
+                    name="entityType"
+                    checked={newBoardForm.isProject}
+                    onChange={() => setNewBoardForm({ ...newBoardForm, isProject: true })}
+                    className="accent-indigo-500"
+                  />
+                  <span>Project (with Key)</span>
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-semibold uppercase mb-1">
+                  {newBoardForm.isProject ? 'Project Name *' : 'Board Name *'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newBoardForm.name}
+                  onChange={(e) => setNewBoardForm({ ...newBoardForm, name: e.target.value })}
+                  placeholder="e.g. Core Platform Engineering"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              {newBoardForm.isProject && (
+                <div>
+                  <label className="block text-slate-400 font-semibold uppercase mb-1">Project Key (Prefix)</label>
+                  <input
+                    type="text"
+                    value={newBoardForm.projectKey}
+                    onChange={(e) => setNewBoardForm({ ...newBoardForm, projectKey: e.target.value.toUpperCase() })}
+                    placeholder="e.g. CPE"
+                    maxLength={6}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-indigo-500 font-mono uppercase"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-slate-400 font-semibold uppercase mb-1">Description</label>
+                <textarea
+                  rows={2}
+                  value={newBoardForm.description}
+                  onChange={(e) => setNewBoardForm({ ...newBoardForm, description: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-indigo-500 resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddBoardModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold"
+                >
+                  Create Now
                 </button>
               </div>
             </form>

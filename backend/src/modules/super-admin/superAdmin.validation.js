@@ -65,7 +65,7 @@ export const getUsersQuerySchema = z.object({
 export const createUserSchema = z.object({
   name: z.string().trim().min(2, 'Name must be at least 2 characters').max(50),
   email: z.string().trim().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(6, 'Password must be at least 6 characters').optional().default('WorkSync@2026'),
   role: z.enum(ROLE_VALUES).optional().default('member'),
   bio: z.string().max(200).optional().default('')
 });
@@ -106,7 +106,7 @@ export const createWorkspaceSchema = z.object({
   slug: z.string().trim().optional(),
   description: z.string().max(500).optional().default(''),
   ownerName: z.string().trim().optional(),
-  ownerEmail: z.string().trim().email('Invalid owner email address').optional(),
+  ownerEmail: z.string().trim().email('Invalid owner email address').optional().or(z.literal('')),
   plan: z.enum(['Starter', 'Pro', 'Enterprise']).optional().default('Pro')
 });
 

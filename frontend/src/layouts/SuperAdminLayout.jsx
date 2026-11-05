@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { SuperAdminProvider } from '../context/SuperAdminContext.jsx';
 import {
   LayoutDashboard,
   Users,
   Building2,
   FolderKanban,
+  CheckSquare,
   Bell,
   Activity,
   ShieldCheck,
@@ -52,6 +54,11 @@ export const SuperAdminLayout = () => {
       icon: FolderKanban
     },
     {
+      name: 'Tasks & Assignments',
+      path: '/super-admin/tasks',
+      icon: CheckSquare
+    },
+    {
       name: 'Announcements',
       path: '/super-admin/announcements',
       icon: Bell
@@ -94,7 +101,8 @@ export const SuperAdminLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col antialiased">
+    <SuperAdminProvider>
+      <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col antialiased">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -258,7 +266,8 @@ export const SuperAdminLayout = () => {
         </div>
       </div>
     </div>
-  );
+  </SuperAdminProvider>
+);
 };
 
 export default SuperAdminLayout;

@@ -83,13 +83,28 @@ export const WorkspacesPage = () => {
 
   const handleCreateWorkspace = async (e) => {
     e.preventDefault();
-    if (!newWs.name) return;
+    if (!newWs.name.trim()) {
+      showToast('Workspace name is required');
+      return;
+    }
 
-    await superAdminService.createWorkspace(newWs);
-    setShowCreateModal(false);
-    setNewWs({ name: '', slug: '', ownerName: '', ownerEmail: '', plan: 'Pro' });
-    showToast('New workspace tenant provisioned successfully');
-    fetchWorkspaces();
+    try {
+      const payload = {
+        name: newWs.name.trim(),
+        slug: (newWs.slug || newWs.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')).replace(/^-+|-+$/g, ''),
+        ownerName: newWs.ownerName || '',
+        ownerEmail: newWs.ownerEmail ? newWs.ownerEmail.trim() : '',
+        plan: newWs.plan || 'Pro'
+      };
+
+      await superAdminService.createWorkspace(payload);
+      setShowCreateModal(false);
+      setNewWs({ name: '', slug: '', ownerName: '', ownerEmail: '', plan: 'Pro' });
+      showToast('New workspace tenant provisioned successfully');
+      fetchWorkspaces();
+    } catch (err) {
+      showToast(err.message || 'Failed to create workspace');
+    }
   };
 
   return (
@@ -362,10 +377,9 @@ export const WorkspacesPage = () => {
                 </label>
                 <input
                   type="email"
-                  required
                   value={newWs.ownerEmail}
                   onChange={(e) => setNewWs({ ...newWs, ownerEmail: e.target.value })}
-                  placeholder="e.g. owner@acme.com"
+                  placeholder="e.g. owner@acme.com (Optional)"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>

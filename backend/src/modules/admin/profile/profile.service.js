@@ -256,3 +256,4 @@ export const revokeSession = async (userId, sessionId, actorUser, workspaceId) =
     message: 'Session revoked successfully'
   };
 };
+

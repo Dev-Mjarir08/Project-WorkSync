@@ -13,3 +13,4 @@ router.get('/sessions', profileController.getSessions);
 router.delete('/sessions/:sessionId', profileController.revokeSession);
 
 export default router;
+

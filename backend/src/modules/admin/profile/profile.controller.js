@@ -46,3 +46,4 @@ export const revokeSession = asyncHandler(async (req, res) => {
   const data = await profileService.revokeSession(req.user._id, req.params.sessionId, req.user, wsId);
   return res.status(200).json(new ApiResponse(200, data, 'Session revoked successfully'));
 });
+

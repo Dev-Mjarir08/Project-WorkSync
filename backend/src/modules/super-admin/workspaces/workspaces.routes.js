@@ -32,6 +32,9 @@ router.patch(
 );
 router.delete('/:workspaceId', validateRequest(workspaceIdParamSchema, 'params'), workspacesController.deleteWorkspace);
 router.get('/:workspaceId/members', validateRequest(workspaceIdParamSchema, 'params'), workspacesController.getWorkspaceMembers);
+router.post('/:workspaceId/members', validateRequest(workspaceIdParamSchema, 'params'), workspacesController.addWorkspaceMember);
+router.get('/:workspaceId/projects', validateRequest(workspaceIdParamSchema, 'params'), workspacesController.getWorkspaceProjects);
+router.post('/:workspaceId/projects', validateRequest(workspaceIdParamSchema, 'params'), workspacesController.createWorkspaceProject);
 router.get('/:workspaceId/boards', validateRequest(workspaceIdParamSchema, 'params'), workspacesController.getWorkspaceBoards);
 router.get('/:workspaceId/activities', validateRequest(workspaceIdParamSchema, 'params'), workspacesController.getWorkspaceActivities);
 router.get('/:workspaceId/analytics', validateRequest(workspaceIdParamSchema, 'params'), workspacesController.getWorkspaceAnalytics);

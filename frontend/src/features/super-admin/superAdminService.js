@@ -769,6 +769,132 @@ export const superAdminService = {
     });
     const json = await res.json();
     return json.data;
+  },
+
+  // ==========================================
+  // 12. TASK MANAGEMENT & ASSIGNMENTS
+  // ==========================================
+  getAllTasks: async (query = {}) => {
+    try {
+      const params = new URLSearchParams();
+      if (query.workspace && query.workspace !== 'all') params.append('workspace', query.workspace);
+      if (query.project && query.project !== 'all') params.append('project', query.project);
+      if (query.board && query.board !== 'all') params.append('board', query.board);
+      if (query.assignee && query.assignee !== 'all') params.append('assignee', query.assignee);
+      if (query.status && query.status !== 'all') params.append('status', query.status);
+      if (query.priority && query.priority !== 'all') params.append('priority', query.priority);
+      if (query.search) params.append('search', query.search);
+      if (query.page) params.append('page', query.page);
+      if (query.limit) params.append('limit', query.limit);
+
+      const res = await fetch(`${API_BASE_URL}/tasks?${params.toString()}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const json = await res.json();
+        return json.data;
+      }
+    } catch (err) {
+      console.error('Failed to fetch tasks:', err);
+    }
+    return { tasks: [], totalCount: 0, statusCounts: { todo: 0, in_progress: 0, review: 0, done: 0 } };
+  },
+
+  createTask: async (taskData) => {
+    const res = await fetch(`${API_BASE_URL}/tasks`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(taskData)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to create task');
+    return json.data?.task || json.data;
+  },
+
+  getTaskById: async (taskId) => {
+    const res = await fetch(`${API_BASE_URL}/tasks/${taskId}`, { headers: getAuthHeaders() });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to fetch task');
+    return json.data?.task || json.data;
+  },
+
+  updateTask: async (taskId, updateData) => {
+    const res = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(updateData)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to update task');
+    return json.data?.task || json.data;
+  },
+
+  updateTaskStatus: async (taskId, status) => {
+    const res = await fetch(`${API_BASE_URL}/tasks/${taskId}/status`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to update task status');
+    return json.data;
+  },
+
+  assignTask: async (taskId, assigneeId) => {
+    const res = await fetch(`${API_BASE_URL}/tasks/${taskId}/assign`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ assigneeId })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to assign task');
+    return json.data?.task || json.data;
+  },
+
+  deleteTask: async (taskId) => {
+    const res = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to delete task');
+    return json.data;
+  },
+
+  // ==========================================
+  // 13. WORKSPACE PROJECTS & MEMBERS ASSIGNMENT
+  // ==========================================
+  getWorkspaceProjects: async (workspaceId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/projects`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const json = await res.json();
+        return json.data?.projects || json.data || [];
+      }
+    } catch (err) {
+      console.error('Failed to fetch workspace projects:', err);
+    }
+    return [];
+  },
+
+  createWorkspaceProject: async (workspaceId, projectData) => {
+    const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/projects`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(projectData)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to create workspace project');
+    return json.data?.project || json.data;
+  },
+
+  addWorkspaceMember: async (workspaceId, memberData) => {
+    const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/members`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(memberData)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to add workspace member');
+    return json.data?.member || json.data;
   }
 };
 

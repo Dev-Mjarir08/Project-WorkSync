@@ -88,6 +88,14 @@ export const DashboardPage = () => {
           </button>
 
           <button
+            onClick={() => navigate('/super-admin/tasks')}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold shadow-lg shadow-emerald-600/20 transition-all"
+          >
+            <FolderKanban className="h-4 w-4" />
+            <span>Tasks & Assignments</span>
+          </button>
+
+          <button
             onClick={() => navigate('/super-admin/users')}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-lg shadow-indigo-600/20 transition-all"
           >
@@ -211,7 +219,7 @@ export const DashboardPage = () => {
         </div>
       </div>
 
-      {/* PROMINENT SHOWCASE: The 3 Core Super Admin Consoles */}
+      {/* PROMINENT SHOWCASE: The 4 Core Super Admin Consoles */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -223,27 +231,27 @@ export const DashboardPage = () => {
               Direct access to dedicated administrative management surfaces.
             </p>
           </div>
-          <span className="text-xs text-slate-500 font-mono">3 Active Modules</span>
+          <span className="text-xs text-slate-500 font-mono">4 Active Modules</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           {/* Module 1: Roles & Permissions */}
           <div
             onClick={() => navigate('/super-admin/roles')}
-            className="p-6 rounded-2xl bg-gradient-to-b from-[#0f172a] to-[#0b101f] border border-slate-800 hover:border-indigo-500/50 shadow-xl cursor-pointer group transition-all relative overflow-hidden flex flex-col justify-between"
+            className="p-5 rounded-2xl bg-gradient-to-b from-[#0f172a] to-[#0b101f] border border-slate-800 hover:border-indigo-500/50 shadow-xl cursor-pointer group transition-all relative overflow-hidden flex flex-col justify-between"
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="p-3 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 group-hover:scale-110 transition-transform">
-                  <ShieldCheck className="h-6 w-6" />
+                <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 group-hover:scale-110 transition-transform">
+                  <ShieldCheck className="h-5 w-5" />
                 </div>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20">
                   RBAC Matrix
                 </span>
               </div>
 
               <div>
-                <h3 className="text-lg font-bold text-white group-hover:text-purple-300 transition-colors">
+                <h3 className="text-base font-bold text-white group-hover:text-purple-300 transition-colors">
                   Roles & Permissions
                 </h3>
                 <p className="text-xs text-slate-400 mt-1 leading-relaxed">
@@ -252,110 +260,148 @@ export const DashboardPage = () => {
               </div>
 
               {/* Roles Pills Preview */}
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                <span className="px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-300 text-[10px] font-semibold">
+              <div className="flex flex-wrap gap-1 pt-1">
+                <span className="px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300 text-[10px] font-semibold">
                   Super Admin
                 </span>
-                <span className="px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-300 text-[10px] font-semibold">
+                <span className="px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-300 text-[10px] font-semibold">
                   Admin
                 </span>
-                <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 text-[10px] font-semibold">
+                <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 text-[10px] font-semibold">
                   Member
-                </span>
-                <span className="px-2 py-0.5 rounded-md bg-slate-700/50 text-slate-300 text-[10px] font-semibold">
-                  Viewer
                 </span>
               </div>
             </div>
 
-            <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold text-purple-400 group-hover:text-purple-300">
-              <span>Open Permissions Grid</span>
+            <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold text-purple-400 group-hover:text-purple-300">
+              <span>Permissions Grid</span>
               <ArrowRight className="h-4 w-4 group-hover:translate-x-1.5 transition-transform" />
             </div>
           </div>
 
-          {/* Module 2: Audit Trail & Compliance */}
+          {/* Module 2: Task Assignments & Kanban */}
           <div
-            onClick={() => navigate('/super-admin/audit-logs')}
-            className="p-6 rounded-2xl bg-gradient-to-b from-[#0f172a] to-[#0b101f] border border-slate-800 hover:border-indigo-500/50 shadow-xl cursor-pointer group transition-all relative overflow-hidden flex flex-col justify-between"
+            onClick={() => navigate('/super-admin/tasks')}
+            className="p-5 rounded-2xl bg-gradient-to-b from-[#0f172a] to-[#0b101f] border border-slate-800 hover:border-emerald-500/50 shadow-xl cursor-pointer group transition-all relative overflow-hidden flex flex-col justify-between"
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 group-hover:scale-110 transition-transform">
-                  <FileText className="h-6 w-6" />
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 group-hover:scale-110 transition-transform">
+                  <FolderKanban className="h-5 w-5" />
                 </div>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  Drag & Drop
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-base font-bold text-white group-hover:text-emerald-300 transition-colors">
+                  Tasks & Assignments
+                </h3>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Interactive Kanban board to assign members, drag cards across statuses, and manage global workloads.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-1 pt-1">
+                <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 text-[10px] font-semibold">
+                  To Do
+                </span>
+                <span className="px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-300 text-[10px] font-semibold">
+                  In Progress
+                </span>
+                <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 text-[10px] font-semibold">
+                  Done
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold text-emerald-400 group-hover:text-emerald-300">
+              <span>Open Task Board</span>
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-1.5 transition-transform" />
+            </div>
+          </div>
+
+          {/* Module 3: Audit Trail & Compliance */}
+          <div
+            onClick={() => navigate('/super-admin/audit-logs')}
+            className="p-5 rounded-2xl bg-gradient-to-b from-[#0f172a] to-[#0b101f] border border-slate-800 hover:border-indigo-500/50 shadow-xl cursor-pointer group transition-all relative overflow-hidden flex flex-col justify-between"
+          >
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 group-hover:scale-110 transition-transform">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                   Live Stream
                 </span>
               </div>
 
               <div>
-                <h3 className="text-lg font-bold text-white group-hover:text-indigo-300 transition-colors">
+                <h3 className="text-base font-bold text-white group-hover:text-indigo-300 transition-colors">
                   Security & Audit Logs
                 </h3>
                 <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  Real-time immutable ledger of user activities, administrative mutations, IP access logs, and anomaly events.
+                  Real-time immutable ledger of user activities, administrative mutations, and platform security events.
                 </p>
               </div>
 
-              {/* Quick Metrics Preview */}
               <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
-                <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800">
-                  <span className="text-[10px] text-slate-500">Security Alerts</span>
-                  <p className="font-bold text-amber-400">4 Flagged</p>
+                <div className="p-1.5 rounded-lg bg-slate-950/60 border border-slate-800">
+                  <span className="text-[10px] text-slate-500">Security</span>
+                  <p className="font-bold text-amber-400 text-xs">Verified</p>
                 </div>
-                <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800">
-                  <span className="text-[10px] text-slate-500">SOC-2 Readiness</span>
-                  <p className="font-bold text-emerald-400">99.8% Pass</p>
+                <div className="p-1.5 rounded-lg bg-slate-950/60 border border-slate-800">
+                  <span className="text-[10px] text-slate-500">Compliance</span>
+                  <p className="font-bold text-emerald-400 text-xs">99.8% Pass</p>
                 </div>
               </div>
             </div>
 
-            <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold text-indigo-400 group-hover:text-indigo-300">
+            <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold text-indigo-400 group-hover:text-indigo-300">
               <span>Inspect Audit Trail</span>
               <ArrowRight className="h-4 w-4 group-hover:translate-x-1.5 transition-transform" />
             </div>
           </div>
 
-          {/* Module 3: User Inspector & Identity Records */}
+          {/* Module 4: User Inspector & Identity Records */}
           <div
             onClick={() => navigate('/super-admin/users')}
-            className="p-6 rounded-2xl bg-gradient-to-b from-[#0f172a] to-[#0b101f] border border-slate-800 hover:border-indigo-500/50 shadow-xl cursor-pointer group transition-all relative overflow-hidden flex flex-col justify-between"
+            className="p-5 rounded-2xl bg-gradient-to-b from-[#0f172a] to-[#0b101f] border border-slate-800 hover:border-indigo-500/50 shadow-xl cursor-pointer group transition-all relative overflow-hidden flex flex-col justify-between"
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 group-hover:scale-110 transition-transform">
-                  <Eye className="h-6 w-6" />
+                <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 group-hover:scale-110 transition-transform">
+                  <Eye className="h-5 w-5" />
                 </div>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                  User Inspector
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                  Directory
                 </span>
               </div>
 
               <div>
-                <h3 className="text-lg font-bold text-white group-hover:text-emerald-300 transition-colors">
-                  User Profiles & Tenants
+                <h3 className="text-base font-bold text-white group-hover:text-cyan-300 transition-colors">
+                  Users & Provisioning
                 </h3>
                 <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  Deep user account lookup, assigned tenant memberships, account status toggle, and role elevation.
+                  Deep user account lookup, assigned tenant memberships, account status toggle, and role-based provisioning.
                 </p>
               </div>
 
-              {/* User Directory Metrics */}
               <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
-                <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800">
-                  <span className="text-[10px] text-slate-500">Active Users</span>
-                  <p className="font-bold text-emerald-400">{rolesSummary?.active || '6'} Online</p>
+                <div className="p-1.5 rounded-lg bg-slate-950/60 border border-slate-800">
+                  <span className="text-[10px] text-slate-500">Active</span>
+                  <p className="font-bold text-emerald-400 text-xs">{rolesSummary?.active || '6'} Online</p>
                 </div>
-                <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800">
-                  <span className="text-[10px] text-slate-500">Platform Admins</span>
-                  <p className="font-bold text-blue-400">{rolesSummary?.admin || '2'} Admins</p>
+                <div className="p-1.5 rounded-lg bg-slate-950/60 border border-slate-800">
+                  <span className="text-[10px] text-slate-500">Admins</span>
+                  <p className="font-bold text-blue-400 text-xs">{rolesSummary?.admin || '2'} Admins</p>
                 </div>
               </div>
             </div>
 
-            <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold text-emerald-400 group-hover:text-emerald-300">
-              <span>Browse User Directory</span>
+            <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold text-cyan-400 group-hover:text-cyan-300">
+              <span>Browse Directory</span>
               <ArrowRight className="h-4 w-4 group-hover:translate-x-1.5 transition-transform" />
             </div>
           </div>
@@ -372,11 +418,18 @@ export const DashboardPage = () => {
             </div>
             <h3 className="text-lg font-bold text-white">Central Operations & Control</h3>
             <p className="text-xs text-slate-400 max-w-xl">
-              Quickly provision workspaces, oversee role security policies, and inspect active platform audit trails.
+              Quickly provision workspaces, oversee role security policies, assign tasks, and inspect active platform audit trails.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => navigate('/super-admin/tasks')}
+              className="px-3.5 py-2 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-700/50 text-xs font-semibold text-emerald-300 transition-all flex items-center gap-1.5"
+            >
+              <FolderKanban className="h-3.5 w-3.5" />
+              Tasks & Kanban
+            </button>
             <button
               onClick={() => navigate('/super-admin/roles')}
               className="px-3.5 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 transition-all"
