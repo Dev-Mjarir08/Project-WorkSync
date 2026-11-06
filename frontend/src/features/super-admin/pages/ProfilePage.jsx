@@ -165,7 +165,7 @@ export const ProfilePage = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Profile Card */}
+        
         <div className="space-y-6">
           <div className="bg-[#0d1322] border border-slate-800/80 rounded-3xl p-6 text-center space-y-4">
             <div className="relative mx-auto w-24 h-24">
@@ -214,7 +214,6 @@ export const ProfilePage = () => {
           </div>
         </div>
 
-        {/* Right Column: Forms */}
         <div className="lg:col-span-2 space-y-6">
           {/* General Information Card */}
           <div className="bg-[#0d1322] border border-slate-800/80 rounded-3xl p-6 space-y-5">

@@ -3,10 +3,6 @@ import { ApiResponse } from '../../utils/ApiResponse.js';
 import * as superAdminService from './superAdmin.service.js';
 import * as memberService from '../members/member.service.js';
 
-// ==========================================
-// 1. DASHBOARD OVERVIEW & METRICS
-// ==========================================
-
 export const getDashboard = asyncHandler(async (req, res) => {
   const data = await superAdminService.getDashboardOverview();
   return res.status(200).json(new ApiResponse(200, data, 'Platform dashboard fetched successfully'));
@@ -46,10 +42,6 @@ export const getRecentActivities = asyncHandler(async (req, res) => {
   const data = await superAdminService.getRecentActivities(limit);
   return res.status(200).json(new ApiResponse(200, { activities: data }, 'Recent activities retrieved successfully'));
 });
-
-// ==========================================
-// 2. USER MANAGEMENT
-// ==========================================
 
 export const getUsers = asyncHandler(async (req, res) => {
   const result = await superAdminService.getAllUsers(req.query);
@@ -107,10 +99,6 @@ export const revokeUserSessions = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, data, 'User sessions revoked successfully'));
 });
 
-// ==========================================
-// 3. WORKSPACE MANAGEMENT
-// ==========================================
-
 export const getWorkspaces = asyncHandler(async (req, res) => {
   const result = await superAdminService.getAllWorkspaces(req.query);
   return res.status(200).json(new ApiResponse(200, result, 'Workspaces retrieved successfully'));
@@ -162,10 +150,6 @@ export const getWorkspaceAnalytics = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, result, 'Workspace analytics retrieved successfully'));
 });
 
-// ==========================================
-// 4. WORKSPACE ADMIN MANAGEMENT
-// ==========================================
-
 export const getAllAdmins = asyncHandler(async (req, res) => {
   const result = await superAdminService.getAllWorkspaceAdmins(req.query);
   return res.status(200).json(new ApiResponse(200, result, 'All workspace admins retrieved successfully'));
@@ -199,10 +183,6 @@ export const removeWorkspaceAdmin = asyncHandler(async (req, res) => {
   );
   return res.status(200).json(new ApiResponse(200, result, 'Workspace admin removed successfully'));
 });
-
-// ==========================================
-// 5. PLATFORM ROLE & PERMISSION MANAGEMENT
-// ==========================================
 
 export const getRoles = asyncHandler(async (req, res) => {
   const roles = await superAdminService.getAllRoles();
@@ -239,10 +219,6 @@ export const updateRolePermissions = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, { role }, 'Role permissions updated successfully'));
 });
 
-// ==========================================
-// 6. BOARD MANAGEMENT
-// ==========================================
-
 export const getBoards = asyncHandler(async (req, res) => {
   const result = await superAdminService.getAllBoards(req.query);
   return res.status(200).json(new ApiResponse(200, result, 'Platform boards retrieved successfully'));
@@ -272,10 +248,6 @@ export const getBoardTasks = asyncHandler(async (req, res) => {
   const result = await superAdminService.getBoardTasks(req.params.boardId);
   return res.status(200).json(new ApiResponse(200, result, 'Board tasks retrieved successfully'));
 });
-
-// ==========================================
-// 7. PLATFORM ANALYTICS
-// ==========================================
 
 export const getAnalyticsOverview = asyncHandler(async (req, res) => {
   const data = await superAdminService.getAnalyticsOverview();
@@ -312,10 +284,6 @@ export const getEngagementAnalytics = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, data, 'User engagement statistics fetched successfully'));
 });
 
-// ==========================================
-// 8. AUDIT LOGS
-// ==========================================
-
 export const getAuditLogs = asyncHandler(async (req, res) => {
   const result = await superAdminService.getAllAuditLogs(req.query);
   return res.status(200).json(new ApiResponse(200, result, 'Audit logs retrieved successfully'));
@@ -335,10 +303,6 @@ export const getWorkspaceAuditLogs = asyncHandler(async (req, res) => {
   const result = await superAdminService.getWorkspaceAuditLogs(req.params.workspaceId, req.query);
   return res.status(200).json(new ApiResponse(200, result, 'Workspace audit logs retrieved successfully'));
 });
-
-// ==========================================
-// 9. ANNOUNCEMENTS
-// ==========================================
 
 export const getAnnouncements = asyncHandler(async (req, res) => {
   const result = await superAdminService.getAllAnnouncements(req.query);
@@ -375,10 +339,6 @@ export const archiveAnnouncement = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, { announcement }, 'Announcement archived successfully'));
 });
 
-// ==========================================
-// 10. PLATFORM SETTINGS
-// ==========================================
-
 export const getSettings = asyncHandler(async (req, res) => {
   const settings = await superAdminService.getAllSettings();
   return res.status(200).json(new ApiResponse(200, { settings }, 'Platform settings retrieved successfully'));
@@ -409,10 +369,6 @@ export const getSecurityConfiguration = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, data, 'Security configuration retrieved successfully'));
 });
 
-// ==========================================
-// 11. SYSTEM HEALTH & MONITORING
-// ==========================================
-
 export const getSystemHealth = asyncHandler(async (req, res) => {
   const data = await superAdminService.getOverallSystemHealth();
   return res.status(200).json(new ApiResponse(200, data, 'Overall system health fetched successfully'));
@@ -437,10 +393,6 @@ export const getSystemMetrics = asyncHandler(async (req, res) => {
   const data = await superAdminService.getSystemMetrics();
   return res.status(200).json(new ApiResponse(200, data, 'System performance metrics fetched successfully'));
 });
-
-// ==========================================
-// 12. SUPER ADMIN PROFILE
-// ==========================================
 
 export const getProfile = asyncHandler(async (req, res) => {
   const profile = await superAdminService.getAdminProfile(req.user._id);

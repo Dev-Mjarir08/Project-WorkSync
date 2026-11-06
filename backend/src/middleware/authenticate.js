@@ -6,7 +6,6 @@ export const authenticate = async (req, res, next) => {
   try {
     let token = null;
 
-    // 1. Authorization header: "Bearer <token>" or raw "<token>"
     if (req.headers.authorization) {
       const parts = req.headers.authorization.trim().split(/\s+/);
       if (parts.length === 2 && /^Bearer$/i.test(parts[0])) {
@@ -14,17 +13,11 @@ export const authenticate = async (req, res, next) => {
       } else if (parts.length === 1) {
         token = parts[0];
       }
-    }
-    // 2. Custom header: X-Access-Token
-    else if (req.headers['x-access-token']) {
+    } else if (req.headers['x-access-token']) {
       token = req.headers['x-access-token'];
-    }
-    // 3. Express cookie (if cookie-parser is used)
-    else if (req.cookies && req.cookies.token) {
+    } else if (req.cookies?.token) {
       token = req.cookies.token;
-    }
-    // 4. Raw Cookie header fallback (works without cookie-parser)
-    else if (req.headers.cookie) {
+    } else if (req.headers.cookie) {
       const match = req.headers.cookie.match(/(?:^|;\s*)token=([^;]*)/);
       if (match) {
         token = decodeURIComponent(match[1]);
@@ -35,10 +28,8 @@ export const authenticate = async (req, res, next) => {
       throw new ApiError(401, 'Authentication token missing. Please log in to proceed.');
     }
 
-    // Clean whitespace/quotes if any
     token = token.replace(/['"]+/g, '').trim();
 
-    // Verify token
     let decoded;
     try {
       decoded = verifyToken(token);
@@ -59,8 +50,8 @@ export const authenticate = async (req, res, next) => {
       throw new ApiError(401, 'User account associated with this token no longer exists.');
     }
 
-    if (!user.isActive) {
-      throw new ApiError(403, 'Your account has been deactivated. Please contact support.');
+    if (user.status && user.status !== 'active') {
+      throw new ApiError(403, `Your account is ${user.status}. Please contact platform administrators.`);
     }
 
     req.user = user;

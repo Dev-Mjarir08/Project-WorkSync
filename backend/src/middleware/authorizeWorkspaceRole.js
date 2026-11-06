@@ -7,7 +7,7 @@ import { ROLES, WORKSPACE_ROLES } from '../constants/roles.js';
  */
 export const authorizeWorkspaceRole = (...allowedRoles) => {
   return (req, res, next) => {
-    // Platform Super Admin always has full access
+
     if (req.user?.role === ROLES.SUPER_ADMIN) {
       return next();
     }
@@ -20,8 +20,7 @@ export const authorizeWorkspaceRole = (...allowedRoles) => {
     }
 
     const normalizedAllowed = allowedRoles.map(r => r.toLowerCase());
-    
-    // Owner has super-workspace privileges
+
     if (isOwner && (normalizedAllowed.includes(WORKSPACE_ROLES.OWNER) || normalizedAllowed.includes(WORKSPACE_ROLES.ADMIN))) {
       return next();
     }

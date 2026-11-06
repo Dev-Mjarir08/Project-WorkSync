@@ -4,7 +4,7 @@ import superAdminService from '../features/super-admin/superAdminService.js';
 const SuperAdminContext = createContext(null);
 
 export const SuperAdminProvider = ({ children }) => {
-  // 1. Users State
+
   const [usersState, setUsersState] = useState({
     list: [],
     summary: null,
@@ -13,7 +13,6 @@ export const SuperAdminProvider = ({ children }) => {
     lastFetched: 0
   });
 
-  // 2. Workspaces State
   const [workspacesState, setWorkspacesState] = useState({
     list: [],
     metrics: null,
@@ -22,14 +21,12 @@ export const SuperAdminProvider = ({ children }) => {
     lastFetched: 0
   });
 
-  // 3. Boards State
   const [boardsState, setBoardsState] = useState({
     list: [],
     loading: false,
     lastFetched: 0
   });
 
-  // 4. Tasks State
   const [tasksState, setTasksState] = useState({
     list: [],
     statusCounts: { todo: 0, in_progress: 0, review: 0, done: 0 },
@@ -38,7 +35,6 @@ export const SuperAdminProvider = ({ children }) => {
     lastFetched: 0
   });
 
-  // 5. Global Toast Message
   const [toast, setToast] = useState(null);
 
   const showToast = useCallback((message, type = 'success') => {
@@ -46,9 +42,6 @@ export const SuperAdminProvider = ({ children }) => {
     setTimeout(() => setToast(null), 3500);
   }, []);
 
-  // =========================================================================
-  // USER METHODS
-  // =========================================================================
   const loadUsers = useCallback(async (filters = {}, force = false) => {
     setUsersState(prev => ({ ...prev, loading: true }));
     try {
@@ -84,7 +77,7 @@ export const SuperAdminProvider = ({ children }) => {
 
   const updateUserRole = useCallback(async (userId, newRole) => {
     try {
-      // Optimistic update
+
       setUsersState(prev => ({
         ...prev,
         list: prev.list.map(u => (u.id === userId || u._id === userId ? { ...u, role: newRole } : u))
@@ -99,7 +92,7 @@ export const SuperAdminProvider = ({ children }) => {
 
   const toggleUserStatus = useCallback(async (userId) => {
     try {
-      // Optimistic update
+
       setUsersState(prev => ({
         ...prev,
         list: prev.list.map(u => (u.id === userId || u._id === userId ? { ...u, isActive: !u.isActive } : u))
@@ -126,9 +119,6 @@ export const SuperAdminProvider = ({ children }) => {
     }
   }, [loadUsers, showToast]);
 
-  // =========================================================================
-  // WORKSPACE METHODS
-  // =========================================================================
   const loadWorkspaces = useCallback(async (filters = {}, force = false) => {
     setWorkspacesState(prev => ({ ...prev, loading: true }));
     try {
@@ -185,9 +175,8 @@ export const SuperAdminProvider = ({ children }) => {
     }
   }, [loadWorkspaces, showToast]);
 
-  // =========================================================================
   // BOARDS METHODS
-  // =========================================================================
+
   const loadBoards = useCallback(async (filters = {}, force = false) => {
     setBoardsState(prev => ({ ...prev, loading: true }));
     try {
@@ -206,9 +195,6 @@ export const SuperAdminProvider = ({ children }) => {
     }
   }, []);
 
-  // =========================================================================
-  // TASK METHODS (WITH OPTIMISTIC DRAG & DROP UPDATES)
-  // =========================================================================
   const loadTasks = useCallback(async (filters = {}, force = false) => {
     setTasksState(prev => ({ ...prev, loading: true }));
     try {
@@ -242,7 +228,6 @@ export const SuperAdminProvider = ({ children }) => {
   }, [loadTasks, showToast]);
 
   const updateTaskStatus = useCallback(async (taskId, newStatus) => {
-    // 1. Instant Optimistic UI Update for silky smooth Drag-and-Drop!
     setTasksState(prev => {
       const updatedList = prev.list.map(t => {
         if (t.id === taskId || t._id === taskId) {
@@ -263,18 +248,15 @@ export const SuperAdminProvider = ({ children }) => {
       };
     });
 
-    // 2. Perform API update in background
     try {
       await superAdminService.updateTaskStatus(taskId, newStatus);
     } catch (err) {
       showToast(err.message || 'Failed to update task status on server', 'error');
-      // Rollback on failure
       await loadTasks({}, true);
     }
   }, [loadTasks, showToast]);
 
   const assignTask = useCallback(async (taskId, assigneeId, assigneeUser = null) => {
-    // Optimistic assignment
     setTasksState(prev => ({
       ...prev,
       list: prev.list.map(t => {

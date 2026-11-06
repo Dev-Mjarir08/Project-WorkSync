@@ -61,7 +61,7 @@ export const DashboardPage = () => {
 
   return (
     <div className="space-y-8 animate-fadeIn pb-12">
-      {/* Page Header */}
+      
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-800/60">
         <div>
           <div className="flex items-center gap-2.5">
@@ -105,9 +105,8 @@ export const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Top Metric KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        {/* Card 1: Users */}
+        
         <div
           onClick={() => navigate('/super-admin/users')}
           className="relative overflow-hidden p-6 rounded-2xl bg-gradient-to-b from-slate-800/50 to-slate-900/80 border border-slate-800 shadow-xl group hover:border-indigo-500/40 cursor-pointer transition-all"
@@ -135,7 +134,6 @@ export const DashboardPage = () => {
           </p>
         </div>
 
-        {/* Card 2: Workspaces */}
         <div
           onClick={() => navigate('/super-admin/workspaces')}
           className="relative overflow-hidden p-6 rounded-2xl bg-gradient-to-b from-slate-800/50 to-slate-900/80 border border-slate-800 shadow-xl group hover:border-purple-500/40 cursor-pointer transition-all"
@@ -163,7 +161,6 @@ export const DashboardPage = () => {
           </p>
         </div>
 
-        {/* Card 3: Roles & Permissions Active */}
         <div
           onClick={() => navigate('/super-admin/roles')}
           className="relative overflow-hidden p-6 rounded-2xl bg-gradient-to-b from-slate-800/50 to-slate-900/80 border border-slate-800 shadow-xl group hover:border-cyan-500/40 cursor-pointer transition-all"
@@ -190,7 +187,6 @@ export const DashboardPage = () => {
           </p>
         </div>
 
-        {/* Card 4: Database & System */}
         <div
           onClick={() => navigate('/super-admin/system-health')}
           className="relative overflow-hidden p-6 rounded-2xl bg-gradient-to-b from-slate-800/50 to-slate-900/80 border border-slate-800 shadow-xl group hover:border-emerald-500/40 cursor-pointer transition-all"
@@ -219,7 +215,6 @@ export const DashboardPage = () => {
         </div>
       </div>
 
-      {/* PROMINENT SHOWCASE: The 4 Core Super Admin Consoles */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -235,7 +230,7 @@ export const DashboardPage = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {/* Module 1: Roles & Permissions */}
+          
           <div
             onClick={() => navigate('/super-admin/roles')}
             className="p-5 rounded-2xl bg-gradient-to-b from-[#0f172a] to-[#0b101f] border border-slate-800 hover:border-indigo-500/50 shadow-xl cursor-pointer group transition-all relative overflow-hidden flex flex-col justify-between"
@@ -259,7 +254,6 @@ export const DashboardPage = () => {
                 </p>
               </div>
 
-              {/* Roles Pills Preview */}
               <div className="flex flex-wrap gap-1 pt-1">
                 <span className="px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300 text-[10px] font-semibold">
                   Super Admin
@@ -279,7 +273,6 @@ export const DashboardPage = () => {
             </div>
           </div>
 
-          {/* Module 2: Task Assignments & Kanban */}
           <div
             onClick={() => navigate('/super-admin/tasks')}
             className="p-5 rounded-2xl bg-gradient-to-b from-[#0f172a] to-[#0b101f] border border-slate-800 hover:border-emerald-500/50 shadow-xl cursor-pointer group transition-all relative overflow-hidden flex flex-col justify-between"
@@ -322,7 +315,6 @@ export const DashboardPage = () => {
             </div>
           </div>
 
-          {/* Module 3: Audit Trail & Compliance */}
           <div
             onClick={() => navigate('/super-admin/audit-logs')}
             className="p-5 rounded-2xl bg-gradient-to-b from-[#0f172a] to-[#0b101f] border border-slate-800 hover:border-indigo-500/50 shadow-xl cursor-pointer group transition-all relative overflow-hidden flex flex-col justify-between"
@@ -364,7 +356,6 @@ export const DashboardPage = () => {
             </div>
           </div>
 
-          {/* Module 4: User Inspector & Identity Records */}
           <div
             onClick={() => navigate('/super-admin/users')}
             className="p-5 rounded-2xl bg-gradient-to-b from-[#0f172a] to-[#0b101f] border border-slate-800 hover:border-indigo-500/50 shadow-xl cursor-pointer group transition-all relative overflow-hidden flex flex-col justify-between"
@@ -408,7 +399,6 @@ export const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Quick Action Shortcuts Banner */}
       <div className="p-6 rounded-2xl bg-gradient-to-r from-indigo-950/40 via-purple-950/30 to-slate-900 border border-indigo-900/40 shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
@@ -458,9 +448,8 @@ export const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Two Column Layout: Growth Stats + Top Workspaces */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column (2 cols): Growth Overview */}
+        
         <div className="lg:col-span-2 p-6 rounded-2xl bg-[#0d1322] border border-slate-800/80 shadow-xl space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -502,7 +491,6 @@ export const DashboardPage = () => {
           </div>
         </div>
 
-        {/* Right Column (1 col): Top Workspaces */}
         <div className="p-6 rounded-2xl bg-[#0d1322] border border-slate-800/80 shadow-xl space-y-4">
           <div className="flex items-center justify-between">
             <div>

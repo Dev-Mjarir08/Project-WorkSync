@@ -2,12 +2,10 @@ import { z } from 'zod';
 import mongoose from 'mongoose';
 import { ROLE_VALUES } from '../../constants/roles.js';
 
-// Helper for validating MongoDB ObjectId strings
 const objectIdSchema = z.string().refine((val) => mongoose.Types.ObjectId.isValid(val), {
   message: 'Invalid ID format. Must be a 24-character hexadecimal ObjectId'
 });
 
-// Generic ID param schemas
 export const userIdParamSchema = z.object({
   userId: objectIdSchema
 });
@@ -41,17 +39,11 @@ export const sessionIdParamSchema = z.object({
   sessionId: z.string().trim().min(1, 'Session ID is required')
 });
 
-// ==========================================
-// 1. DASHBOARD SCHEMAS
-// ==========================================
 export const dashboardQuerySchema = z.object({
   days: z.coerce.number().int().positive().optional().default(30),
   limit: z.coerce.number().int().positive().max(50).optional().default(5)
 });
 
-// ==========================================
-// 2. USER MANAGEMENT SCHEMAS
-// ==========================================
 export const getUsersQuerySchema = z.object({
   search: z.string().optional().default(''),
   role: z.string().optional().default('all'),
@@ -88,9 +80,6 @@ export const updateUserRoleSchema = z.object({
   })
 });
 
-// ==========================================
-// 3. WORKSPACE MANAGEMENT SCHEMAS
-// ==========================================
 export const getWorkspacesQuerySchema = z.object({
   search: z.string().optional().default(''),
   status: z.string().optional().default('all'),
@@ -123,9 +112,6 @@ export const updateWorkspaceStatusSchema = z.object({
   isActive: z.boolean().optional()
 });
 
-// ==========================================
-// 4. WORKSPACE ADMIN MANAGEMENT SCHEMAS
-// ==========================================
 export const assignWorkspaceAdminSchema = z.object({
   userId: objectIdSchema.optional(),
   email: z.string().trim().email().optional(),
@@ -139,9 +125,6 @@ export const updateWorkspaceAdminSchema = z.object({
   status: z.enum(['active', 'suspended']).optional()
 });
 
-// ==========================================
-// 5. PLATFORM ROLE & PERMISSION SCHEMAS
-// ==========================================
 export const createRoleSchema = z.object({
   name: z.string().trim().min(2, 'Role name must be at least 2 characters').max(50),
   slug: z.string().trim().optional(),
@@ -159,9 +142,6 @@ export const updateRolePermissionsSchema = z.object({
   permissions: z.array(z.string().trim()).min(1, 'At least one permission must be specified')
 });
 
-// ==========================================
-// 6. BOARD MANAGEMENT SCHEMAS
-// ==========================================
 export const getBoardsQuerySchema = z.object({
   search: z.string().optional().default(''),
   workspaceId: z.string().optional(),
@@ -183,16 +163,10 @@ export const updateBoardStatusSchema = z.object({
   isArchived: z.boolean()
 });
 
-// ==========================================
-// 7. PLATFORM ANALYTICS SCHEMAS
-// ==========================================
 export const analyticsQuerySchema = z.object({
   range: z.enum(['7d', '30d', '90d', '1y']).optional().default('30d')
 });
 
-// ==========================================
-// 8. AUDIT LOGS SCHEMAS
-// ==========================================
 export const getAuditLogsQuerySchema = z.object({
   search: z.string().optional().default(''),
   category: z.string().optional().default('all'),
@@ -203,9 +177,6 @@ export const getAuditLogsQuerySchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc')
 });
 
-// ==========================================
-// 9. ANNOUNCEMENTS SCHEMAS
-// ==========================================
 export const getAnnouncementsQuerySchema = z.object({
   search: z.string().optional().default(''),
   status: z.string().optional().default('all'),
@@ -232,9 +203,6 @@ export const updateAnnouncementSchema = z.object({
   status: z.enum(['draft', 'published', 'archived']).optional()
 });
 
-// ==========================================
-// 10. PLATFORM SETTINGS SCHEMAS
-// ==========================================
 export const updateGeneralSettingsSchema = z.object({
   platformName: z.string().trim().min(1).optional(),
   supportEmail: z.string().trim().email().optional(),
@@ -266,9 +234,6 @@ export const updateNotificationSettingsSchema = z.object({
   slackWebhookUrl: z.string().trim().optional()
 });
 
-// ==========================================
-// 12. SUPER ADMIN PROFILE SCHEMAS
-// ==========================================
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(2).max(50).optional(),
   bio: z.string().max(200).optional(),

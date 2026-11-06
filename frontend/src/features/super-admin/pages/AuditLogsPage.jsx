@@ -173,7 +173,6 @@ export const AuditLogsPage = () => {
         </div>
       </div>
 
-      {/* Filter and Search Controls */}
       <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
         {/* Search Input */}
         <div className="relative flex-1 w-full">

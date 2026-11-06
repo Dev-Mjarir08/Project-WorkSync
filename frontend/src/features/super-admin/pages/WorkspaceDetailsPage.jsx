@@ -353,7 +353,7 @@ export const WorkspaceDetailsPage = () => {
       {/* TAB 1: OVERVIEW */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          {/* Top 4 KPI Metrics */}
+          
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
               <span className="text-xs uppercase font-semibold text-slate-400">Total Members</span>

@@ -69,4 +69,3 @@ export const addWorkspaceMember = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, { member: result }, 'Workspace member added successfully'));
 });
 
-

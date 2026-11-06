@@ -103,7 +103,7 @@ export const SuperAdminLayout = () => {
   return (
     <SuperAdminProvider>
       <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col antialiased">
-      {/* Mobile Sidebar Overlay */}
+      
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden transition-opacity"
@@ -111,15 +111,14 @@ export const SuperAdminLayout = () => {
         />
       )}
 
-      {/* Main Container */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
+        
         <aside
           className={`fixed lg:static inset-y-0 left-0 z-50 w-72 bg-[#0d1322] border-r border-slate-800/80 flex flex-col justify-between transition-transform duration-300 ease-in-out ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
         >
-          {/* Top Brand Header */}
+          
           <div>
             <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800/70 bg-[#0d1322]">
               <div className="flex items-center gap-3">
@@ -137,7 +136,6 @@ export const SuperAdminLayout = () => {
                 </div>
               </div>
 
-              {/* Mobile Close Button */}
               <button
                 onClick={() => setSidebarOpen(false)}
                 className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
@@ -146,7 +144,6 @@ export const SuperAdminLayout = () => {
               </button>
             </div>
 
-            {/* Nav Menu */}
             <div className="px-3 py-3 space-y-1 overflow-y-auto max-h-[calc(100vh-10rem)]">
               <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
                 Core Administration
@@ -177,7 +174,6 @@ export const SuperAdminLayout = () => {
             </div>
           </div>
 
-          {/* Bottom Super Admin Profile & Logout */}
           <div className="p-4 border-t border-slate-800/80 bg-[#0b101c]">
             <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-slate-800/60">
               <button
@@ -208,9 +204,8 @@ export const SuperAdminLayout = () => {
           </div>
         </aside>
 
-        {/* Content Area */}
         <div className="flex-1 flex flex-col min-w-0 bg-[#090d16] overflow-y-auto">
-          {/* Top Navbar */}
+          
           <header className="sticky top-0 z-30 h-16 bg-[#0d1322]/90 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-6 lg:px-8 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
@@ -221,9 +216,8 @@ export const SuperAdminLayout = () => {
               </button>
             </div>
 
-            {/* Right Header Navigation Icons */}
             <div className="flex items-center gap-3">
-              {/* Notifications */}
+              
               <div className="relative">
                 <button
                   onClick={() => setNotificationsOpen(!notificationsOpen)}
@@ -248,7 +242,6 @@ export const SuperAdminLayout = () => {
                 )}
               </div>
 
-              {/* Quick Jump Link to Workspaces */}
               <button
                 onClick={() => navigate('/super-admin/workspaces')}
                 className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all"
@@ -259,7 +252,6 @@ export const SuperAdminLayout = () => {
             </div>
           </header>
 
-          {/* Main Page Content */}
           <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
             <Outlet />
           </main>

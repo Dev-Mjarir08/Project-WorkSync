@@ -106,7 +106,6 @@ export const createBoard = async (workspaceId, data, actorUser) => {
     ]
   });
 
-  // Create standard Kanban columns automatically
   const defaultLists = ['To Do', 'In Progress', 'In Review', 'Done'];
   const listPromises = defaultLists.map((title, idx) =>
     List.create({
@@ -267,7 +266,6 @@ export const deleteBoard = async (workspaceId, boardId, actorUser) => {
   const boardName = board.name;
   await Board.findByIdAndDelete(board._id);
 
-  // Clean up associated lists and unbind tasks
   await Promise.all([
     List.deleteMany({ board: board._id }),
     Task.updateMany({ board: board._id }, { $unset: { board: 1, list: 1 } })

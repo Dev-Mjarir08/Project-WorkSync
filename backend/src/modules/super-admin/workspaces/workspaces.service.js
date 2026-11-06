@@ -499,4 +499,3 @@ export const addWorkspaceMember = async (workspaceIdentifier, data, actorAdmin) 
   return member;
 };
 
-

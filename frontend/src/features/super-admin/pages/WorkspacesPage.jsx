@@ -158,7 +158,6 @@ export const WorkspacesPage = () => {
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
       <div className="p-4 rounded-2xl bg-[#0d1322] border border-slate-800 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

@@ -1,4 +1,4 @@
-// Super Admin Service: provides live API interaction with backend database
+
 const API_BASE_URL = 'http://localhost:8081/api/v1/super-admin';
 
 const getAuthHeaders = () => {
@@ -10,9 +10,7 @@ const getAuthHeaders = () => {
 };
 
 export const superAdminService = {
-  // ==========================================
-  // 1. DASHBOARD OVERVIEW & METRICS
-  // ==========================================
+
   getDashboardOverview: async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/dashboard`, { headers: getAuthHeaders() });
@@ -67,9 +65,6 @@ export const superAdminService = {
     return json.data?.activities || json.data || [];
   },
 
-  // ==========================================
-  // 2. USER MANAGEMENT
-  // ==========================================
   getUsers: async (query = {}) => {
     const { search = '', role = 'all', status = 'all', page = 1, limit = 20 } = query;
     try {
@@ -183,9 +178,6 @@ export const superAdminService = {
     return json.data;
   },
 
-  // ==========================================
-  // 3. WORKSPACE MANAGEMENT
-  // ==========================================
   getWorkspaces: async (query = {}) => {
     const { search = '', status = 'all', plan = 'all', page = 1, limit = 20 } = query;
     try {
@@ -290,9 +282,6 @@ export const superAdminService = {
     return json.data;
   },
 
-  // ==========================================
-  // 4. WORKSPACE ADMIN MANAGEMENT
-  // ==========================================
   getAllAdmins: async (query = {}) => {
     const res = await fetch(`${API_BASE_URL}/admins`, { headers: getAuthHeaders() });
     const json = await res.json();
@@ -337,9 +326,6 @@ export const superAdminService = {
     return json.data;
   },
 
-  // ==========================================
-  // 5. PLATFORM ROLES & PERMISSIONS
-  // ==========================================
   getRoles: async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/roles`, { headers: getAuthHeaders() });
@@ -408,9 +394,6 @@ export const superAdminService = {
     return json.data?.role || json.data;
   },
 
-  // ==========================================
-  // 6. BOARD MANAGEMENT
-  // ==========================================
   getBoards: async (query = {}) => {
     const params = new URLSearchParams(query);
     const res = await fetch(`${API_BASE_URL}/boards?${params.toString()}`, { headers: getAuthHeaders() });
@@ -459,9 +442,6 @@ export const superAdminService = {
     return json.data;
   },
 
-  // ==========================================
-  // 7. PLATFORM ANALYTICS
-  // ==========================================
   getAnalyticsOverview: async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/analytics/overview`, { headers: getAuthHeaders() });
@@ -515,9 +495,6 @@ export const superAdminService = {
     return json.data;
   },
 
-  // ==========================================
-  // 8. AUDIT LOGS
-  // ==========================================
   getAuditLogs: async (query = {}) => {
     const params = new URLSearchParams(query);
     const res = await fetch(`${API_BASE_URL}/audit-logs?${params.toString()}`, { headers: getAuthHeaders() });
@@ -543,9 +520,6 @@ export const superAdminService = {
     return json.data;
   },
 
-  // ==========================================
-  // 9. ANNOUNCEMENTS
-  // ==========================================
   getAnnouncements: async (query = {}) => {
     const params = new URLSearchParams(query);
     const res = await fetch(`${API_BASE_URL}/announcements?${params.toString()}`, { headers: getAuthHeaders() });
@@ -608,9 +582,6 @@ export const superAdminService = {
     return json.data?.announcement || json.data;
   },
 
-  // ==========================================
-  // 10. PLATFORM SETTINGS
-  // ==========================================
   getSettings: async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/settings`, { headers: getAuthHeaders() });
@@ -677,9 +648,6 @@ export const superAdminService = {
     return superAdminService.updateGeneralSettings(settings);
   },
 
-  // ==========================================
-  // 11. SYSTEM HEALTH & MONITORING
-  // ==========================================
   getSystemHealth: async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/system/health`, { headers: getAuthHeaders() });
@@ -717,9 +685,6 @@ export const superAdminService = {
     return json.data;
   },
 
-  // ==========================================
-  // 12. SUPER ADMIN PROFILE
-  // ==========================================
   getProfile: async () => {
     const res = await fetch(`${API_BASE_URL}/profile`, { headers: getAuthHeaders() });
     const json = await res.json();
@@ -771,9 +736,6 @@ export const superAdminService = {
     return json.data;
   },
 
-  // ==========================================
-  // 12. TASK MANAGEMENT & ASSIGNMENTS
-  // ==========================================
   getAllTasks: async (query = {}) => {
     try {
       const params = new URLSearchParams();
@@ -859,9 +821,6 @@ export const superAdminService = {
     return json.data;
   },
 
-  // ==========================================
-  // 13. WORKSPACE PROJECTS & MEMBERS ASSIGNMENT
-  // ==========================================
   getWorkspaceProjects: async (workspaceId) => {
     try {
       const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/projects`, { headers: getAuthHeaders() });

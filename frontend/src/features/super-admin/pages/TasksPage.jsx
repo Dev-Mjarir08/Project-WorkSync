@@ -56,7 +56,6 @@ export const TasksPage = () => {
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [assigneeFilter, setAssigneeFilter] = useState('all');
 
-  // Supporting Options for Selectors
   const [workspacesList, setWorkspacesList] = useState([]);
   const [usersList, setUsersList] = useState([]);
   const [boardsList, setBoardsList] = useState([]);
@@ -265,7 +264,6 @@ export const TasksPage = () => {
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
       <div className="bg-[#0d1322] border border-slate-800/80 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-lg">
         <div className="flex-1 min-w-[240px] relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -291,7 +289,6 @@ export const TasksPage = () => {
             ))}
           </select>
 
-          {/* Assignee Filter */}
           <select
             value={assigneeFilter}
             onChange={(e) => setAssigneeFilter(e.target.value)}
@@ -304,7 +301,6 @@ export const TasksPage = () => {
             ))}
           </select>
 
-          {/* Priority Filter */}
           <select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
@@ -319,7 +315,6 @@ export const TasksPage = () => {
         </div>
       </div>
 
-      {/* KANBAN BOARD VIEW */}
       {viewMode === 'kanban' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {STATUS_COLUMNS.map(col => {
@@ -334,7 +329,7 @@ export const TasksPage = () => {
                 onDrop={(e) => handleDrop(e, col.id)}
                 className={`bg-[#0d1322]/80 border ${isOver ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-950/10' : col.border} rounded-2xl p-4 flex flex-col min-h-[550px] transition-all duration-200`}
               >
-                {/* Column Header */}
+                
                 <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-800/80">
                   <div className="flex items-center gap-2">
                     <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${col.badge}`}>
@@ -345,7 +340,6 @@ export const TasksPage = () => {
                   <span className="text-[11px] text-slate-500">Drop here</span>
                 </div>
 
-                {/* Cards Container */}
                 <div className="flex-1 space-y-3 overflow-y-auto max-h-[650px] pr-1">
                   {columnTasks.length === 0 ? (
                     <div className="h-32 border-2 border-dashed border-slate-800/60 rounded-xl flex items-center justify-center text-xs text-slate-500 text-center p-3">
@@ -359,7 +353,7 @@ export const TasksPage = () => {
                         onDragStart={(e) => handleDragStart(e, task.id || task._id)}
                         className="bg-[#0f172a] hover:bg-[#131d35] border border-slate-800/90 hover:border-slate-700/80 rounded-xl p-3.5 space-y-2.5 shadow-md hover:shadow-xl cursor-grab active:cursor-grabbing transition-all group relative"
                       >
-                        {/* Top Metadata */}
+                        
                         <div className="flex items-center justify-between gap-1">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${PRIORITY_BADGES[task.priority] || PRIORITY_BADGES.medium}`}>
                             {task.priority || 'medium'}
@@ -374,7 +368,6 @@ export const TasksPage = () => {
                           </button>
                         </div>
 
-                        {/* Title & Description */}
                         <div>
                           <h4 className="text-sm font-bold text-white group-hover:text-indigo-300 transition-colors line-clamp-2">
                             {task.title}
@@ -386,7 +379,6 @@ export const TasksPage = () => {
                           )}
                         </div>
 
-                        {/* Workspace / Project tags */}
                         <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400">
                           {task.workspace && (
                             <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800">
@@ -402,9 +394,8 @@ export const TasksPage = () => {
                           )}
                         </div>
 
-                        {/* Bottom Bar: Assignee & Due Date */}
                         <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs">
-                          {/* Quick Assign Button */}
+                          
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -440,7 +431,6 @@ export const TasksPage = () => {
         </div>
       )}
 
-      {/* TABLE LIST VIEW */}
       {viewMode === 'list' && (
         <div className="bg-[#0d1322] border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">

@@ -252,7 +252,6 @@ export const AnnouncementsPage = () => {
         </div>
       </div>
 
-      {/* Filters & Search */}
       <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between bg-[#0d1322] border border-slate-800/80 p-3 rounded-2xl">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

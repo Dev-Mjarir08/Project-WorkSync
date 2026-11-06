@@ -12,7 +12,6 @@ import tasksRoutes from './tasks/tasks.routes.js';
 
 const router = Router();
 
-// Protect all Manager routes
 router.use(
   authenticate,
   checkWorkspaceAccess,
@@ -23,19 +22,10 @@ router.use(
   )
 );
 
-// 1. Manager Dashboard APIs
 router.use('/dashboard', dashboardRoutes);
-
-// 2. Project Management APIs
 router.use('/projects', projectsRoutes);
-
-// 3. Board Management APIs
 router.use('/boards', boardsRoutes);
-
-// 4. List Management APIs
 router.use('/lists', listsRoutes);
-
-// 5. Task Management APIs
 router.use('/tasks', tasksRoutes);
 
 export default router;

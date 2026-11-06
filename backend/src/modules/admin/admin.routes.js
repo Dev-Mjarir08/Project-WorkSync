@@ -26,54 +26,28 @@ import { getAvailablePermissions } from './roles/roles.controller.js';
 
 const router = Router();
 
-// Protect all Workspace Admin routes
 router.use(
   authenticate,
   checkWorkspaceAccess,
   authorizeWorkspaceRole(WORKSPACE_ROLES.OWNER, WORKSPACE_ROLES.ADMIN)
 );
 
-// 1. Workspace Dashboard APIs
 router.use('/dashboard', dashboardRoutes);
-
-// 2. Member Management APIs
 router.use('/members', memberRoutes);
-
-// 3. Invitation Management APIs
 router.use('/invitations', invitationRoutes);
-
-// 4. Workspace Roles & Permissions APIs
 router.use('/roles', rolesRoutes);
 router.get('/permissions', getAvailablePermissions);
-
-// 5. Board Management APIs
 router.use('/boards', boardsRoutes);
-
-// 6. Project Management APIs
 router.use('/projects', projectsRoutes);
-
-// 7. Task Management APIs
 router.use('/tasks', tasksRoutes);
-
-// 9. Workspace Analytics APIs
 router.use('/analytics', analyticsRoutes);
-
-// 10. Activity & Audit Logs APIs
 router.use('/activities', activitiesRoutes);
 router.use('/audit-logs', auditLogsRoutes);
-
-// 11. Workspace Announcements APIs
 router.use('/announcements', announcementsRoutes);
-
-// 12. Notification Management APIs
 router.use('/notifications', notificationsRoutes);
 router.get('/notification-settings', getNotificationSettings);
 router.patch('/notification-settings', updateNotificationSettings);
-
-// 13. Admin Profile APIs
 router.use('/profile', profileRoutes);
-
-// 8. Workspace Management & Settings APIs
 router.use('/workspace', workspaceRoutes);
 router.use('/', workspaceRoutes);
 

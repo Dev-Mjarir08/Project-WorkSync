@@ -151,7 +151,7 @@ export const AnalyticsPage = () => {
 
   return (
     <div className="space-y-8 animate-fadeIn pb-12">
-      {/* Page Header */}
+      
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-800/60">
         <div>
           <div className="flex items-center gap-2.5">
@@ -169,7 +169,7 @@ export const AnalyticsPage = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Time range selector */}
+          
           <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs">
             {['7d', '30d', '90d', '1y'].map((range) => (
               <button
@@ -196,7 +196,6 @@ export const AnalyticsPage = () => {
         </div>
       </div>
 
-      {/* Top 4 KPI Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <div className="p-6 rounded-2xl bg-gradient-to-b from-slate-800/50 to-slate-900/80 border border-slate-800 shadow-xl">
           <div className="flex items-center justify-between">
@@ -263,9 +262,8 @@ export const AnalyticsPage = () => {
         </div>
       </div>
 
-      {/* Main Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column (2 cols): Growth Overview */}
+        
         <div className="lg:col-span-2 p-6 rounded-2xl bg-[#0d1322] border border-slate-800/80 shadow-xl space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -282,7 +280,6 @@ export const AnalyticsPage = () => {
             </div>
           </div>
 
-          {/* Visual Bar Graph */}
           {growthData.length === 0 ? (
             <div className="h-56 flex flex-col items-center justify-center text-slate-500 space-y-2 border-b border-slate-800 pb-2">
               <TrendingUp className="h-8 w-8 text-slate-600" />
@@ -327,7 +324,6 @@ export const AnalyticsPage = () => {
           </div>
         </div>
 
-        {/* Right Column (1 col): Tenant Plan Breakdown */}
         <div className="p-6 rounded-2xl bg-[#0d1322] border border-slate-800/80 shadow-xl space-y-6 flex flex-col justify-between">
           <div>
             <h3 className="text-base font-bold text-white">Subscription Tier Distribution</h3>

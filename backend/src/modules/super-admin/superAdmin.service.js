@@ -14,9 +14,7 @@ import { PlatformSetting } from '../../models/PlatformSetting.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { ROLES, ROLE_VALUES } from '../../constants/roles.js';
 
-// =========================================================================
 // HELPERS & CONSTANTS
-// =========================================================================
 
 const escapeRegex = (str = '') => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -163,10 +161,6 @@ export const ensureSystemRoles = async () => {
 
   await Role.insertMany(defaultRoles);
 };
-
-// =========================================================================
-// 1. DASHBOARD OVERVIEW & METRICS
-// =========================================================================
 
 export const getDashboardOverview = async () => {
   const [
@@ -382,10 +376,6 @@ export const getRecentActivities = async (limit = 15) => {
     createdAt: a.createdAt
   }));
 };
-
-// =========================================================================
-// 2. USER MANAGEMENT
-// =========================================================================
 
 export const getAllUsers = async (query = {}) => {
   const { search = '', role = 'all', status = 'all', page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = query;
@@ -811,10 +801,6 @@ export const revokeUserSessions = async (userId, actorAdmin) => {
   };
 };
 
-// =========================================================================
-// 3. WORKSPACE MANAGEMENT
-// =========================================================================
-
 export const getAllWorkspaces = async (query = {}) => {
   const { search = '', status = 'all', plan = 'all', page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = query;
 
@@ -1178,10 +1164,6 @@ export const getWorkspaceAnalytics = async (workspaceIdentifier) => {
   };
 };
 
-// =========================================================================
-// 4. WORKSPACE ADMIN MANAGEMENT
-// =========================================================================
-
 export const getAllWorkspaceAdmins = async (query = {}) => {
   const admins = await WorkspaceMember.find({ role: { $in: ['admin', 'owner'] } })
     .populate('user', 'name email avatar role lastLogin')
@@ -1376,10 +1358,6 @@ export const removeWorkspaceAdminAssignment = async (workspaceIdentifier, adminI
     message: `${adminName} has been demoted to standard workspace member`
   };
 };
-
-// =========================================================================
-// 5. PLATFORM ROLE & PERMISSION MANAGEMENT
-// =========================================================================
 
 export const getAllRoles = async () => {
   await ensureSystemRoles();
@@ -1608,10 +1586,6 @@ export const updateRolePermissions = async (roleIdentifier, permissions, actorAd
   };
 };
 
-// =========================================================================
-// 6. BOARD MANAGEMENT
-// =========================================================================
-
 export const getAllBoards = async (query = {}) => {
   const { search = '', workspaceId, isArchived, page = 1, limit = 20 } = query;
 
@@ -1803,10 +1777,6 @@ export const getBoardTasks = async (boardId) => {
   };
 };
 
-// =========================================================================
-// 7. PLATFORM ANALYTICS
-// =========================================================================
-
 export const getAnalyticsOverview = async () => {
   const [
     totalUsers,
@@ -1968,10 +1938,6 @@ export const getEngagementAnalytics = async () => {
   };
 };
 
-// =========================================================================
-// 8. AUDIT LOGS
-// =========================================================================
-
 export const getAllAuditLogs = async (query = {}) => {
   const { search = '', category = 'all', status = 'all', page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = query;
 
@@ -2106,10 +2072,6 @@ export const getWorkspaceAuditLogs = async (workspaceIdentifier, query = {}) => 
     }))
   };
 };
-
-// =========================================================================
-// 9. ANNOUNCEMENTS
-// =========================================================================
 
 export const getAllAnnouncements = async (query = {}) => {
   const { search = '', status = 'all', priority = 'all', page = 1, limit = 20 } = query;
@@ -2333,10 +2295,6 @@ export const archiveAnnouncement = async (announcementId, actorAdmin) => {
   };
 };
 
-// =========================================================================
-// 10. PLATFORM SETTINGS
-// =========================================================================
-
 export const getPlatformSettingsDoc = async () => {
   let settings = await PlatformSetting.findOne();
   if (!settings) {
@@ -2465,10 +2423,6 @@ export const getSecurityConfiguration = async () => {
   };
 };
 
-// =========================================================================
-// 11. SYSTEM HEALTH & MONITORING
-// =========================================================================
-
 export const getOverallSystemHealth = async () => {
   const dbState = mongoose.connection.readyState;
   const stateLabels = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
@@ -2560,10 +2514,6 @@ export const getSystemMetrics = async () => {
     }
   };
 };
-
-// =========================================================================
-// 12. SUPER ADMIN PROFILE
-// =========================================================================
 
 export const getAdminProfile = async (adminId) => {
   const admin = await User.findById(adminId).select('-password');

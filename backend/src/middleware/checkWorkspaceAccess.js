@@ -11,7 +11,6 @@ export const checkWorkspaceAccess = asyncHandler(async (req, res, next) => {
     req.query.workspaceId ||
     req.body?.workspaceId;
 
-  // Auto-resolve to user's first admin/manager/owned workspace if not explicitly provided
   if (!workspaceIdentifier && req.user) {
     const privilegedMembership = await WorkspaceMember.findOne({
       user: req.user._id,

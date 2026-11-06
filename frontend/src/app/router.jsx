@@ -3,13 +3,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from '../components/common/ProtectedRoute.jsx';
 import SuperAdminLayout from '../layouts/SuperAdminLayout.jsx';
 
-// =========================================================================
-// Code-Splitting with React.lazy for Fast Initial Load & Performance
-// =========================================================================
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage.jsx'));
 const RegisterPage = lazy(() => import('../features/auth/pages/RegisterPage.jsx'));
 
-// Super Admin Pages (Lazy Loaded)
 const DashboardPage = lazy(() => import('../features/super-admin/pages/DashboardPage.jsx'));
 const UsersPage = lazy(() => import('../features/super-admin/pages/UsersPage.jsx'));
 const UserDetailsPage = lazy(() => import('../features/super-admin/pages/UserDetailsPage.jsx'));
@@ -26,7 +22,6 @@ const RolesPermissionsPage = lazy(() => import('../features/super-admin/pages/Ro
 const SettingsPage = lazy(() => import('../features/super-admin/pages/SettingsPage.jsx'));
 const ProfilePage = lazy(() => import('../features/super-admin/pages/ProfilePage.jsx'));
 
-// Minimalist, high-performance loader
 const PageLoader = () => (
   <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-3">
     <div className="relative">
@@ -43,14 +38,10 @@ export const AppRoutes = () => {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
-        {/* Public Authentication Routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-
-        {/* Default Landing / Fallback to Login */}
         <Route path="/" element={<Navigate to="/login" replace />} />
 
-        {/* Protected Super Admin Dashboard (Role-based access check for 'super_admin') */}
         <Route element={<ProtectedRoute allowedRoles={['super_admin']} />}>
           <Route path="/super-admin" element={<SuperAdminLayout />}>
             <Route index element={<Navigate to="/super-admin/dashboard" replace />} />
@@ -72,8 +63,7 @@ export const AppRoutes = () => {
           </Route>
         </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
   );

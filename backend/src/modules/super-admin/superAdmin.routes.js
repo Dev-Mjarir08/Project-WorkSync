@@ -26,14 +26,8 @@ import { updateGeneralSettingsSchema } from './superAdmin.validation.js';
 
 const router = Router();
 
-// =========================================================================
-// Protect all Super Admin routes with Authentication & Super Admin Role
-// =========================================================================
 router.use(authenticate, authorizePlatformRole(ROLES.SUPER_ADMIN));
 
-// =========================================================================
-// Feature-Wise Sub-Routers
-// =========================================================================
 router.use('/dashboard', dashboardRoutes);
 router.use('/users', usersRoutes);
 router.use('/workspaces', workspacesRoutes);
@@ -48,7 +42,6 @@ router.use('/settings', settingsRoutes);
 router.use('/system', systemRoutes);
 router.use('/profile', profileRoutes);
 
-// Root-level endpoints and backwards-compatibility aliases
 router.get('/permissions', getPermissions);
 router.get('/health', getSystemHealth);
 router.get('/analytics', getAnalyticsOverview);

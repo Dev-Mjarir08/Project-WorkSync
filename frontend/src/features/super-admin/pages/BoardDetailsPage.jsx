@@ -328,7 +328,7 @@ export const BoardDetailsPage = () => {
                 onDrop={(e) => handleDrop(e, col.id)}
                 className={`bg-[#0d1322]/80 border ${isOver ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-950/10' : col.color} rounded-2xl p-4 flex flex-col min-h-[500px] transition-all`}
               >
-                {/* Column Header */}
+                
                 <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-800/80">
                   <div className="flex items-center gap-2">
                     <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${col.badge}`}>
@@ -338,7 +338,6 @@ export const BoardDetailsPage = () => {
                   </div>
                 </div>
 
-                {/* Cards Container */}
                 <div className="flex-1 space-y-3 overflow-y-auto max-h-[600px] pr-1">
                   {colTasks.length === 0 ? (
                     <div className="h-28 border-2 border-dashed border-slate-800/60 rounded-xl flex items-center justify-center text-xs text-slate-500 text-center p-3">
