@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "This root package.json file",
   "private": true,
+  "scripts": {
+    "dev:backend": "npm --workspace=backend run dev",
+    "start:backend": "npm --workspace=backend run start",
+    "dev:frontend": "npm --workspace=frontend run dev"
+  },
   "workspaces": [
     "frontend",
     "backend"

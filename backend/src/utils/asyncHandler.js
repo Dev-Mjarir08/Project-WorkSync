@@ -1,8 +1,7 @@
-// This asyncHandler.js file
-
-export const asyncHandler = {
-  name: 'asyncHandler',
-  message: 'This asyncHandler site'
+export const asyncHandler = (requestHandler) => {
+  return (req, res, next) => {
+    Promise.resolve(requestHandler(req, res, next)).catch((err) => next(err));
+  };
 };
 
 export default asyncHandler;

@@ -1,15 +1,14 @@
-import React from "react";
-import { BrowserRouter } from "react-router-dom";
-import AppRoutes from "../routes/AppRoutes.jsx";
+import React from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import AppRoutes from './router.jsx';
+import { AuthProvider } from '../context/AuthContext.jsx';
 
-/**
- * Main application root component.
- * Configures the router and renders the centralized route definitions.
- */
-const App = () => {
+export const App = () => {
   return (
     <BrowserRouter>
-      <AppRoutes />
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
     </BrowserRouter>
   );
 };
