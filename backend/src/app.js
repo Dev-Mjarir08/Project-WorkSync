@@ -8,6 +8,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import superAdminRoutes from './modules/super-admin/superAdmin.routes.js';
 import adminRoutes from './modules/admin/admin.routes.js';
+import managerRoutes from './modules/manager/manager.routes.js';
 import memberRoutes from './modules/members/member.routes.js';
 import projectRoutes from './modules/projects/project.routes.js';
 
@@ -59,6 +60,11 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/v1/workspace-admin', adminRoutes);
 app.use('/api/v1/workspaces/:workspaceId/admin', adminRoutes);
+
+// Manager Routes (Manager role)
+app.use('/api/v1/manager', managerRoutes);
+app.use('/api/manager', managerRoutes);
+app.use('/api/v1/workspaces/:workspaceId/manager', managerRoutes);
 
 // Projects Routes
 app.use('/api/v1/projects', projectRoutes);

@@ -343,3 +343,4 @@ export const deleteTask = async (taskId, actorAdmin) => {
     deleted: true
   };
 };
+

@@ -37,3 +37,4 @@ export const deleteTask = asyncHandler(async (req, res) => {
   const result = await tasksService.deleteTask(req.params.taskId, req.user);
   return res.status(200).json(new ApiResponse(200, result, 'Task deleted successfully'));
 });
+

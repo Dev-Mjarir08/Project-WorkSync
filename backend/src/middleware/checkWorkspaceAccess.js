@@ -11,19 +11,27 @@ export const checkWorkspaceAccess = asyncHandler(async (req, res, next) => {
     req.query.workspaceId ||
     req.body?.workspaceId;
 
-  // Auto-resolve to user's first admin/owned workspace if not explicitly provided
+  // Auto-resolve to user's first admin/manager/owned workspace if not explicitly provided
   if (!workspaceIdentifier && req.user) {
-    const adminMembership = await WorkspaceMember.findOne({
+    const privilegedMembership = await WorkspaceMember.findOne({
       user: req.user._id,
-      role: { $in: ['admin', 'owner'] },
+      role: { $in: ['admin', 'owner', 'manager'] },
       status: 'active'
     });
-    if (adminMembership) {
-      workspaceIdentifier = adminMembership.workspace;
+    if (privilegedMembership) {
+      workspaceIdentifier = privilegedMembership.workspace;
     } else {
       const ownedWs = await Workspace.findOne({ owner: req.user._id });
       if (ownedWs) {
         workspaceIdentifier = ownedWs._id;
+      } else {
+        const anyMembership = await WorkspaceMember.findOne({
+          user: req.user._id,
+          status: 'active'
+        });
+        if (anyMembership) {
+          workspaceIdentifier = anyMembership.workspace;
+        }
       }
     }
   }
