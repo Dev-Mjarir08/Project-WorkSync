@@ -1,12 +1,12 @@
-import React from 'react';
+import React from "react";
+import { Outlet } from "react-router-dom";
 
+/**
+ * Manager Layout Shell
+ * Child pages host their contextual workspace navigation and layout.
+ */
 const ManagerLayout = () => {
-  return (
-    <div className="managerlayout-container">
-      <h1>This ManagerLayout site</h1>
-      <p>Component loaded from frontend/src/layouts/ManagerLayout.jsx</p>
-    </div>
-  );
+  return <Outlet />;
 };
 
 export default ManagerLayout;

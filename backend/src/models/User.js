@@ -50,6 +50,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null
     },
+    notificationSettings: {
+      emailNotifications: { type: Boolean, default: true },
+      taskAlerts: { type: Boolean, default: true },
+      weeklyDigest: { type: Boolean, default: true },
+      inAppNotifications: { type: Boolean, default: true },
+      announcementsAlerts: { type: Boolean, default: true },
+      mentionAlerts: { type: Boolean, default: true }
+    },
     sessions: [
       {
         ip: { type: String, default: '127.0.0.1' },
