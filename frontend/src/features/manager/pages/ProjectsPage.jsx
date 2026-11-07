@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
@@ -10,6 +10,19 @@ import {
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
+import managerService from "../managerService.js";
+
+const toProjectView = (project) => {
+  const status = (project.status || "active").replace(/_/g, " ");
+  return {
+    ...project,
+    status: status.replace(/\b\w/g, (letter) => letter.toUpperCase()),
+    progress: Number.isFinite(project.progress) ? project.progress : 0,
+    completedTasks: project.completedTasks || 0,
+    totalTasks: project.totalTasks || 0,
+    description: project.description || "",
+  };
+};
 
 // Standard realistic project catalog (exported for Boards, Details, and Tasks pages)
 export const initialProjects = [
@@ -141,10 +154,29 @@ const statusDotColors = {
 
 const ProjectsPage = () => {
   const navigate = useNavigate();
-  const [projects] = useState(initialProjects);
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    managerService.getProjects()
+      .then((projectData) => {
+        if (active) setProjects(projectData.map(toProjectView));
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.message || "Unable to load projects.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Filter projects by search query and status
   const filteredProjects = useMemo(() => {
@@ -266,7 +298,15 @@ const ProjectsPage = () => {
           </section>
 
           {/* Project Cards Grid */}
-          {filteredProjects.length > 0 ? (
+          {loading ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+              Loading projects...
+            </div>
+          ) : error ? (
+            <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+              {error}
+            </div>
+          ) : filteredProjects.length > 0 ? (
             <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredProjects.map((project) => {
                 const statusStyle = statusStyles[project.status] || statusStyles.Active;
