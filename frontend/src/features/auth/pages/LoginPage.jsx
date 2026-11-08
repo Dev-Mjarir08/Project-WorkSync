@@ -20,6 +20,7 @@ import {
   Crown
 } from 'lucide-react';
 import { loginUser, clearAuthError } from '../authSlice.js';
+import { getRoleDashboard } from '../../../utils/authUtils.js';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -38,7 +39,10 @@ export const LoginPage = () => {
 
   useEffect(() => {
     dispatch(clearAuthError());
-  }, [dispatch]);
+    if (isAuthenticated && user?.role) {
+      navigate(getRoleDashboard(user.role), { replace: true });
+    }
+  }, [dispatch, isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -59,16 +63,23 @@ export const LoginPage = () => {
     if (loginUser.fulfilled.match(actionResult)) {
       const loggedUser = actionResult.payload.user;
       const userRole = loggedUser?.role;
+      const defaultDashboard = getRoleDashboard(userRole);
 
-      // Role-based routing: Super Admin gets full access to /super-admin/dashboard
-      if (userRole === 'super_admin') {
-        const targetUrl = location.state?.from?.pathname || '/super-admin/dashboard';
-        navigate(targetUrl, { replace: true });
-      } else {
-        // Redirect to intended or fallback to dashboard
-        const targetUrl = location.state?.from?.pathname || '/super-admin/dashboard';
-        navigate(targetUrl, { replace: true });
+      const requestedUrl = location.state?.from?.pathname;
+      let targetUrl = defaultDashboard;
+      if (
+        requestedUrl &&
+        requestedUrl !== '/' &&
+        !requestedUrl.startsWith('/login') &&
+        !requestedUrl.startsWith('/register')
+      ) {
+        const portalPrefix = defaultDashboard.split('/')[1];
+        if (requestedUrl.startsWith(`/${portalPrefix}`)) {
+          targetUrl = requestedUrl;
+        }
       }
+
+      navigate(targetUrl, { replace: true });
     }
   };
 
@@ -178,7 +189,7 @@ export const LoginPage = () => {
                 Sign In
               </h2>
               <p className="text-sm text-slate-400 mt-1">
-                Enter your credentials to access your WorkSync dashboard.
+                Enter your credentials to access your personal dashboard.
               </p>
             </div>
 
@@ -218,16 +229,12 @@ export const LoginPage = () => {
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
                     Password
                   </label>
-                  <a
-                    href="#forgot"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      alert('Password reset link has been dispatched to your email address.');
-                    }}
+                  <Link
+                    to="/forgot-password"
                     className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
                   >
                     Forgot password?
-                  </a>
+                  </Link>
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -272,7 +279,7 @@ export const LoginPage = () => {
                 {loading ? (
                   <>
                     <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Executing Redux Async Thunk Login...</span>
+                    <span>Signing in...</span>
                   </>
                 ) : (
                   <>
@@ -291,7 +298,7 @@ export const LoginPage = () => {
                   to="/register"
                   className="font-semibold text-indigo-400 hover:text-indigo-300 hover:underline transition-colors ml-1"
                 >
-                  Register as Super Admin or Assign Role
+                  Create an account
                 </Link>
               </p>
             </div>

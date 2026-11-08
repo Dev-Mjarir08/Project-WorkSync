@@ -79,24 +79,33 @@ export const authService = {
         throw err;
       }
 
-      // If backend is offline or unreachable, provide realistic fallback demo login
-      console.warn('Backend server unreachable, engaging demo fallback for:', normalizedEmail);
+      // If backend is offline or unreachable, provide fallback demo login
+      let matchedRegistered = null;
+      try {
+        const registry = JSON.parse(localStorage.getItem('worksync_registered_users') || '[]');
+        matchedRegistered = registry.find((u) => u.email?.toLowerCase() === normalizedEmail);
+      } catch (e) {}
 
       const matchedDemo = DEMO_ACCOUNTS.find(acc => acc.email.toLowerCase() === normalizedEmail);
+      const activeAccount = matchedRegistered || matchedDemo;
 
-      const fallbackUser = matchedDemo ? {
-        id: 'usr-1',
-        name: matchedDemo.name,
-        email: matchedDemo.email,
-        role: matchedDemo.role,
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop',
-        isActive: true,
-        createdAt: '2026-10-21'
+      if (activeAccount && activeAccount.password && password && activeAccount.password !== password) {
+        throw new Error('Invalid password. Please check your credentials.');
+      }
+
+      const fallbackUser = activeAccount ? {
+        id: activeAccount.id || activeAccount._id || 'usr-1',
+        name: activeAccount.name,
+        email: activeAccount.email,
+        role: activeAccount.role,
+        avatar: activeAccount.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop',
+        isActive: activeAccount.isActive !== false,
+        createdAt: activeAccount.createdAt || '2026-10-21'
       } : {
         id: 'usr-' + Date.now().toString(36),
         name: normalizedEmail.split('@')[0],
         email: normalizedEmail,
-        role: 'member',
+        role: 'employee',
         avatar: '',
         isActive: true,
         createdAt: new Date().toISOString()
@@ -160,11 +169,18 @@ export const authService = {
         id: 'usr-' + Math.random().toString(36).substring(2, 9),
         name: name.trim(),
         email: normalizedEmail,
-        role: role || 'member',
+        role: role || 'employee',
         avatar: '',
         isActive: true,
         createdAt: new Date().toISOString()
       };
+
+      try {
+        const registry = JSON.parse(localStorage.getItem('worksync_registered_users') || '[]');
+        const updated = registry.filter((u) => u.email !== normalizedEmail);
+        updated.push({ ...newUser, password });
+        localStorage.setItem('worksync_registered_users', JSON.stringify(updated));
+      } catch (e) {}
 
       const fallbackToken = 'worksync-jwt-reg-' + Date.now();
       localStorage.setItem('token', fallbackToken);

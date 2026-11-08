@@ -20,6 +20,7 @@ import {
   Laptop
 } from 'lucide-react';
 import { registerUser, clearAuthError } from '../authSlice.js';
+import { getRoleDashboard } from '../../../utils/authUtils.js';
 
 export const RegisterPage = () => {
   const navigate = useNavigate();
@@ -42,7 +43,10 @@ export const RegisterPage = () => {
 
   useEffect(() => {
     dispatch(clearAuthError());
-  }, [dispatch]);
+    if (isAuthenticated && user?.role) {
+      navigate(getRoleDashboard(user.role), { replace: true });
+    }
+  }, [dispatch, isAuthenticated, user, navigate]);
 
   // Password strength calculation
   const getPasswordStrength = (pwd) => {
@@ -143,16 +147,11 @@ export const RegisterPage = () => {
       const userRole = registeredUser?.role || formData.role;
 
       setSuccessInfo(
-        `Account registered successfully as ${userRole.toUpperCase()}! Redirecting to dashboard...`
+        `Account registered successfully as ${userRole.replace('_', ' ').toUpperCase()}! Redirecting to dashboard...`
       );
 
       setTimeout(() => {
-        if (userRole === 'super_admin') {
-          navigate('/super-admin/dashboard', { replace: true });
-        } else {
-          // If non-superadmin, still allows viewing dashboard or specific portal
-          navigate('/super-admin/dashboard', { replace: true });
-        }
+        navigate(getRoleDashboard(userRole), { replace: true });
       }, 1000);
     }
   };
