@@ -6,6 +6,10 @@ import SuperAdminLayout from '../layouts/SuperAdminLayout.jsx';
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage.jsx'));
 const RegisterPage = lazy(() => import('../features/auth/pages/RegisterPage.jsx'));
 const ManagerDashboardPage = lazy(() => import('../features/manager/pages/DashboardPage.jsx'));
+const ManagerProjectsPage = lazy(() => import('../features/manager/pages/ProjectsPage.jsx'));
+const ManagerProjectDetailsPage = lazy(() => import('../features/manager/pages/ProjectDetailsPage.jsx'));
+const ManagerTasksPage = lazy(() => import('../features/manager/pages/TasksPage.jsx'));
+const ManagerBoardPage = lazy(() => import('../features/manager/pages/BoardsPage.jsx'));
 
 const DashboardPage = lazy(() => import('../features/super-admin/pages/DashboardPage.jsx'));
 const UsersPage = lazy(() => import('../features/super-admin/pages/UsersPage.jsx'));
@@ -44,10 +48,20 @@ export const AppRoutes = () => {
         <Route path="/" element={<Navigate to="/login" replace />} />
 
         {import.meta.env.DEV ? (
-          <Route path="/manager/dashboard" element={<ManagerDashboardPage />} />
+          <>
+            <Route path="/manager/dashboard" element={<ManagerDashboardPage />} />
+            <Route path="/manager/projects" element={<ManagerProjectsPage />} />
+            <Route path="/manager/projects/:projectId" element={<ManagerProjectDetailsPage />} />
+            <Route path="/manager/tasks" element={<ManagerTasksPage />} />
+            <Route path="/manager/boards/:boardId" element={<ManagerBoardPage />} />
+          </>
         ) : (
           <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
             <Route path="/manager/dashboard" element={<ManagerDashboardPage />} />
+            <Route path="/manager/projects" element={<ManagerProjectsPage />} />
+            <Route path="/manager/projects/:projectId" element={<ManagerProjectDetailsPage />} />
+            <Route path="/manager/tasks" element={<ManagerTasksPage />} />
+            <Route path="/manager/boards/:boardId" element={<ManagerBoardPage />} />
           </Route>
         )}
 

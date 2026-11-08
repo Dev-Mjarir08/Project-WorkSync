@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ListTodo,
@@ -21,7 +21,48 @@ import {
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
-import { initialProjects } from "./ProjectsPage.jsx";
+import managerService from "../managerService.js";
+
+const statusLabels = {
+  todo: "To Do",
+  in_progress: "In Progress",
+  review: "In Review",
+  done: "Completed",
+};
+
+const statusValues = {
+  "To Do": "todo",
+  "In Progress": "in_progress",
+  "In Review": "review",
+  Completed: "done",
+};
+
+const toTaskView = (task) => {
+  const assignee = task.assignee;
+  const assigneeName = typeof assignee === "string" ? assignee : assignee?.name || "Unassigned";
+  const initials = assigneeName === "Unassigned"
+    ? "—"
+    : assigneeName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+  const dueDate = task.dueDate
+    ? new Date(task.dueDate).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" })
+    : "No due date";
+
+  return {
+    ...task,
+    id: task.id || task._id,
+    projectId: task.project?.id || task.project?._id || "",
+    project: task.project?.name || "No project",
+    boardId: task.board?.id || task.board?._id || "",
+    status: statusLabels[task.status] || task.status || "To Do",
+    priority: task.priority ? `${task.priority[0].toUpperCase()}${task.priority.slice(1)}` : "Medium",
+    assigneeId: assignee?.id || assignee?._id || "",
+    assignee: assigneeName,
+    assigneeAvatar: initials,
+    assigneeRole: "",
+    assigneeColor: "from-blue-600 to-indigo-600",
+    dueDate,
+  };
+};
 
 // Initial tasks compiled from the existing project catalog and board datasets
 export const initialManagerTasks = [
@@ -197,7 +238,11 @@ const statusStyles = {
 
 const TasksPage = () => {
   const navigate = useNavigate();
-  const [tasks, setTasks] = useState(initialManagerTasks);
+  const [tasks, setTasks] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [projectMembers, setProjectMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [viewMode, setViewMode] = useState("table"); // 'table' or 'grid'
 
@@ -215,23 +260,71 @@ const TasksPage = () => {
   // New task form state
   const [newTask, setNewTask] = useState({
     title: "",
-    projectId: "proj-1",
-    assignee: "Devanshi Sharma",
+    projectId: "",
+    assigneeId: "",
     priority: "High",
     status: "To Do",
-    dueDate: "Nov 20, 2026",
+    dueDate: "",
   });
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([managerService.getTasks(), managerService.getProjects()])
+      .then(([taskData, projectData]) => {
+        if (!active) return;
+        setTasks(taskData.map(toTaskView));
+        setProjects(projectData);
+        setNewTask((current) => ({
+          ...current,
+          projectId: current.projectId || projectData[0]?.id || "",
+        }));
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.message || "Unable to load tasks.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (!newTask.projectId) {
+      setProjectMembers([]);
+      return () => {
+        active = false;
+      };
+    }
+
+    managerService.getProjectMembers(newTask.projectId)
+      .then((members) => {
+        if (active) setProjectMembers(members);
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.message || "Unable to load project members.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [newTask.projectId]);
 
   // Extract distinct assignees and projects
   const distinctProjects = useMemo(() => {
-    return initialProjects.map((p) => ({ id: p.id, name: p.name }));
-  }, []);
+    return projects.map((project) => ({ id: project.id, name: project.name }));
+  }, [projects]);
 
   const distinctAssignees = useMemo(() => {
-    const list = new Set();
-    initialManagerTasks.forEach((t) => list.add(t.assignee));
-    return Array.from(list);
-  }, []);
+    const assignees = new Map();
+    tasks.forEach((task) => {
+      if (task.assigneeId && task.assignee !== "Unassigned") {
+        assignees.set(task.assigneeId, task.assignee);
+      }
+    });
+    return Array.from(assignees, ([id, name]) => ({ id, name }));
+  }, [tasks]);
 
   // Filtered tasks
   const filteredTasks = useMemo(() => {
@@ -251,7 +344,7 @@ const TasksPage = () => {
         projectFilter === "All" || task.projectId === projectFilter || task.project === projectFilter;
 
       const matchesAssignee =
-        assigneeFilter === "All" || task.assignee === assigneeFilter;
+        assigneeFilter === "All" || task.assigneeId === assigneeFilter;
 
       const matchesPriority =
         priorityFilter === "All" || task.priority === priorityFilter;
@@ -279,68 +372,45 @@ const TasksPage = () => {
   };
 
   const handleStatusChange = (taskId, newStatus) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
-    );
-    if (selectedTaskDetails && selectedTaskDetails.id === taskId) {
-      setSelectedTaskDetails((prev) => ({ ...prev, status: newStatus }));
-    }
+    setError("");
+    managerService.updateTaskStatus(taskId, statusValues[newStatus])
+      .then(() => {
+        setTasks((prev) =>
+          prev.map((task) => (task.id === taskId ? { ...task, status: newStatus } : task))
+        );
+        setSelectedTaskDetails((previous) =>
+          previous?.id === taskId ? { ...previous, status: newStatus } : previous
+        );
+      })
+      .catch((requestError) => setError(requestError.message || "Unable to update task status."));
   };
 
-  const handleCreateTaskSubmit = (e) => {
+  const handleCreateTaskSubmit = async (e) => {
     e.preventDefault();
     if (!newTask.title.trim()) return;
-
-    const proj = initialProjects.find((p) => p.id === newTask.projectId) || initialProjects[0];
-
-    const assigneeColors = {
-      "Devanshi Sharma": "from-blue-600 to-indigo-600",
-      "Ayan Mukherjee": "from-cyan-500 to-blue-600",
-      "Rouhan Siddiqui": "from-emerald-500 to-teal-600",
-      "Priya Patel": "from-violet-500 to-purple-600",
-      "Vikram Malhotra": "from-amber-500 to-orange-600",
-      "Neha Verma": "from-violet-500 to-fuchsia-600",
-    };
-
-    const assigneeRoles = {
-      "Devanshi Sharma": "Engineering Manager",
-      "Ayan Mukherjee": "Fullstack Admin",
-      "Rouhan Siddiqui": "Frontend Dev",
-      "Priya Patel": "UI Designer",
-      "Vikram Malhotra": "Mobile Engineer",
-      "Neha Verma": "Data Analyst",
-    };
-
-    const initials = newTask.assignee
-      .split(" ")
-      .map((w) => w[0])
-      .join("");
-
-    const created = {
-      id: `task-${Date.now()}`,
-      title: newTask.title.trim(),
-      project: proj.name,
-      projectId: proj.id,
-      boardId: proj.boardId || "board-1",
-      status: newTask.status,
-      priority: newTask.priority,
-      assignee: newTask.assignee,
-      assigneeRole: assigneeRoles[newTask.assignee] || "Team Member",
-      assigneeAvatar: initials || "TM",
-      assigneeColor: assigneeColors[newTask.assignee] || "from-slate-600 to-slate-800",
-      dueDate: newTask.dueDate || "Nov 25, 2026",
-    };
-
-    setTasks([created, ...tasks]);
-    setNewTask({
-      title: "",
-      projectId: "proj-1",
-      assignee: "Devanshi Sharma",
-      priority: "High",
-      status: "To Do",
-      dueDate: "Nov 20, 2026",
-    });
-    setShowCreateModal(false);
+    setError("");
+    try {
+      const created = await managerService.createTask({
+        title: newTask.title.trim(),
+        ...(newTask.projectId ? { projectId: newTask.projectId } : {}),
+        ...(newTask.assigneeId ? { assigneeId: newTask.assigneeId } : {}),
+        status: statusValues[newTask.status],
+        priority: newTask.priority.toLowerCase(),
+        ...(newTask.dueDate ? { dueDate: newTask.dueDate } : {}),
+      });
+      setTasks((current) => [toTaskView(created), ...current]);
+      setNewTask({
+        title: "",
+        projectId: projects[0]?.id || "",
+        assigneeId: "",
+        priority: "High",
+        status: "To Do",
+        dueDate: "",
+      });
+      setShowCreateModal(false);
+    } catch (requestError) {
+      setError(requestError.message || "Unable to create task.");
+    }
   };
 
   return (
@@ -526,8 +596,8 @@ const TasksPage = () => {
                 >
                   <option value="All">All Assignees</option>
                   {distinctAssignees.map((a) => (
-                    <option key={a} value={a}>
-                      {a}
+                    <option key={a.id} value={a.id}>
+                      {a.name}
                     </option>
                   ))}
                 </select>
@@ -568,7 +638,7 @@ const TasksPage = () => {
                   )}
                   {assigneeFilter !== "All" && (
                     <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700 border border-slate-200">
-                      Assignee: {assigneeFilter}
+                      Assignee: {distinctAssignees.find((assignee) => assignee.id === assigneeFilter)?.name || "Selected"}
                     </span>
                   )}
                   {priorityFilter !== "All" && (
@@ -589,8 +659,22 @@ const TasksPage = () => {
             )}
           </section>
 
+          {error && tasks.length > 0 && (
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">
+              {error}
+            </div>
+          )}
+
           {/* Tasks Display */}
-          {filteredTasks.length > 0 ? (
+          {loading ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+              Loading tasks...
+            </div>
+          ) : error && tasks.length === 0 ? (
+            <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+              {error}
+            </div>
+          ) : filteredTasks.length > 0 ? (
             viewMode === "table" ? (
               /* List / Table Layout */
               <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs">
@@ -620,14 +704,21 @@ const TasksPage = () => {
                             </span>
                           </td>
                           <td className="py-3 px-4">
-                            <Link
-                              to={`/manager/projects/${task.projectId}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 hover:bg-slate-200/80 transition"
-                            >
-                              <FolderKanban size={11} className="text-slate-400" />
-                              <span className="truncate max-w-[140px]">{task.project}</span>
-                            </Link>
+                            {task.projectId ? (
+                              <Link
+                                to={`/manager/projects/${task.projectId}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 hover:bg-slate-200/80 transition"
+                              >
+                                <FolderKanban size={11} className="text-slate-400" />
+                                <span className="truncate max-w-[140px]">{task.project}</span>
+                              </Link>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                                <FolderKanban size={11} className="text-slate-400" />
+                                <span className="truncate max-w-[140px]">{task.project}</span>
+                              </span>
+                            )}
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
@@ -861,13 +952,15 @@ const TasksPage = () => {
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-              <Link
-                to={`/manager/boards/${selectedTaskDetails.boardId}`}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
-              >
-                <span>Open in Kanban Board</span>
-                <ExternalLink size={13} />
-              </Link>
+              {selectedTaskDetails.boardId && (
+                <Link
+                  to={`/manager/boards/${selectedTaskDetails.boardId}`}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
+                >
+                  <span>Open in Kanban Board</span>
+                  <ExternalLink size={13} />
+                </Link>
+              )}
 
               <button
                 type="button"
@@ -917,9 +1010,10 @@ const TasksPage = () => {
                 <label className="block text-[11px] font-semibold text-slate-700">Project</label>
                 <select
                   value={newTask.projectId}
-                  onChange={(e) => setNewTask({ ...newTask, projectId: e.target.value })}
+                  onChange={(e) => setNewTask({ ...newTask, projectId: e.target.value, assigneeId: "" })}
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                 >
+                  <option value="">No project</option>
                   {distinctProjects.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
@@ -932,13 +1026,14 @@ const TasksPage = () => {
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700">Assignee</label>
                   <select
-                    value={newTask.assignee}
-                    onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })}
+                    value={newTask.assigneeId}
+                    onChange={(e) => setNewTask({ ...newTask, assigneeId: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                   >
-                    {distinctAssignees.map((a) => (
-                      <option key={a} value={a}>
-                        {a}
+                    <option value="">Unassigned</option>
+                    {projectMembers.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.name}
                       </option>
                     ))}
                   </select>
@@ -995,6 +1090,7 @@ const TasksPage = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={loading}
                   className="rounded-xl bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition"
                 >
                   Create Task
