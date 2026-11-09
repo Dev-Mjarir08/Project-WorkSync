@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import React, { useState, useMemo, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
 import {
   Kanban,
   Plus,
@@ -13,112 +13,13 @@ import {
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
-import { initialProjects } from "./ProjectsPage.jsx";
+import managerService from "../managerService.js";
 
-export const initialBoardTasks = [
-  {
-    id: "kb-1",
-    title: "Implement WebSocket connection and live presence sync",
-    column: "Done",
-    priority: "High",
-    assignee: "Ayan Mukherjee",
-    assigneeAvatar: "AM",
-    assigneeRole: "Fullstack Admin",
-    assigneeColor: "from-cyan-500 to-blue-600",
-    dueDate: "Oct 18",
-    tags: ["Backend", "Sockets"],
-  },
-  {
-    id: "kb-2",
-    title: "Design light theme SaaS workspace layout and card tokens",
-    column: "Done",
-    priority: "Medium",
-    assignee: "Priya Patel",
-    assigneeAvatar: "PP",
-    assigneeRole: "UI Designer",
-    assigneeColor: "from-violet-500 to-purple-600",
-    dueDate: "Oct 20",
-    tags: ["Design", "UI"],
-  },
-  {
-    id: "kb-3",
-    title: "Build Kanban board column state and status transition handlers",
-    column: "In Progress",
-    priority: "High",
-    assignee: "Rouhan Siddiqui",
-    assigneeAvatar: "RS",
-    assigneeRole: "Frontend Dev",
-    assigneeColor: "from-emerald-500 to-teal-600",
-    dueDate: "Oct 28",
-    tags: ["Frontend", "State"],
-  },
-  {
-    id: "kb-4",
-    title: "Configure role-based access control and manager route guards",
-    column: "In Progress",
-    priority: "High",
-    assignee: "Devanshi Sharma",
-    assigneeAvatar: "DS",
-    assigneeRole: "Engineering Manager",
-    assigneeColor: "from-blue-600 to-indigo-600",
-    dueDate: "Oct 30",
-    tags: ["Auth", "Security"],
-  },
-  {
-    id: "kb-5",
-    title: "Audit client-side bundle size and verify Vite code splitting",
-    column: "In Review",
-    priority: "Low",
-    assignee: "Ayan Mukherjee",
-    assigneeAvatar: "AM",
-    assigneeRole: "Fullstack Admin",
-    assigneeColor: "from-cyan-500 to-blue-600",
-    dueDate: "Nov 02",
-    tags: ["Performance", "Vite"],
-  },
-  {
-    id: "kb-6",
-    title: "Write integration tests for sprint burn-down calculations",
-    column: "To Do",
-    priority: "Medium",
-    assignee: "Rouhan Siddiqui",
-    assigneeAvatar: "RS",
-    assigneeRole: "Frontend Dev",
-    assigneeColor: "from-emerald-500 to-teal-600",
-    dueDate: "Nov 08",
-    tags: ["Testing", "QA"],
-  },
-  {
-    id: "kb-7",
-    title: "Deploy staging environment and configure automated CI pipeline",
-    column: "To Do",
-    priority: "High",
-    assignee: "Devanshi Sharma",
-    assigneeAvatar: "DS",
-    assigneeRole: "Engineering Manager",
-    assigneeColor: "from-blue-600 to-indigo-600",
-    dueDate: "Nov 12",
-    tags: ["DevOps", "CI/CD"],
-  },
-  {
-    id: "kb-8",
-    title: "Mobile viewport regression tests and touch target verification",
-    column: "To Do",
-    priority: "Medium",
-    assignee: "Priya Patel",
-    assigneeAvatar: "PP",
-    assigneeRole: "UI Designer",
-    assigneeColor: "from-violet-500 to-purple-600",
-    dueDate: "Nov 14",
-    tags: ["Mobile", "Responsive"],
-  },
-];
-
-const COLUMNS = [
-  { id: "To Do", label: "To Do", dot: "bg-slate-400", badge: "bg-slate-100 text-slate-700 border-slate-200" },
-  { id: "In Progress", label: "In Progress", dot: "bg-blue-500", badge: "bg-blue-50 text-blue-700 border-blue-200" },
-  { id: "In Review", label: "In Review", dot: "bg-purple-500", badge: "bg-purple-50 text-purple-700 border-purple-200" },
-  { id: "Done", label: "Done", dot: "bg-emerald-500", badge: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+const COLUMN_STYLES = [
+  { dot: "bg-slate-400", badge: "bg-slate-100 text-slate-700 border-slate-200" },
+  { dot: "bg-blue-500", badge: "bg-blue-50 text-blue-700 border-blue-200" },
+  { dot: "bg-purple-500", badge: "bg-purple-50 text-purple-700 border-purple-200" },
+  { dot: "bg-emerald-500", badge: "bg-emerald-50 text-emerald-700 border-emerald-200" },
 ];
 
 const priorityStyles = {
@@ -127,11 +28,47 @@ const priorityStyles = {
   Low: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
+const normalizeStatus = (status) => {
+  const normalized = (status || "").toLowerCase().replace(/[\s-]/g, "_");
+  if (normalized.includes("progress")) return "in_progress";
+  if (normalized.includes("review")) return "review";
+  if (normalized.includes("done") || normalized.includes("complete")) return "done";
+  return "todo";
+};
+
+const toTaskView = (task, lists) => {
+  const assignee = task.assignee;
+  const list = task.list || lists.find((candidate) => normalizeStatus(candidate.name) === normalizeStatus(task.status));
+  const name = typeof assignee === "string" ? assignee : assignee?.name || "Unassigned";
+  const initials = name === "Unassigned"
+    ? "—"
+    : name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+  return {
+    ...task,
+    id: task.id || task._id,
+    columnId: list?.id || list?._id || task.listId || "",
+    column: list?.name || "To Do",
+    priority: task.priority ? `${task.priority[0].toUpperCase()}${task.priority.slice(1)}` : "Medium",
+    assigneeId: assignee?.id || assignee?._id || "",
+    assignee: name,
+    assigneeAvatar: initials,
+    assigneeRole: "",
+    assigneeColor: "from-blue-600 to-indigo-600",
+    dueDate: task.dueDate
+      ? new Date(task.dueDate).toLocaleDateString(undefined, { month: "short", day: "2-digit" })
+      : "No due date",
+    tags: [],
+  };
+};
+
 const BoardsPage = () => {
   const { boardId } = useParams();
-  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [tasks, setTasks] = useState(initialBoardTasks);
+  const [tasks, setTasks] = useState([]);
+  const [columns, setColumns] = useState([]);
+  const [board, setBoard] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPriority, setSelectedPriority] = useState("All");
   const [draggedTaskId, setDraggedTaskId] = useState(null);
@@ -141,22 +78,54 @@ const BoardsPage = () => {
   const [newTask, setNewTask] = useState({
     title: "",
     priority: "High",
-    assignee: "Rouhan Siddiqui",
-    column: "To Do",
-    dueDate: "Nov 15",
-    tags: "Sprint 4",
+    assigneeId: "",
+    columnId: "",
+    dueDate: "",
+    tags: "",
   });
 
-  // Project context resolution
-  const relatedProject = useMemo(() => {
-    const found = initialProjects.find((p) => p.boardId === boardId || p.id === boardId);
-    if (found) return found;
-    return initialProjects[0] || {
-      id: "proj-1",
-      name: "WorkSync Web App",
-      category: "Core Platform",
+  useEffect(() => {
+    let active = true;
+    if (!boardId) {
+      setError("A board ID is required to load this board.");
+      setLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    Promise.all([
+      managerService.getBoard(boardId),
+      managerService.getBoardLists(boardId),
+      managerService.getTasks({ boardId }),
+    ])
+      .then(([boardData, listData, taskData]) => {
+        if (!active) return;
+        const sortedLists = [...listData].sort((a, b) => a.position - b.position);
+        setBoard(boardData);
+        setColumns(sortedLists.map((list, index) => ({
+          id: list.id,
+          label: list.name,
+          status: normalizeStatus(list.name),
+          ...COLUMN_STYLES[index % COLUMN_STYLES.length],
+        })));
+        setTasks(taskData.map((task) => toTaskView(task, sortedLists)));
+        setNewTask((current) => ({ ...current, columnId: current.columnId || sortedLists[0]?.id || "" }));
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.message || "Unable to load this board.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
     };
   }, [boardId]);
+
+  const relatedProject = board?.project
+    ? { ...board.project, id: board.project.id || board.project._id || "" }
+    : { id: "", name: "Project" };
 
   // Filter tasks
   const filteredTasks = useMemo(() => {
@@ -176,39 +145,35 @@ const BoardsPage = () => {
 
   // Group tasks by column
   const tasksByColumn = useMemo(() => {
-    const groups = { "To Do": [], "In Progress": [], "In Review": [], Done: [] };
+    const groups = Object.fromEntries(columns.map((column) => [column.id, []]));
     filteredTasks.forEach((t) => {
-      if (groups[t.column]) {
-        groups[t.column].push(t);
+      if (groups[t.columnId]) {
+        groups[t.columnId].push(t);
       } else {
-        groups["To Do"].push(t);
+        const fallback = columns.find((column) => column.status === normalizeStatus(t.column));
+        if (fallback) groups[fallback.id].push(t);
       }
     });
     return groups;
-  }, [filteredTasks]);
+  }, [filteredTasks, columns]);
 
   // Move task to adjacent column
-  const handleMoveTask = (taskId, direction) => {
-    const columnOrder = ["To Do", "In Progress", "In Review", "Done"];
-    setTasks((prevTasks) =>
-      prevTasks.map((t) => {
-        if (t.id === taskId) {
-          const currentIndex = columnOrder.indexOf(t.column);
-          const newIndex = direction === "right" ? currentIndex + 1 : currentIndex - 1;
-          if (newIndex >= 0 && newIndex < columnOrder.length) {
-            return { ...t, column: columnOrder[newIndex] };
-          }
-        }
-        return t;
-      })
-    );
+  const handleMoveTask = async (taskId, targetColumnId) => {
+    setError("");
+    try {
+      await managerService.moveTask(taskId, { listId: targetColumnId });
+      const target = columns.find((column) => column.id === targetColumnId);
+      setTasks((previous) => previous.map((task) =>
+        task.id === taskId ? { ...task, columnId: targetColumnId, column: target?.label || task.column } : task
+      ));
+    } catch (requestError) {
+      setError(requestError.message || "Unable to move task.");
+    }
   };
 
   // Change task column directly
-  const handleColumnChange = (taskId, newColumn) => {
-    setTasks((prevTasks) =>
-      prevTasks.map((t) => (t.id === taskId ? { ...t, column: newColumn } : t))
-    );
+  const handleColumnChange = (taskId, newColumnId) => {
+    handleMoveTask(taskId, newColumnId);
   };
 
   // Drag and drop handlers
@@ -221,62 +186,60 @@ const BoardsPage = () => {
     e.preventDefault();
   };
 
-  const handleDrop = (e, targetColumn) => {
+  const handleDrop = (e, targetColumnId) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData("text/plain") || draggedTaskId;
     if (taskId) {
-      handleColumnChange(taskId, targetColumn);
+      handleColumnChange(taskId, targetColumnId);
     }
     setDraggedTaskId(null);
   };
 
-  const handleAddTaskSubmit = (e) => {
+  const handleAddTaskSubmit = async (e) => {
     e.preventDefault();
     if (!newTask.title.trim()) return;
-
-    const assigneeColors = {
-      "Devanshi Sharma": "from-blue-600 to-indigo-600",
-      "Ayan Mukherjee": "from-cyan-500 to-blue-600",
-      "Rouhan Siddiqui": "from-emerald-500 to-teal-600",
-      "Priya Patel": "from-violet-500 to-purple-600",
-    };
-
-    const initials = newTask.assignee
-      .split(" ")
-      .map((w) => w[0])
-      .join("");
-
-    const tagsArray = newTask.tags
-      ? newTask.tags.split(",").map((t) => t.trim()).filter(Boolean)
-      : ["Feature"];
-
-    const created = {
-      id: `kb-${Date.now()}`,
-      title: newTask.title.trim(),
-      column: newTask.column,
-      priority: newTask.priority,
-      assignee: newTask.assignee,
-      assigneeAvatar: initials || "TM",
-      assigneeRole: "Team Member",
-      assigneeColor: assigneeColors[newTask.assignee] || "from-slate-600 to-slate-800",
-      dueDate: newTask.dueDate || "Nov 20",
-      tags: tagsArray,
-    };
-
-    setTasks([created, ...tasks]);
-    setNewTask({
-      title: "",
-      priority: "High",
-      assignee: "Rouhan Siddiqui",
-      column: "To Do",
-      dueDate: "Nov 15",
-      tags: "Sprint 4",
-    });
-    setShowAddTaskModal(false);
+    setError("");
+    try {
+      const created = await managerService.createTask({
+        title: newTask.title.trim(),
+        boardId,
+        ...(board?.project?.id ? { projectId: board.project.id } : {}),
+        ...(newTask.columnId ? { listId: newTask.columnId } : {}),
+        ...(newTask.assigneeId ? { assigneeId: newTask.assigneeId } : {}),
+        ...(newTask.dueDate ? { dueDate: newTask.dueDate } : {}),
+        priority: newTask.priority.toLowerCase(),
+      });
+      let availableColumns = columns;
+      if (availableColumns.length === 0) {
+        const lists = await managerService.getBoardLists(boardId);
+        availableColumns = lists.map((list, index) => ({
+          id: list.id,
+          label: list.name,
+          status: normalizeStatus(list.name),
+          ...COLUMN_STYLES[index % COLUMN_STYLES.length],
+        }));
+        setColumns(availableColumns);
+      }
+      setTasks((current) => [{
+        ...toTaskView(created, availableColumns),
+        tags: newTask.tags ? newTask.tags.split(",").map((tag) => tag.trim()).filter(Boolean) : [],
+      }, ...current]);
+      setNewTask({
+        title: "",
+        priority: "High",
+        assigneeId: "",
+        columnId: availableColumns[0]?.id || "",
+        dueDate: "",
+        tags: "",
+      });
+      setShowAddTaskModal(false);
+    } catch (requestError) {
+      setError(requestError.message || "Unable to add this task.");
+    }
   };
 
   const openAddTaskForColumn = (columnId) => {
-    setNewTask((prev) => ({ ...prev, column: columnId }));
+    setNewTask((prev) => ({ ...prev, columnId }));
     setShowAddTaskModal(true);
   };
 
@@ -292,10 +255,16 @@ const BoardsPage = () => {
           setMobileOpen={setMobileMenuOpen}
           breadcrumbs={[
             { label: "Projects", href: "/manager/projects" },
-            { label: relatedProject.name, href: `/manager/projects/${relatedProject.id}` },
+            { label: relatedProject.name, href: relatedProject.id ? `/manager/projects/${relatedProject.id}` : "/manager/projects" },
             { label: "Kanban Board" },
           ]}
         />
+
+        {error && (
+          <div role="alert" className="shrink-0 border-b border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700 sm:px-6 lg:px-8">
+            {error}
+          </div>
+        )}
 
         {/* Board Context Subheader & Controls Bar */}
         <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 sm:px-6 lg:px-8 space-y-3">
@@ -303,21 +272,21 @@ const BoardsPage = () => {
             <div>
               <div className="flex items-center gap-2.5">
                 <h1 className="text-lg font-bold text-slate-900 tracking-tight">
-                  Sprint 4 Kanban Board
+                  {board?.name || "Kanban Board"}
                 </h1>
                 <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200/80">
-                  {filteredTasks.length} Active Tasks
+                  {filteredTasks.length} Tasks
                 </span>
               </div>
               <p className="mt-0.5 text-xs text-slate-500">
-                Connected to <span className="text-slate-800 font-medium">{relatedProject.name}</span> • Oct 15 – Nov 12 Delivery Cycle
+                {relatedProject.id ? <>Connected to <span className="text-slate-800 font-medium">{relatedProject.name}</span></> : board?.description || "Board tasks and lists"}
               </p>
             </div>
 
             {/* Board Context Actions, Search & Priority Controls */}
             <div className="flex flex-wrap items-center gap-2.5">
               <Link
-                to={`/manager/projects/${relatedProject.id}`}
+                to={relatedProject.id ? `/manager/projects/${relatedProject.id}` : "/manager/projects"}
                 className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 transition shadow-xs"
               >
                 <span>Project Overview</span>
@@ -327,7 +296,7 @@ const BoardsPage = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setNewTask((prev) => ({ ...prev, column: "To Do" }));
+                  setNewTask((prev) => ({ ...prev, columnId: columns[0]?.id || "" }));
                   setShowAddTaskModal(true);
                 }}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition active:scale-[0.98]"
@@ -372,8 +341,17 @@ const BoardsPage = () => {
 
         {/* Kanban Columns Horizontal Scrolling Board Container — Scoped to this container only */}
         <div className="flex-1 min-h-0 min-w-0 w-full max-w-full overflow-x-auto overflow-y-hidden p-4 sm:p-6 [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent]">
+          {loading ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+              Loading board...
+            </div>
+          ) : !error && columns.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+              This board has no lists yet.
+            </div>
+          ) : !error && (
           <div className="flex items-stretch gap-4 h-full min-w-min pb-2">
-            {COLUMNS.map((column) => {
+            {columns.map((column, columnIndex) => {
               const columnTasks = tasksByColumn[column.id] || [];
 
               return (
@@ -410,9 +388,8 @@ const BoardsPage = () => {
                   {/* Column Task Cards Scrollable Area */}
                   <div className="flex-1 min-h-0 overflow-y-auto pt-3 space-y-3 pr-1 [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent]">
                     {columnTasks.map((task) => {
-                      const columnIndex = COLUMNS.findIndex((c) => c.id === column.id);
                       const canMoveLeft = columnIndex > 0;
-                      const canMoveRight = columnIndex < COLUMNS.length - 1;
+                      const canMoveRight = columnIndex < columns.length - 1;
 
                       return (
                         <div
@@ -475,13 +452,13 @@ const BoardsPage = () => {
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleMoveTask(task.id, "left");
+                                  handleMoveTask(task.id, columns[columnIndex - 1].id);
                                 }}
                                 className="inline-flex items-center gap-1 text-slate-500 hover:text-blue-600 px-1.5 py-0.5 rounded hover:bg-slate-50 transition"
-                                title={`Move to ${COLUMNS[columnIndex - 1].label}`}
+                                title={`Move to ${columns[columnIndex - 1].label}`}
                               >
                                 <ChevronLeft size={12} />
-                                <span>{COLUMNS[columnIndex - 1].label}</span>
+                                <span>{columns[columnIndex - 1].label}</span>
                               </button>
                             ) : (
                               <span />
@@ -492,12 +469,12 @@ const BoardsPage = () => {
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleMoveTask(task.id, "right");
+                                  handleMoveTask(task.id, columns[columnIndex + 1].id);
                                 }}
                                 className="inline-flex items-center gap-1 text-slate-500 hover:text-blue-600 px-1.5 py-0.5 rounded hover:bg-slate-50 transition"
-                                title={`Move to ${COLUMNS[columnIndex + 1].label}`}
+                                title={`Move to ${columns[columnIndex + 1].label}`}
                               >
-                                <span>{COLUMNS[columnIndex + 1].label}</span>
+                                <span>{columns[columnIndex + 1].label}</span>
                                 <ChevronRight size={12} />
                               </button>
                             ) : (
@@ -525,6 +502,7 @@ const BoardsPage = () => {
               );
             })}
           </div>
+          )}
         </div>
       </div>
 
@@ -537,7 +515,9 @@ const BoardsPage = () => {
           />
           <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl z-10 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Add Card to {newTask.column}</h3>
+              <h3 className="text-sm font-bold text-slate-900">
+                Add Card to {columns.find((column) => column.id === newTask.columnId)?.label || "Board"}
+              </h3>
               <button
                 type="button"
                 onClick={() => setShowAddTaskModal(false)}
@@ -577,11 +557,11 @@ const BoardsPage = () => {
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700">Column</label>
                   <select
-                    value={newTask.column}
-                    onChange={(e) => setNewTask({ ...newTask, column: e.target.value })}
+                    value={newTask.columnId}
+                    onChange={(e) => setNewTask({ ...newTask, columnId: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                   >
-                    {COLUMNS.map((col) => (
+                    {columns.map((col) => (
                       <option key={col.id} value={col.id}>
                         {col.label}
                       </option>
@@ -594,14 +574,16 @@ const BoardsPage = () => {
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700">Assignee</label>
                   <select
-                    value={newTask.assignee}
-                    onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })}
+                    value={newTask.assigneeId}
+                    onChange={(e) => setNewTask({ ...newTask, assigneeId: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                   >
-                    <option value="Rouhan Siddiqui">Rouhan Siddiqui</option>
-                    <option value="Ayan Mukherjee">Ayan Mukherjee</option>
-                    <option value="Devanshi Sharma">Devanshi Sharma</option>
-                    <option value="Priya Patel">Priya Patel</option>
+                    <option value="">Unassigned</option>
+                    {(board?.members || []).filter((member) => member.user).map((member) => (
+                      <option key={member.user.id} value={member.user.id}>
+                        {member.user.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -614,6 +596,9 @@ const BoardsPage = () => {
                     onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
                   />
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Tags are not stored by the current task API.
+                  </p>
                 </div>
               </div>
 
