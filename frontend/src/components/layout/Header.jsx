@@ -73,6 +73,14 @@ export const Header = ({
     ? '/super-admin/profile'
     : '/manager/profile';
 
+  const notificationsPath = location.pathname.startsWith('/admin')
+    ? '/admin/notifications'
+    : location.pathname.startsWith('/employee')
+    ? '/employee/notifications'
+    : location.pathname.startsWith('/super-admin')
+    ? '/super-admin/dashboard'
+    : '/manager/notifications';
+
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur px-4 sm:px-6 py-2.5 transition">
       <div className="flex items-center justify-between gap-3">
@@ -178,7 +186,7 @@ export const Header = ({
                 </div>
                 <div className="pt-2 border-t border-slate-100 mt-2 text-center">
                   <Link
-                    to="/notifications"
+                    to={notificationsPath}
                     onClick={() => setShowNotifications(false)}
                     className="text-[11px] font-semibold text-blue-600 hover:text-blue-700"
                   >

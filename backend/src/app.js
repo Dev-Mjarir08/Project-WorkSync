@@ -9,6 +9,7 @@ import authRoutes from './modules/auth/auth.routes.js';
 import superAdminRoutes from './modules/super-admin/superAdmin.routes.js';
 import adminRoutes from './modules/admin/admin.routes.js';
 import managerRoutes from './modules/manager/manager.routes.js';
+import employeeRoutes from './modules/employee/employee.routes.js';
 import memberRoutes from './modules/members/member.routes.js';
 import projectRoutes from './modules/projects/project.routes.js';
 
@@ -55,6 +56,10 @@ app.use('/api/v1/workspaces/:workspaceId/admin', adminRoutes);
 app.use('/api/v1/manager', managerRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/v1/workspaces/:workspaceId/manager', managerRoutes);
+
+app.use('/api/v1/employee', employeeRoutes);
+app.use('/api/employee', employeeRoutes);
+app.use('/api/v1/workspaces/:workspaceId/employee', employeeRoutes);
 
 app.use('/api/v1/projects', projectRoutes);
 app.use('/api/projects', projectRoutes);

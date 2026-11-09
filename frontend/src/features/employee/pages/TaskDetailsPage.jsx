@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -27,6 +28,7 @@ import {
 } from "lucide-react";
 
 export default function TaskDetailsPage({ onBack }) {
+  const navigate = useNavigate();
   const [task, setTask] = useState({
     id: 1,
     title: "Complete employee dashboard UI",
@@ -174,8 +176,10 @@ export default function TaskDetailsPage({ onBack }) {
   };
 
   const handleBack = () => {
-    if (onBack) {
+    if (typeof onBack === "function") {
       onBack();
+    } else {
+      navigate("/employee/tasks");
     }
   };
 

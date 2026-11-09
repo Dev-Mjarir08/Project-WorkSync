@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FolderGit2,
   ArrowLeft,
@@ -183,6 +184,14 @@ const milestoneStyles = {
 };
 
 export default function ProjectDetailsPage({ onBack }) {
+  const navigate = useNavigate();
+  const handleBack = () => {
+    if (typeof onBack === "function") {
+      onBack();
+    } else {
+      navigate("/employee/projects");
+    }
+  };
   const [activeTab, setActiveTab] = useState("overview");
   const [project] = useState(initialProject);
   const [milestones, setMilestones] = useState(initialMilestones);
@@ -247,7 +256,7 @@ export default function ProjectDetailsPage({ onBack }) {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
-              onClick={onBack}
+              onClick={handleBack}
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-teal-500 hover:text-teal-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-teal-400"
               aria-label="Back to projects"
             >

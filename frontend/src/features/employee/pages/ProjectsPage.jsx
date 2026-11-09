@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   FolderGit2,
   Plus,
@@ -767,7 +768,9 @@ function ProjectCard({ project, viewMode }) {
             </div>
 
             <h3 className="mt-3 break-words text-lg font-bold leading-snug text-slate-950 transition-colors group-hover:text-teal-700 dark:text-white dark:group-hover:text-teal-300">
-              {project.title}
+              <Link to={`/employee/projects/${project.id}`} className="hover:underline">
+                {project.title}
+              </Link>
             </h3>
 
             <p className="mt-2 line-clamp-2 min-h-[42px] text-sm leading-6 text-slate-500 dark:text-slate-400">

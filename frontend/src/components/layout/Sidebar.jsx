@@ -91,7 +91,7 @@ const adminLinks = [
   { label: "Settings", to: "/admin/settings", icon: Settings },
 ];
 
-export const Sidebar = ({ activeItem = "dashboard", mobileOpen = false, setMobileOpen = () => {} }) => {
+export const Sidebar = ({ activeItem = "", mobileOpen = false, setMobileOpen = () => {} }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
@@ -214,16 +214,51 @@ export const Sidebar = ({ activeItem = "dashboard", mobileOpen = false, setMobil
 
   // Active item matcher for Manager & Employee
   const isItemActive = (item) => {
-    if (activeItem === item.viewKey) return true;
-    if (location.pathname === item.path) return true;
-    if (item.viewKey === "projects" && location.pathname.includes("/projects")) return true;
-    if (item.viewKey === "boards" && location.pathname.includes("/boards")) return true;
-    if (item.viewKey === "tasks" && location.pathname.includes("/tasks")) return true;
-    if (item.viewKey === "reports" && location.pathname.includes("/reports")) return true;
-    if (item.viewKey === "calendar" && location.pathname.includes("/calendar")) return true;
-    if (item.viewKey === "discussions" && location.pathname.includes("/discussions")) return true;
-    if (item.viewKey === "dashboard" && (location.pathname === "/manager/dashboard" || location.pathname === "/employee/dashboard")) return true;
-    return false;
+    const currentPath = location.pathname.toLowerCase();
+    const itemPath = item.path.toLowerCase();
+
+    // Direct match if activeItem was explicitly provided
+    if (activeItem && activeItem === item.viewKey) return true;
+
+    // Exact path match
+    if (currentPath === itemPath) return true;
+
+    // ViewKey specific prefix matches
+    switch (item.viewKey) {
+      case "dashboard":
+        return (
+          currentPath === "/manager/dashboard" ||
+          currentPath === "/manager" ||
+          currentPath === "/employee/dashboard" ||
+          currentPath === "/employee"
+        );
+      case "projects":
+        return currentPath.startsWith("/manager/projects") || currentPath.startsWith("/employee/projects");
+      case "boards":
+        return currentPath.startsWith("/manager/boards") || currentPath.startsWith("/employee/boards");
+      case "tasks":
+        return currentPath.startsWith("/manager/tasks") || currentPath.startsWith("/employee/tasks");
+      case "calendar":
+        return currentPath.startsWith("/manager/calendar") || currentPath.startsWith("/employee/calendar");
+      case "team":
+        return currentPath.startsWith("/manager/team");
+      case "assignments":
+        return currentPath.startsWith("/manager/assignments");
+      case "workload":
+        return currentPath.startsWith("/manager/workload");
+      case "reports":
+        return currentPath.startsWith("/manager/reports");
+      case "activity":
+        return currentPath.startsWith("/manager/activity") || currentPath.startsWith("/employee/activity");
+      case "notifications":
+        return currentPath.startsWith("/manager/notifications") || currentPath.startsWith("/employee/notifications");
+      case "discussions":
+        return currentPath.startsWith("/employee/discussions");
+      case "search":
+        return currentPath.startsWith("/employee/search");
+      default:
+        return false;
+    }
   };
 
   const handleItemClick = (item) => {
