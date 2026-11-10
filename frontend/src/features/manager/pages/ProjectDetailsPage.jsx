@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -15,95 +15,84 @@ import {
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
-import { initialProjects } from "./ProjectsPage.jsx";
+import managerService from "../managerService.js";
 
-const initialProjectTasks = [
-  {
-    id: "task-101",
-    title: "Implement WebSocket connection and live presence sync",
-    status: "Completed",
-    priority: "High",
-    assignee: "Ayan Mukherjee",
-    assigneeAvatar: "AM",
-    assigneeRole: "Fullstack Admin",
-    assigneeColor: "from-cyan-500 to-blue-600",
-    dueDate: "Oct 18, 2026",
-  },
-  {
-    id: "task-102",
-    title: "Design light theme SaaS workspace layout and card tokens",
-    status: "Completed",
-    priority: "Medium",
-    assignee: "Priya Patel",
-    assigneeAvatar: "PP",
-    assigneeRole: "UI Designer",
-    assigneeColor: "from-violet-500 to-purple-600",
-    dueDate: "Oct 20, 2026",
-  },
-  {
-    id: "task-103",
-    title: "Build Kanban board column state and status transition handlers",
-    status: "In Progress",
-    priority: "High",
-    assignee: "Rouhan Siddiqui",
-    assigneeAvatar: "RS",
-    assigneeRole: "Frontend Dev",
-    assigneeColor: "from-emerald-500 to-teal-600",
-    dueDate: "Oct 28, 2026",
-  },
-  {
-    id: "task-104",
-    title: "Configure role-based access control and manager route guards",
-    status: "In Progress",
-    priority: "High",
-    assignee: "Devanshi Sharma",
-    assigneeAvatar: "DS",
-    assigneeRole: "Engineering Manager",
+const statusLabels = {
+  planning: "Planning",
+  active: "Active",
+  on_hold: "On Hold",
+  completed: "Completed",
+  archived: "Archived",
+  todo: "To Do",
+  in_progress: "In Progress",
+  review: "In Review",
+  done: "Completed",
+};
+
+const statusValues = {
+  Planning: "planning",
+  Active: "active",
+  "On Hold": "on_hold",
+  Completed: "completed",
+  Archived: "archived",
+};
+
+const taskStatusValues = {
+  "To Do": "todo",
+  "In Progress": "in_progress",
+  "In Review": "review",
+  Completed: "done",
+};
+
+const formatDate = (date) => date
+  ? new Date(date).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" })
+  : "Not set";
+
+const toProjectView = (project) => ({
+  ...project,
+  id: project.id || project._id,
+  status: statusLabels[project.status] || project.status || "Planning",
+  priority: project.priority
+    ? `${project.priority[0].toUpperCase()}${project.priority.slice(1)}`
+    : "Medium",
+  category: project.key || "Project",
+  deadline: formatDate(project.dueDate),
+  team: (project.members || []).map((member) => ({
+    ...member,
+    avatar: member.avatar || member.name?.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "?",
+    role: member.role || "Member",
+    color: "from-blue-600 to-indigo-600",
+  })),
+});
+
+const toTaskView = (task) => {
+  const assignee = task.assignee;
+  const assigneeName = typeof assignee === "string" ? assignee : assignee?.name || "Unassigned";
+  return {
+    ...task,
+    id: task.id || task._id,
+    status: statusLabels[task.status] || task.status || "To Do",
+    priority: task.priority
+      ? `${task.priority[0].toUpperCase()}${task.priority.slice(1)}`
+      : "Medium",
+    assigneeId: assignee?.id || assignee?._id || "",
+    assignee: assigneeName,
+    assigneeAvatar: assignee?.avatar || assigneeName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "?",
+    assigneeRole: assignee?.role || "Member",
     assigneeColor: "from-blue-600 to-indigo-600",
-    dueDate: "Oct 30, 2026",
-  },
-  {
-    id: "task-105",
-    title: "Audit client-side bundle size and verify Vite code splitting",
-    status: "In Review",
-    priority: "Low",
-    assignee: "Ayan Mukherjee",
-    assigneeAvatar: "AM",
-    assigneeRole: "Fullstack Admin",
-    assigneeColor: "from-cyan-500 to-blue-600",
-    dueDate: "Nov 02, 2026",
-  },
-  {
-    id: "task-106",
-    title: "Write integration tests for sprint burn-down calculations",
-    status: "To Do",
-    priority: "Medium",
-    assignee: "Rouhan Siddiqui",
-    assigneeAvatar: "RS",
-    assigneeRole: "Frontend Dev",
-    assigneeColor: "from-emerald-500 to-teal-600",
-    dueDate: "Nov 08, 2026",
-  },
-  {
-    id: "task-107",
-    title: "Deploy staging environment and configure automated CI pipeline",
-    status: "To Do",
-    priority: "High",
-    assignee: "Devanshi Sharma",
-    assigneeAvatar: "DS",
-    assigneeRole: "Engineering Manager",
-    assigneeColor: "from-blue-600 to-indigo-600",
-    dueDate: "Nov 12, 2026",
-  },
-];
+    dueDate: formatDate(task.dueDate),
+  };
+};
 
 const priorityStyles = {
+  Urgent: "bg-rose-100 text-rose-800 border-rose-300",
   High: "bg-rose-50 text-rose-700 border-rose-200",
   Medium: "bg-amber-50 text-amber-700 border-amber-200",
   Low: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
 const statusStyles = {
+  Planning: "bg-slate-100 text-slate-700 border-slate-200",
   Active: "bg-emerald-50 text-emerald-700 border-emerald-200",
   Completed: "bg-blue-50 text-blue-700 border-blue-200",
   "On Hold": "bg-amber-50 text-amber-700 border-amber-200",
@@ -111,42 +100,18 @@ const statusStyles = {
   "To Do": "bg-slate-100 text-slate-700 border-slate-200",
   "In Review": "bg-purple-50 text-purple-700 border-purple-200",
   Done: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  Archived: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
 const ProjectDetailsPage = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // Match project from initial catalog
-  const matchedProject = useMemo(() => {
-    const found = initialProjects.find((p) => p.id === projectId);
-    if (found) return found;
-    return {
-      id: projectId || "proj-custom",
-      name: `Project ${projectId ? `(${projectId})` : "Overview"}`,
-      description:
-        "Comprehensive workspace initiative tracking agile sprint deliverables, cross-functional engineering tasks, and team member assignments.",
-      status: "Active",
-      category: "Core Platform",
-      priority: "High",
-      progress: 68,
-      totalTasks: 20,
-      completedTasks: 14,
-      deadline: "Nov 15, 2026",
-      boardId: "board-1",
-      team: [
-        { name: "Devanshi Sharma", role: "Engineering Manager", avatar: "DS", color: "from-blue-600 to-indigo-600" },
-        { name: "Ayan Mukherjee", role: "Fullstack Admin", avatar: "AM", color: "from-cyan-500 to-blue-600" },
-        { name: "Rouhan Siddiqui", role: "Frontend Dev", avatar: "RS", color: "from-emerald-500 to-teal-600" },
-        { name: "Priya Patel", role: "UI Designer", avatar: "PP", color: "from-violet-500 to-purple-600" },
-      ],
-    };
-  }, [projectId]);
-
-  // Project state
-  const [project, setProject] = useState(matchedProject);
-  const [tasks, setTasks] = useState(initialProjectTasks);
+  const [project, setProject] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [boards, setBoards] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [taskStatusFilter, setTaskStatusFilter] = useState("All");
   const [taskSearchQuery, setTaskSearchQuery] = useState("");
 
@@ -156,22 +121,71 @@ const ProjectDetailsPage = () => {
 
   // Edit form state
   const [editFormData, setEditFormData] = useState({
-    name: project.name,
-    description: project.description,
-    status: project.status,
-    priority: project.priority,
-    deadline: project.deadline,
-    category: project.category,
+    name: "",
+    description: "",
+    status: "Planning",
+    priority: "Medium",
+    deadline: "",
+    category: "",
   });
 
   // Add task form state
   const [newTaskData, setNewTaskData] = useState({
     title: "",
     priority: "High",
-    assignee: "Ayan Mukherjee",
+    assigneeId: "",
     status: "To Do",
-    dueDate: "Nov 10, 2026",
+    dueDate: "",
   });
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    setProject(null);
+    if (!projectId) {
+      setError("A project ID is required.");
+      setLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    Promise.all([
+      managerService.getProject(projectId),
+      managerService.getTasks({ projectId }),
+      managerService.getProjectBoards(projectId),
+    ])
+      .then(([projectData, taskData, boardData]) => {
+        if (!active) return;
+        const mappedProject = toProjectView(projectData);
+        setProject(mappedProject);
+        setTasks(taskData.map(toTaskView));
+        setBoards(boardData);
+        setEditFormData({
+          name: mappedProject.name || "",
+          description: mappedProject.description || "",
+          status: mappedProject.status,
+          priority: mappedProject.priority,
+          deadline: projectData.dueDate ? new Date(projectData.dueDate).toISOString().slice(0, 10) : "",
+          category: mappedProject.category,
+        });
+        setNewTaskData((current) => ({
+          ...current,
+          assigneeId: mappedProject.team[0]?.id || "",
+        }));
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.message || "Unable to load project details.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [projectId]);
 
   // Calculate clean overview metrics
   const taskStats = useMemo(() => {
@@ -199,71 +213,84 @@ const ProjectDetailsPage = () => {
   }, [tasks, taskSearchQuery, taskStatusFilter]);
 
   // Handlers
-  const handleEditSubmit = (e) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
-    setProject((prev) => ({
-      ...prev,
-      name: editFormData.name,
-      description: editFormData.description,
-      status: editFormData.status,
-      priority: editFormData.priority,
-      deadline: editFormData.deadline,
-      category: editFormData.category,
-    }));
-    setShowEditModal(false);
+    setError("");
+    try {
+      const updated = await managerService.updateProject(projectId, {
+        name: editFormData.name,
+        description: editFormData.description,
+        key: editFormData.category,
+        status: statusValues[editFormData.status],
+        priority: editFormData.priority.toLowerCase(),
+        dueDate: editFormData.deadline || null,
+      });
+      setProject((current) => toProjectView({ ...current, ...updated }));
+      setShowEditModal(false);
+    } catch (requestError) {
+      setError(requestError.message || "Unable to update project.");
+    }
   };
 
-  const handleAddTaskSubmit = (e) => {
+  const handleAddTaskSubmit = async (e) => {
     e.preventDefault();
     if (!newTaskData.title.trim()) return;
-
-    const assigneeColors = {
-      "Devanshi Sharma": "from-blue-600 to-indigo-600",
-      "Ayan Mukherjee": "from-cyan-500 to-blue-600",
-      "Rouhan Siddiqui": "from-emerald-500 to-teal-600",
-      "Priya Patel": "from-violet-500 to-purple-600",
-    };
-
-    const assigneeRoles = {
-      "Devanshi Sharma": "Engineering Manager",
-      "Ayan Mukherjee": "Fullstack Admin",
-      "Rouhan Siddiqui": "Frontend Dev",
-      "Priya Patel": "UI Designer",
-    };
-
-    const initials = newTaskData.assignee
-      .split(" ")
-      .map((w) => w[0])
-      .join("");
-
-    const createdTask = {
-      id: `task-${Date.now()}`,
-      title: newTaskData.title.trim(),
-      status: newTaskData.status,
-      priority: newTaskData.priority,
-      assignee: newTaskData.assignee,
-      assigneeAvatar: initials || "TM",
-      assigneeRole: assigneeRoles[newTaskData.assignee] || "Member",
-      assigneeColor: assigneeColors[newTaskData.assignee] || "from-slate-600 to-slate-800",
-      dueDate: newTaskData.dueDate || "Nov 15, 2026",
-    };
-
-    setTasks([createdTask, ...tasks]);
-    setNewTaskData({
-      title: "",
-      priority: "High",
-      assignee: "Ayan Mukherjee",
-      status: "To Do",
-      dueDate: "Nov 10, 2026",
-    });
-    setShowAddTaskModal(false);
+    setError("");
+    try {
+      const created = await managerService.createTask({
+        title: newTaskData.title.trim(),
+        projectId,
+        ...(boards[0]?.id ? { boardId: boards[0].id } : {}),
+        ...(newTaskData.assigneeId ? { assigneeId: newTaskData.assigneeId } : {}),
+        status: taskStatusValues[newTaskData.status],
+        priority: newTaskData.priority.toLowerCase(),
+        ...(newTaskData.dueDate ? { dueDate: newTaskData.dueDate } : {}),
+      });
+      setTasks((current) => [toTaskView(created), ...current]);
+      setNewTaskData({
+        title: "",
+        priority: "High",
+        assigneeId: project.team[0]?.id || "",
+        status: "To Do",
+        dueDate: "",
+      });
+      setShowAddTaskModal(false);
+    } catch (requestError) {
+      setError(requestError.message || "Unable to create task.");
+    }
   };
 
-  const handleTaskStatusChange = (taskId, newStatus) => {
-    setTasks(
-      tasks.map((task) => (task.id === taskId ? { ...task, status: newStatus } : task))
+  const handleTaskStatusChange = async (taskId, newStatus) => {
+    setError("");
+    try {
+      await managerService.updateTaskStatus(taskId, taskStatusValues[newStatus]);
+      setTasks((current) =>
+        current.map((task) => (task.id === taskId ? { ...task, status: newStatus } : task))
+      );
+    } catch (requestError) {
+      setError(requestError.message || "Unable to update task status.");
+    }
+  };
+
+  if (loading || error || !project) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-800 flex antialiased selection:bg-blue-600 selection:text-white">
+        <Sidebar activeItem="projects" mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} />
+        <div className="flex-1 lg:pl-64 xl:pl-72 flex flex-col min-w-0">
+          <Header setMobileOpen={setMobileMenuOpen} breadcrumbs={[{ label: "Projects", href: "/manager/projects" }, { label: project?.name || "Project Details" }]} />
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+            {loading ? (
+              <p role="status" className="text-sm text-slate-500">Loading project details...</p>
+            ) : (
+              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {error || "Project details are unavailable."}
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
     );
-  };
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex antialiased selection:bg-blue-600 selection:text-white">
@@ -283,6 +310,12 @@ const ProjectDetailsPage = () => {
 
         {/* Main Content Body */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
+          {error && (
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700">
+              {error}
+            </div>
+          )}
+
           {/* Back link */}
           <div>
             <Link
@@ -317,13 +350,15 @@ const ProjectDetailsPage = () => {
 
             {/* Project Specific Actions */}
             <div className="flex items-center gap-2 shrink-0">
-              <Link
-                to={`/manager/boards/${project.boardId || "board-1"}`}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition shadow-xs"
-              >
-                <Kanban size={14} className="text-blue-600" />
-                <span className="hidden sm:inline">Kanban Board</span>
-              </Link>
+              {boards[0]?.id && (
+                <Link
+                  to={`/manager/boards/${boards[0].id}`}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition shadow-xs"
+                >
+                  <Kanban size={14} className="text-blue-600" />
+                  <span className="hidden sm:inline">Kanban Board</span>
+                </Link>
+              )}
 
               <button
                 type="button"
@@ -333,7 +368,7 @@ const ProjectDetailsPage = () => {
                     description: project.description,
                     status: project.status,
                     priority: project.priority,
-                    deadline: project.deadline,
+                    deadline: project.dueDate ? new Date(project.dueDate).toISOString().slice(0, 10) : "",
                     category: project.category,
                   });
                   setShowEditModal(true);
@@ -493,7 +528,9 @@ const ProjectDetailsPage = () => {
                   </div>
                 ) : (
                   <div className="py-8 text-center text-xs text-slate-400">
-                    No tasks found matching your filter.
+                    {tasks.length === 0
+                      ? "No tasks have been added to this project."
+                      : "No tasks found matching your filter."}
                   </div>
                 )}
               </section>
@@ -520,15 +557,17 @@ const ProjectDetailsPage = () => {
                     <span className="text-slate-500">Deadline</span>
                     <span className="font-medium text-slate-800">{project.deadline}</span>
                   </div>
-                  <div className="flex justify-between py-1">
-                    <span className="text-slate-500">Board</span>
-                    <Link
-                      to={`/manager/boards/${project.boardId || "board-1"}`}
-                      className="font-semibold text-blue-600 hover:text-blue-700"
-                    >
-                      Open Board →
-                    </Link>
-                  </div>
+                  {boards[0]?.id && (
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500">Board</span>
+                      <Link
+                        to={`/manager/boards/${boards[0].id}`}
+                        className="font-semibold text-blue-600 hover:text-blue-700"
+                      >
+                        {boards[0].name} →
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -581,6 +620,9 @@ const ProjectDetailsPage = () => {
             </div>
 
             <form onSubmit={handleEditSubmit} className="space-y-3">
+              {error && (
+                <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>
+              )}
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700">Project Name</label>
                 <input
@@ -610,9 +652,11 @@ const ProjectDetailsPage = () => {
                     onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                   >
+                    <option value="Planning">Planning</option>
                     <option value="Active">Active</option>
                     <option value="Completed">Completed</option>
                     <option value="On Hold">On Hold</option>
+                    <option value="Archived">Archived</option>
                   </select>
                 </div>
 
@@ -626,13 +670,14 @@ const ProjectDetailsPage = () => {
                     <option value="High">High</option>
                     <option value="Medium">Medium</option>
                     <option value="Low">Low</option>
+                    <option value="Urgent">Urgent</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700">Category</label>
+                  <label className="block text-[11px] font-semibold text-slate-700">Project Key</label>
                   <input
                     type="text"
                     value={editFormData.category}
@@ -644,7 +689,7 @@ const ProjectDetailsPage = () => {
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700">Deadline</label>
                   <input
-                    type="text"
+                    type="date"
                     value={editFormData.deadline}
                     onChange={(e) => setEditFormData({ ...editFormData, deadline: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
@@ -692,6 +737,9 @@ const ProjectDetailsPage = () => {
             </div>
 
             <form onSubmit={handleAddTaskSubmit} className="space-y-3.5">
+              {error && (
+                <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>
+              )}
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700">Task Title *</label>
                 <input
@@ -708,12 +756,13 @@ const ProjectDetailsPage = () => {
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700">Assignee</label>
                   <select
-                    value={newTaskData.assignee}
-                    onChange={(e) => setNewTaskData({ ...newTaskData, assignee: e.target.value })}
+                    value={newTaskData.assigneeId}
+                    onChange={(e) => setNewTaskData({ ...newTaskData, assigneeId: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                   >
+                    <option value="">Unassigned</option>
                     {project.team.map((m) => (
-                      <option key={m.name} value={m.name}>
+                      <option key={m.id} value={m.id}>
                         {m.name}
                       </option>
                     ))}
@@ -730,6 +779,7 @@ const ProjectDetailsPage = () => {
                     <option value="High">High</option>
                     <option value="Medium">Medium</option>
                     <option value="Low">Low</option>
+                    <option value="Urgent">Urgent</option>
                   </select>
                 </div>
               </div>
@@ -752,8 +802,7 @@ const ProjectDetailsPage = () => {
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700">Due Date</label>
                   <input
-                    type="text"
-                    placeholder="e.g. Nov 15, 2026"
+                    type="date"
                     value={newTaskData.dueDate}
                     onChange={(e) => setNewTaskData({ ...newTaskData, dueDate: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
