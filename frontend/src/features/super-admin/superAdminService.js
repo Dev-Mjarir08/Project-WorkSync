@@ -4,6 +4,7 @@ import {
   getCurrentUser,
   getCurrentUserScope
 } from '../../utils/userStorage.js';
+import { authService } from '../auth/authService.js';
 
 const API_BASE_URL = 'http://localhost:8081/api/v1/super-admin';
 
@@ -553,7 +554,16 @@ export const superAdminService = {
     return updated;
   },
   updateAvatar: async (avatarUrl) => superAdminService.updateProfile({ avatar: avatarUrl }),
-  changePassword: async () => ({ success: true }),
+  changePassword: async ({ currentPassword, newPassword }) => {
+    const user = getCurrentUser();
+    const result = await authService.changePassword({
+      currentPassword,
+      newPassword,
+      email: user?.email
+    });
+    recordScopedAudit('PASSWORD_CHANGED', 'Updated account password');
+    return result;
+  },
   getProfileSessions: async () => superAdminService.getUserSessions(),
   revokeProfileSession: async () => ({ success: true }),
 

@@ -12,16 +12,18 @@ export const ForgotPasswordPage = () => {
     e.preventDefault();
     setError('');
 
-    if (!email.trim()) {
+    const targetEmail = email.trim().toLowerCase();
+    if (!targetEmail) {
       setError('Please provide a valid email address.');
       return;
     }
 
+    localStorage.setItem('worksync_reset_email', targetEmail);
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
       setSubmitted(true);
-    }, 600);
+    }, 400);
   };
 
   return (
@@ -68,10 +70,18 @@ export const ForgotPasswordPage = () => {
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-2 space-y-3">
+                <Link
+                  to={`/reset-password?email=${encodeURIComponent(email)}`}
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition-all"
+                >
+                  <span>Set New Password Now</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+
                 <Link
                   to="/login"
-                  className="w-full py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold shadow-sm flex items-center justify-center gap-2 transition-all"
+                  className="w-full py-2.5 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-medium flex items-center justify-center gap-2 transition-all"
                 >
                   <ArrowLeft className="h-4 w-4" />
                   <span>Return to Sign In</span>

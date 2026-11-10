@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Building2,
   CalendarDays,
@@ -6,14 +6,62 @@ import {
   Mail,
   ShieldCheck,
   UserRound,
+  Lock,
+  Key,
 } from 'lucide-react';
 import { getCurrentUser } from '../../../utils/userStorage.js';
+import { authService } from '../../auth/authService.js';
 
 const ProfilePage = () => {
   const currentUser = getCurrentUser();
   const userName = currentUser?.name || currentUser?.email?.split('@')[0] || 'Administrator';
   const userEmail = currentUser?.email || 'admin@worksync.io';
   const userRole = currentUser?.role || 'admin';
+
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters.');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+
+    try {
+      setUpdatingPassword(true);
+      await authService.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+        email: userEmail,
+      });
+      setPasswordSuccess('Password updated successfully!');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => {
+        setShowPasswordForm(false);
+        setPasswordSuccess('');
+      }, 2000);
+    } catch (err) {
+      setPasswordError(err.message || 'Failed to update password.');
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
 
   const accountFields = [
     { label: 'Email address', value: userEmail, icon: Mail },
@@ -126,22 +174,107 @@ const ProfilePage = () => {
         aria-labelledby="security-preferences-title"
         className="rounded-2xl border border-[#E6E7EC] bg-white p-5 shadow-sm shadow-slate-200/25 sm:p-6"
       >
-        <div className="flex items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#DDF4F2] text-[#247A7F]">
-            <ShieldCheck aria-hidden="true" className="size-5" />
-          </span>
-          <div>
-            <h2
-              id="security-preferences-title"
-              className="text-base font-semibold text-slate-900"
-            >
-              Security and access
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-slate-600">
-              Role-based isolation is active. This session data is strictly scoped to your administrator account.
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#DDF4F2] text-[#247A7F]">
+              <Lock aria-hidden="true" className="size-5" />
+            </span>
+            <div>
+              <h2
+                id="security-preferences-title"
+                className="text-base font-semibold text-slate-900"
+              >
+                Password & Security
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Change your account password and security credentials.
+              </p>
+            </div>
           </div>
+
+          {!showPasswordForm && (
+            <button
+              type="button"
+              onClick={() => setShowPasswordForm(true)}
+              className="px-4 py-2 rounded-xl bg-[#6542F5] text-white text-xs font-semibold hover:bg-[#5232d9] transition self-start sm:self-auto cursor-pointer"
+            >
+              Change Password
+            </button>
+          )}
         </div>
+
+        {showPasswordForm && (
+          <form onSubmit={handlePasswordSubmit} className="mt-4 p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-4">
+            {passwordError && (
+              <p className="text-xs text-rose-600 font-medium bg-rose-50 p-2.5 rounded-lg border border-rose-100">
+                {passwordError}
+              </p>
+            )}
+            {passwordSuccess && (
+              <p className="text-xs text-emerald-700 font-medium bg-emerald-50 p-2.5 rounded-lg border border-emerald-100">
+                {passwordSuccess}
+              </p>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Current Password</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Enter current password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 focus:outline-none focus:border-[#6542F5]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">New Password</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="At least 6 characters"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 focus:outline-none focus:border-[#6542F5]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Repeat new password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 focus:outline-none focus:border-[#6542F5]"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-200/80">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPasswordForm(false);
+                  setPasswordError('');
+                }}
+                className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:bg-white cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={updatingPassword}
+                className="px-4 py-1.5 rounded-xl bg-[#6542F5] text-white text-xs font-semibold hover:bg-[#5232d9] transition disabled:opacity-50 cursor-pointer"
+              >
+                {updatingPassword ? 'Updating...' : 'Update Password'}
+              </button>
+            </div>
+          </form>
+        )}
       </section>
     </div>
   );

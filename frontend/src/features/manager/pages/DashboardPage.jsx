@@ -337,7 +337,7 @@ export const DashboardPage = () => {
           setTasks(apiData.recentTasks);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       isMounted = false;
@@ -616,9 +616,8 @@ export const DashboardPage = () => {
 
                           <div className="flex items-center gap-3 self-end sm:self-auto">
                             <span
-                              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
-                                proj.statusColor || "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              }`}
+                              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${proj.statusColor || "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                }`}
                             >
                               <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
                               {proj.status}
@@ -760,11 +759,10 @@ export const DashboardPage = () => {
                     key={status}
                     type="button"
                     onClick={() => setTaskStatusFilter(status)}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
-                      taskStatusFilter === status
+                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${taskStatusFilter === status
                         ? "bg-blue-600 text-white shadow-xs"
                         : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
-                    }`}
+                      }`}
                   >
                     {status}
                   </button>
@@ -822,9 +820,8 @@ export const DashboardPage = () => {
                         {/* Priority Badge */}
                         <td className="px-5 py-3.5">
                           <span
-                            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${
-                              priorityStyles[task.priority] || priorityStyles.Medium
-                            }`}
+                            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${priorityStyles[task.priority] || priorityStyles.Medium
+                              }`}
                           >
                             <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
                             {task.priority}
@@ -834,9 +831,8 @@ export const DashboardPage = () => {
                         {/* Status Badge */}
                         <td className="px-5 py-3.5">
                           <span
-                            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${
-                              statusStyles[task.status] || statusStyles["In Progress"]
-                            }`}
+                            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${statusStyles[task.status] || statusStyles["In Progress"]
+                              }`}
                           >
                             <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
                             {task.status}

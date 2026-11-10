@@ -17,11 +17,57 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { getCurrentUser, getUserItem, setUserItem } from "../../../utils/userStorage.js";
+import { authService } from "../../auth/authService.js";
 
 export default function ProfilePage() {
   const currentUser = getCurrentUser();
   const [activeTab, setActiveTab] = useState("personal");
   const [isSaved, setIsSaved] = useState(false);
+
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters.");
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError("New passwords do not match.");
+      return;
+    }
+
+    try {
+      setUpdatingPassword(true);
+      await authService.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+        email: formData.email || currentUser?.email,
+      });
+      setPasswordSuccess("Password updated successfully!");
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setTimeout(() => {
+        setShowPasswordForm(false);
+        setPasswordSuccess("");
+      }, 2000);
+    } catch (err) {
+      setPasswordError(err.message || "Failed to update password.");
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
 
   // Editable Form State
   const [formData, setFormData] = useState(() => {
@@ -314,18 +360,86 @@ export default function ProfilePage() {
                 />
               </div>
 
-              <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/50">
-                <div>
-                  <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                    Change Password
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    Last updated 45 days ago
-                  </p>
+              <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                      Change Password
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      Update your account login password
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPasswordForm(!showPasswordForm);
+                      setPasswordError("");
+                      setPasswordSuccess("");
+                    }}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  >
+                    {showPasswordForm ? "Cancel" : "Update"}
+                  </button>
                 </div>
-                <button className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                  Update
-                </button>
+
+                {showPasswordForm && (
+                  <form onSubmit={handlePasswordSubmit} className="mt-4 space-y-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+                    {passwordError && (
+                      <p className="rounded-xl bg-red-50 p-3 text-xs font-medium text-red-600 dark:bg-red-950/40 dark:text-red-400">
+                        {passwordError}
+                      </p>
+                    )}
+                    {passwordSuccess && (
+                      <p className="rounded-xl bg-emerald-50 p-3 text-xs font-medium text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                        {passwordSuccess}
+                      </p>
+                    )}
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Current Password</label>
+                      <input
+                        type="password"
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                        required
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-teal-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                        placeholder="Enter current password"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">New Password</label>
+                      <input
+                        type="password"
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                        required
+                        minLength={6}
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-teal-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                        placeholder="At least 6 characters"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Confirm New Password</label>
+                      <input
+                        type="password"
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                        required
+                        minLength={6}
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-teal-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                        placeholder="Re-enter new password"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={updatingPassword}
+                      className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-teal-700 disabled:opacity-50"
+                    >
+                      <Lock size={14} />
+                      {updatingPassword ? "Updating..." : "Save New Password"}
+                    </button>
+                  </form>
+                )}
               </div>
             </div>
           </div>

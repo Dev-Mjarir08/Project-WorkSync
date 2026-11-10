@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Lock, Eye, EyeOff, ArrowRight, ArrowLeft, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, ArrowRight, ArrowLeft, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
+import { authService } from '../authService.js';
 
 export const ResetPasswordPage = () => {
   const navigate = useNavigate();
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialEmail = searchParams.get('email') || localStorage.getItem('worksync_reset_email') || '';
+
+  const [email, setEmail] = useState(initialEmail);
   const [formData, setFormData] = useState({
     password: '',
     confirmPassword: ''
@@ -13,9 +18,15 @@ export const ResetPasswordPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    const targetEmail = email.trim().toLowerCase();
+    if (!targetEmail) {
+      setError('Please provide the account email address.');
+      return;
+    }
 
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters.');
@@ -27,11 +38,16 @@ export const ResetPasswordPage = () => {
       return;
     }
 
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      setLoading(true);
+      await authService.resetPassword({ email: targetEmail, newPassword: formData.password });
+      localStorage.removeItem('worksync_reset_email');
       setSubmitted(true);
-    }, 600);
+    } catch (err) {
+      setError(err.message || 'Failed to update password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -97,6 +113,23 @@ export const ResetPasswordPage = () => {
                   <span>{error}</span>
                 </div>
               )}
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                  Account Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="e.g. 08mjarir@gmail.com"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  />
+                </div>
+              </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">

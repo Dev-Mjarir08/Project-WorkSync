@@ -255,6 +255,106 @@ export const authService = {
    */
   isAuthenticated() {
     return Boolean(this.getToken());
+  },
+
+  /**
+   * Change user password (for authenticated users)
+   */
+  async changePassword({ currentPassword, newPassword, email }) {
+    const token = this.getToken();
+    const currentUser = this.getCurrentUser();
+    const targetEmail = (email || currentUser?.email || '').trim().toLowerCase();
+
+    try {
+      if (token) {
+        const res = await fetch(`${API_BASE_URL}/change-password`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ currentPassword, newPassword })
+        });
+        if (res.ok) {
+          const json = await res.json();
+          this.updateLocalUserPassword(targetEmail, newPassword);
+          return { success: true, message: json.message || 'Password changed successfully' };
+        }
+      }
+    } catch (e) {
+      // Backend unreachable, proceed with local update
+    }
+
+    return this.updateLocalUserPassword(targetEmail, newPassword, currentPassword);
+  },
+
+  /**
+   * Reset user password (for forgot-password recovery)
+   */
+  async resetPassword({ email, newPassword }) {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    if (!normalizedEmail) throw new Error('Email is required to reset password.');
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail, newPassword })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        this.updateLocalUserPassword(normalizedEmail, newPassword);
+        return { success: true, message: json.message || 'Password reset successfully' };
+      }
+    } catch (e) {}
+
+    return this.updateLocalUserPassword(normalizedEmail, newPassword);
+  },
+
+  /**
+   * Internal helper to persist updated password in localStorage
+   */
+  updateLocalUserPassword(email, newPassword, currentPassword) {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    if (!normalizedEmail) {
+      throw new Error('User email not identified.');
+    }
+
+    const registry = JSON.parse(localStorage.getItem('worksync_registered_users') || '[]');
+    const userIdx = registry.findIndex((u) => u.email?.toLowerCase() === normalizedEmail);
+
+    if (userIdx >= 0) {
+      const user = registry[userIdx];
+      if (currentPassword && user.password && user.password !== currentPassword) {
+        throw new Error('Current password is incorrect.');
+      }
+      registry[userIdx] = { ...user, password: newPassword };
+      localStorage.setItem('worksync_registered_users', JSON.stringify(registry));
+    } else {
+      const demo = DEMO_ACCOUNTS.find((d) => d.email.toLowerCase() === normalizedEmail);
+      if (currentPassword && demo && demo.password && demo.password !== currentPassword) {
+        throw new Error('Current password is incorrect.');
+      }
+      const newUserEntry = {
+        id: demo?.id || 'usr_' + Date.now().toString(36),
+        name: demo?.name || normalizedEmail.split('@')[0],
+        email: normalizedEmail,
+        role: demo?.role || 'employee',
+        password: newPassword,
+        isActive: true,
+        createdAt: new Date().toISOString()
+      };
+      registry.push(newUserEntry);
+      localStorage.setItem('worksync_registered_users', JSON.stringify(registry));
+    }
+
+    // Also update currently cached user in localStorage if matching
+    const cached = this.getCurrentUser();
+    if (cached && cached.email?.toLowerCase() === normalizedEmail) {
+      localStorage.setItem('user', JSON.stringify({ ...cached, password: newPassword }));
+    }
+
+    return { success: true, message: 'Password updated successfully' };
   }
 };
 
