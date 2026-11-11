@@ -1,22 +1,58 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Calendar,
   FolderKanban,
-  User,
   Clock3,
-  MessageSquare,
   FileText,
-  Send,
-  Flag,
-  CheckCircle2,
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
-import { initialManagerTasks } from "./TasksPage.jsx";
+import managerService from "../managerService.js";
+
+const statusLabels = {
+  todo: "To Do",
+  in_progress: "In Progress",
+  review: "In Review",
+  done: "Completed",
+};
+
+const formatDate = (date) => date
+  ? new Date(date).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" })
+  : "Not set";
+
+const toTaskView = (task) => {
+  const assignee = task.assignee;
+  const assigneeName = assignee?.name || "Unassigned";
+  const project = task.project;
+  return {
+    ...task,
+    id: task.id || task._id,
+    projectId: project?.id || project?._id || "",
+    project: project?.name || "No project",
+    status: statusLabels[task.status] || task.status || "To Do",
+    priority: task.priority
+      ? `${task.priority[0].toUpperCase()}${task.priority.slice(1)}`
+      : "Medium",
+    assignee: assigneeName,
+    assigneeRole: assignee?.role || "Member",
+    assigneeAvatar: assignee?.avatar || assigneeName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "?",
+    dueDate: formatDate(task.dueDate),
+  };
+};
+
+const toActivityView = (activity) => ({
+  ...activity,
+  id: activity.id || activity._id,
+  author: activity.user?.name || "Workspace member",
+  avatar: activity.user?.avatar || activity.user?.name?.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "?",
+  text: activity.description || activity.action || "Task activity",
+  time: activity.createdAt ? new Date(activity.createdAt).toLocaleString() : "Time unavailable",
+});
 
 const priorityStyles = {
+  Urgent: "bg-rose-100 text-rose-800 border-rose-300",
   High: "bg-rose-50 text-rose-700 border-rose-200",
   Medium: "bg-amber-50 text-amber-700 border-amber-200",
   Low: "bg-slate-100 text-slate-600 border-slate-200",
@@ -30,82 +66,73 @@ const statusStyles = {
   Done: "bg-emerald-50 text-emerald-700 border-emerald-200",
 };
 
-const defaultComments = [
-  {
-    id: 1,
-    author: "Devanshi Sharma",
-    role: "Engineering Manager",
-    avatar: "DS",
-    color: "from-blue-600 to-indigo-600",
-    time: "2 hours ago",
-    text: "Please verify that the optimistic UI rollback handles API dropouts gracefully and unit test coverage is maintained above 80%.",
-  },
-  {
-    id: 2,
-    author: "Ayan Mukherjee",
-    role: "Fullstack Admin",
-    avatar: "AM",
-    color: "from-cyan-500 to-blue-600",
-    time: "45 minutes ago",
-    text: "Dependencies and environment configurations have been verified on the staging deployment.",
-  },
-];
-
 const TaskDetailsPage = () => {
   const { taskId } = useParams();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [task, setTask] = useState(null);
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Match task from available initial tasks or use placeholder data
-  const task = initialManagerTasks.find((t) => String(t.id) === String(taskId)) || {
-    id: taskId || "task-1",
-    title: "Implement WebSocket connection and live presence sync",
-    project: "WorkSync Web App",
-    projectId: "proj-1",
-    boardId: "board-1",
-    status: "In Progress",
-    priority: "High",
-    assignee: "Devanshi Sharma",
-    assigneeRole: "Engineering Manager",
-    assigneeAvatar: "DS",
-    assigneeColor: "from-blue-600 to-indigo-600",
-    dueDate: "Oct 30, 2026",
-    deadline: "Oct 30, 2026",
-    description:
-      "Establish robust bi-directional WebSocket connections with automatic reconnection strategies and heartbeats. Implement real-time user presence indicators across active workspaces and boards to show active collaborators.",
-  };
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    setTask(null);
+    setActivities([]);
+    if (!taskId) {
+      setError("A task ID is required.");
+      setLoading(false);
+      return () => {
+        active = false;
+      };
+    }
 
-  const taskDescription =
-    task.description ||
-    "Establish robust bi-directional WebSocket connections with automatic reconnection strategies and heartbeats. Implement real-time user presence indicators across active workspaces and boards to show active collaborators.";
+    Promise.all([
+      managerService.getTask(taskId),
+      managerService.getTaskActivities(taskId),
+    ])
+      .then(([taskData, activityData]) => {
+        if (!active) return;
+        setTask(toTaskView(taskData));
+        setActivities(activityData.map(toActivityView));
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.message || "Unable to load task details.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
-  const deadline = task.dueDate || task.deadline || "Oct 30, 2026";
-
-  // Comments state for local interaction
-  const [comments, setComments] = useState(defaultComments);
-  const [newComment, setNewComment] = useState("");
-
-  const handleAddComment = (e) => {
-    e.preventDefault();
-    if (!newComment.trim()) return;
-
-    const commentObj = {
-      id: Date.now(),
-      author: "Devanshi Sharma",
-      role: "Engineering Manager",
-      avatar: "DS",
-      color: "from-blue-600 to-indigo-600",
-      time: "Just now",
-      text: newComment.trim(),
+    return () => {
+      active = false;
     };
-
-    setComments([...comments, commentObj]);
-    setNewComment("");
-  };
+  }, [taskId]);
 
   const breadcrumbs = [
     { label: "Tasks", href: "/manager/tasks" },
-    { label: "Task Details" },
+    { label: task?.title || "Task Details" },
   ];
+
+  if (loading || error || !task) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-800 flex antialiased selection:bg-blue-600 selection:text-white">
+        <Sidebar activeItem="tasks" mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} />
+        <div className="flex-1 lg:pl-64 xl:pl-72 flex flex-col min-w-0">
+          <Header setMobileOpen={setMobileMenuOpen} breadcrumbs={breadcrumbs} />
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-5xl w-full mx-auto">
+            {loading ? (
+              <p role="status" className="text-sm text-slate-500">Loading task details...</p>
+            ) : (
+              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {error || "Task details are unavailable."}
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex antialiased selection:bg-blue-600 selection:text-white">
@@ -155,74 +182,48 @@ const TaskDetailsPage = () => {
                   <span>Task Description</span>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line">
-                  {taskDescription}
+                  {task.description || "No description provided."}
                 </p>
               </div>
 
-              {/* Comments Section Card */}
+              {/* Activity History Card */}
               <div className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xs space-y-5">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <MessageSquare size={16} className="text-blue-600" />
-                    <h2 className="text-sm font-bold text-slate-900">Comments</h2>
+                    <Clock3 size={16} className="text-blue-600" />
+                    <h2 className="text-sm font-bold text-slate-900">Activity</h2>
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                      {comments.length}
+                      {activities.length}
                     </span>
                   </div>
                 </div>
 
-                {/* Comments List */}
                 <div className="space-y-4">
-                  {comments.map((c) => (
+                  {activities.map((activity) => (
                     <div
-                      key={c.id}
+                      key={activity.id}
                       className="rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 sm:p-4 text-xs transition"
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <div
-                            className={`flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr ${c.color || "from-blue-600 to-indigo-600"} text-[9px] font-bold text-white shadow-xs`}
+                            className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-[9px] font-bold text-white shadow-xs"
                           >
-                            {c.avatar || "DS"}
+                            {activity.avatar}
                           </div>
                           <div>
-                            <span className="font-semibold text-slate-800">{c.author}</span>
-                            <span className="text-[10px] text-slate-400 ml-1.5 font-normal">
-                              ({c.role})
-                            </span>
+                            <span className="font-semibold text-slate-800">{activity.author}</span>
                           </div>
                         </div>
-                        <span className="text-[10px] text-slate-400">{c.time}</span>
+                        <span className="text-[10px] text-slate-400">{activity.time}</span>
                       </div>
-                      <p className="text-slate-700 leading-relaxed pl-8">{c.text}</p>
+                      <p className="text-slate-700 leading-relaxed pl-8">{activity.text}</p>
                     </div>
                   ))}
                 </div>
-
-                {/* Add Comment Input Form */}
-                <form onSubmit={handleAddComment} className="pt-2">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Leave a comment
-                  </label>
-                  <div className="space-y-2">
-                    <textarea
-                      rows={3}
-                      placeholder="Write an update, question, or comment for your team..."
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition resize-y"
-                    />
-                    <div className="flex justify-end">
-                      <button
-                        type="submit"
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition active:scale-[0.98] cursor-pointer"
-                      >
-                        <Send size={13} />
-                        <span>Post Comment</span>
-                      </button>
-                    </div>
-                  </div>
-                </form>
+                {activities.length === 0 && (
+                  <p className="py-4 text-center text-xs text-slate-400">No activity recorded for this task.</p>
+                )}
               </div>
             </div>
 
@@ -263,7 +264,7 @@ const TaskDetailsPage = () => {
                   <span className="text-[11px] font-semibold text-slate-500 block mb-1">Deadline</span>
                   <div className="flex items-center gap-1.5 text-xs font-medium text-slate-800">
                     <Calendar size={14} className="text-slate-400" />
-                    <span>{deadline}</span>
+                    <span>{task.dueDate}</span>
                   </div>
                 </div>
 
@@ -275,7 +276,7 @@ const TaskDetailsPage = () => {
                   <div className="flex items-center gap-2.5 rounded-xl bg-slate-50 p-2.5 border border-slate-100">
                     <div
                       className={`flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr ${
-                        task.assigneeColor || "from-blue-600 to-indigo-600"
+                        "from-blue-600 to-indigo-600"
                       } text-[10px] font-bold text-white shadow-xs`}
                     >
                       {task.assigneeAvatar || "DS"}
@@ -294,13 +295,17 @@ const TaskDetailsPage = () => {
                   <span className="text-[11px] font-semibold text-slate-500 block mb-1">
                     Project
                   </span>
-                  <Link
-                    to={`/manager/projects/${task.projectId || "proj-1"}`}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 transition"
-                  >
-                    <FolderKanban size={13} />
-                    <span>{task.project}</span>
-                  </Link>
+                  {task.projectId ? (
+                    <Link
+                      to={`/manager/projects/${task.projectId}`}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 transition"
+                    >
+                      <FolderKanban size={13} />
+                      <span>{task.project}</span>
+                    </Link>
+                  ) : (
+                    <span className="text-xs text-slate-500">{task.project}</span>
+                  )}
                 </div>
               </div>
             </div>

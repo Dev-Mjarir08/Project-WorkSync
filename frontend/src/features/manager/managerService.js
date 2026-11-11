@@ -47,6 +47,23 @@ export const managerService = {
     return getList(data, "members", "project members");
   },
 
+  getProject: async (projectId) => {
+    const data = await request(`/projects/${projectId}`);
+    if (!data?.project) throw new Error("The Manager API did not return the requested project.");
+    return data.project;
+  },
+
+  updateProject: async (projectId, updates) => {
+    const data = await request(`/projects/${projectId}`, withBody("PATCH", updates));
+    if (!data?.project) throw new Error("The Manager API did not return the updated project.");
+    return data.project;
+  },
+
+  getProjectBoards: async (projectId) => {
+    const data = await request(`/projects/${projectId}/boards`);
+    return getList(data, "boards", "project boards");
+  },
+
   getTasks: async (filters = {}) => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
@@ -65,6 +82,23 @@ export const managerService = {
 
   updateTaskStatus: async (taskId, status) => {
     return request(`/tasks/${taskId}/status`, withBody("PATCH", { status }));
+  },
+
+  getTask: async (taskId) => {
+    const data = await request(`/tasks/${taskId}`);
+    if (!data?.task) throw new Error("The Manager API did not return the requested task.");
+    return data.task;
+  },
+
+  updateTask: async (taskId, updates) => {
+    const data = await request(`/tasks/${taskId}`, withBody("PATCH", updates));
+    if (!data?.task) throw new Error("The Manager API did not return the updated task.");
+    return data.task;
+  },
+
+  getTaskActivities: async (taskId) => {
+    const data = await request(`/tasks/${taskId}/activities`);
+    return getList(data, "activities", "task activities");
   },
 
   moveTask: async (taskId, move) => {
