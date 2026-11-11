@@ -19,6 +19,8 @@ router.patch('/:taskId/status', tasksController.updateTaskStatus);
 router.patch('/:taskId/priority', tasksController.updateTaskPriority);
 router.patch('/:taskId/due-date', tasksController.updateTaskDueDate);
 router.patch('/:taskId/move', tasksController.moveTask);
+router.patch('/:taskId/assign', tasksController.assignTask);
+router.patch('/:taskId/unassign', tasksController.unassignTask);
 
 router.get('/:taskId/activities', tasksController.getTaskActivities);
 

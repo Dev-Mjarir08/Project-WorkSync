@@ -573,3 +573,13 @@ export const getTaskActivities = async (workspaceId, taskId) => {
     createdAt: a.createdAt
   }));
 };
+
+export const assignTask = async (workspaceId, taskId, data, actorUser) => {
+  const { assignTask: doAssign } = await import('../assignments/assignments.service.js');
+  return doAssign(workspaceId, taskId, data, actorUser);
+};
+
+export const unassignTask = async (workspaceId, taskId, actorUser) => {
+  const { unassignTask: doUnassign } = await import('../assignments/assignments.service.js');
+  return doUnassign(workspaceId, taskId, actorUser);
+};

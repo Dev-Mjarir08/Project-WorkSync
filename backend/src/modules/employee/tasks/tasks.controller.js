@@ -88,3 +88,15 @@ export const getTaskActivities = asyncHandler(async (req, res) => {
   const data = await tasksService.getTaskActivities(wsId, req.params.taskId);
   return res.status(200).json(new ApiResponse(200, { activities: data }, 'Task activity history fetched successfully'));
 });
+
+export const assignTask = asyncHandler(async (req, res) => {
+  const wsId = getWorkspaceId(req);
+  const data = await tasksService.assignTask(wsId, req.params.taskId, req.body, req.user);
+  return res.status(200).json(new ApiResponse(200, { task: data }, 'Task assigned successfully'));
+});
+
+export const unassignTask = asyncHandler(async (req, res) => {
+  const wsId = getWorkspaceId(req);
+  const data = await tasksService.unassignTask(wsId, req.params.taskId, req.user);
+  return res.status(200).json(new ApiResponse(200, data, 'Task unassigned successfully'));
+});

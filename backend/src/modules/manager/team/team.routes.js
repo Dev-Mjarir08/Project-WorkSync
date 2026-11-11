@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as teamController from './team.controller.js';
+import * as assignmentsController from '../assignments/assignments.controller.js';
 
 const router = Router();
 
@@ -12,6 +13,7 @@ router.get('/availability', teamController.getTeamAvailability);
 // Member-specific sub-routes
 router.get('/:memberId', teamController.getMemberDetails);
 router.get('/:memberId/tasks', teamController.getMemberTasks);
+router.get('/:memberId/assignments', assignmentsController.getMemberAssignments);
 router.get('/:memberId/projects', teamController.getMemberProjects);
 router.get('/:memberId/activities', teamController.getMemberActivities);
 router.get('/:memberId/workload', teamController.getMemberWorkload);
