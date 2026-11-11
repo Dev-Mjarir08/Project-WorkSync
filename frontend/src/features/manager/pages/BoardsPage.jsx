@@ -86,38 +86,44 @@ const BoardsPage = () => {
 
   useEffect(() => {
     let active = true;
-    if (!boardId) {
-      setError("A board ID is required to load this board.");
-      setLoading(false);
-      return () => {
-        active = false;
-      };
-    }
 
-    Promise.all([
-      managerService.getBoard(boardId),
-      managerService.getBoardLists(boardId),
-      managerService.getTasks({ boardId }),
-    ])
-      .then(([boardData, listData, taskData]) => {
+    async function loadBoardData() {
+      try {
+        let activeBoardId = boardId;
+        if (!activeBoardId) {
+          const allBoards = await managerService.getBoards();
+          if (allBoards && allBoards.length > 0) {
+            activeBoardId = allBoards[0].id || allBoards[0]._id;
+          } else {
+            activeBoardId = "board-1";
+          }
+        }
+
+        const [boardData, listData, taskData] = await Promise.all([
+          managerService.getBoard(activeBoardId),
+          managerService.getBoardLists(activeBoardId),
+          managerService.getTasks({ boardId: activeBoardId }),
+        ]);
+
         if (!active) return;
-        const sortedLists = [...listData].sort((a, b) => a.position - b.position);
+        const sortedLists = [...(listData || [])].sort((a, b) => a.position - b.position);
         setBoard(boardData);
         setColumns(sortedLists.map((list, index) => ({
-          id: list.id,
+          id: list.id || list._id,
           label: list.name,
           status: normalizeStatus(list.name),
           ...COLUMN_STYLES[index % COLUMN_STYLES.length],
         })));
-        setTasks(taskData.map((task) => toTaskView(task, sortedLists)));
+        setTasks((taskData || []).map((task) => toTaskView(task, sortedLists)));
         setNewTask((current) => ({ ...current, columnId: current.columnId || sortedLists[0]?.id || "" }));
-      })
-      .catch((requestError) => {
+      } catch (requestError) {
         if (active) setError(requestError.message || "Unable to load this board.");
-      })
-      .finally(() => {
+      } finally {
         if (active) setLoading(false);
-      });
+      }
+    }
+
+    loadBoardData();
     return () => {
       active = false;
     };

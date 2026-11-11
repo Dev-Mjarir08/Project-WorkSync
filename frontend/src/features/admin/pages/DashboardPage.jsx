@@ -7,6 +7,8 @@ import {
   ListTodo,
   Search,
   TrendingUp,
+  Kanban,
+  Table,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import adminService from '../adminService';
@@ -49,6 +51,7 @@ const DashboardPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [teamFilter, setTeamFilter] = useState('all');
   const [sortBy, setSortBy] = useState('dueDate');
+  const [taskViewMode, setTaskViewMode] = useState('kanban');
 
   const dashboardTasks = useMemo(() => getDashboardTasks(), []);
   const dashboardStats = useMemo(() => getDashboardStats(), [dashboardTasks]);
@@ -130,10 +133,38 @@ const DashboardPage = () => {
         <div className="border-b border-[#EEF0F4] p-4 sm:p-5">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <h2 className="text-base font-semibold text-slate-900">Task List</h2>
-              <p className="mt-1 text-sm text-slate-500">A quick view of tasks across your workspaces.</p>
+              <h2 className="text-base font-semibold text-slate-900">Workspace Task Board</h2>
+              <p className="mt-1 text-sm text-slate-500">A quick view of tasks and delivery boards across your workspace.</p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:flex">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1 border border-[#E6E7EC] bg-[#F8F9FC] p-1 rounded-xl shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setTaskViewMode('kanban')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                    taskViewMode === 'kanban'
+                      ? 'bg-white text-[#6542F5] shadow-xs border border-[#E6E7EC]'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Kanban className="size-3.5" />
+                  <span>Kanban Board</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTaskViewMode('table')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                    taskViewMode === 'table'
+                      ? 'bg-white text-[#6542F5] shadow-xs border border-[#E6E7EC]'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Table className="size-3.5" />
+                  <span>Table View</span>
+                </button>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2 xl:flex">
               <label className="relative block sm:col-span-2 xl:col-span-1">
                 <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -185,6 +216,7 @@ const DashboardPage = () => {
                 </select>
               </label>
             </div>
+            </div>
           </div>
           <p aria-live="polite" className="mt-3 text-xs text-slate-500">
             Showing {visibleTasks.length} of {dashboardTasks.length} sample tasks
@@ -198,6 +230,83 @@ const DashboardPage = () => {
             </span>
             <h3 className="mt-4 text-sm font-semibold text-slate-900">No tasks match these filters</h3>
             <p className="mt-1 text-sm text-slate-500">Try another search or select a different team or status.</p>
+          </div>
+        ) : taskViewMode === 'kanban' ? (
+          <div className="p-5 bg-slate-50/60">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                { id: 'To do', label: 'To Do', dot: 'bg-slate-400', badge: 'bg-slate-100 text-slate-700' },
+                { id: 'In progress', label: 'In Progress', dot: 'bg-violet-500', badge: 'bg-violet-50 text-violet-700' },
+                { id: 'Done', label: 'Done', dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700' }
+              ].map((col) => {
+                const colTasks = visibleTasks.filter((t) => t.status === col.id);
+                return (
+                  <div key={col.id} className="flex flex-col rounded-2xl border border-[#E6E7EC] bg-white p-4 shadow-xs">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <span className={`size-2.5 rounded-full ${col.dot}`} />
+                        <h4 className="text-xs font-bold text-slate-900">{col.label}</h4>
+                      </div>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${col.badge}`}>
+                        {colTasks.length}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex flex-col gap-3 min-h-[160px]">
+                      {colTasks.length > 0 ? (
+                        colTasks.map((task) => (
+                          <div
+                            key={task.id}
+                            className="group rounded-xl border border-[#EEF0F4] bg-white p-3.5 shadow-2xs hover:border-[#6542F5]/40 hover:shadow-xs transition"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${priorityStyles[task.priority] ?? priorityStyles.Low}`}>
+                                {task.priority}
+                              </span>
+                              <span className="text-[10px] text-slate-400">Due {formatDate(task.dueDate)}</span>
+                            </div>
+
+                            <h5 className="mt-2 text-xs font-semibold text-slate-900 leading-snug group-hover:text-[#6542F5] transition">
+                              {task.title}
+                            </h5>
+                            <p className="mt-1 text-[11px] text-slate-400">{task.workspace}</p>
+
+                            <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
+                              <div className="flex -space-x-1.5">
+                                {task.assigneeIds.map((memberId) => {
+                                  const member = memberById.get(memberId);
+                                  const memberName = member?.name ?? memberId;
+                                  return (
+                                    <span
+                                      key={member?.id ?? memberId}
+                                      title={memberName}
+                                      className={`grid size-5 place-items-center rounded-full border border-white text-[8px] font-bold ${member?.color ?? 'bg-slate-100 text-slate-600'}`}
+                                    >
+                                      {member?.initials ?? getMemberInitials(memberName)}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                              <Link
+                                to={`/admin/boards/${task.boardId}`}
+                                className="text-[#6542F5] hover:underline flex items-center gap-0.5 font-medium text-[11px]"
+                              >
+                                <span>Board</span>
+                                <ArrowUpRight className="size-3" />
+                              </Link>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-slate-200 text-xs text-slate-400">
+                          No tasks
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ) : (
           <div className="overflow-x-auto">

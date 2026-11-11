@@ -110,6 +110,7 @@ export const AppRoutes = () => {
             <Route path="dashboard" element={<ManagerDashboardPage />} />
             <Route path="projects" element={<ManagerProjectsPage />} />
             <Route path="projects/:projectId" element={<ManagerProjectDetailsPage />} />
+            <Route path="boards" element={<ManagerBoardsPage />} />
             <Route path="boards/:boardId" element={<ManagerBoardsPage />} />
             <Route path="tasks" element={<ManagerTasksPage />} />
             <Route path="tasks/create" element={<ManagerCreateTaskPage />} />

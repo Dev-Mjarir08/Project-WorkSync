@@ -25,7 +25,9 @@ import {
   LayoutDashboard,
   CheckSquare,
   CalendarDays,
-  BarChart2
+  BarChart2,
+  Kanban,
+  FolderKanban
 } from "lucide-react";
 import { getCurrentUser, getUserItem, setUserItem } from "../../../utils/userStorage.js";
 
@@ -297,6 +299,17 @@ export default function DashboardPage() {
             >
               <BarChart2 className="h-4 w-4" />
               Productivity Analytics
+            </button>
+            <button
+              onClick={() => setActiveTab("kanban")}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
+                activeTab === "kanban"
+                  ? "bg-white text-teal-900 font-bold shadow-sm"
+                  : "text-teal-100 hover:bg-white/10"
+              }`}
+            >
+              <Kanban className="h-4 w-4" />
+              Kanban Board
             </button>
           </div>
         </header>
@@ -745,6 +758,140 @@ export default function DashboardPage() {
                     {tasks.filter((t) => t.status === "Completed").length} tasks
                   </p>
                 </div>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* Tab 3: Kanban Board */}
+        {activeTab === "kanban" && (
+          <div className="space-y-6">
+            <section className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5 dark:border-slate-800">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Kanban className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                    Sprint Kanban Board
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Drag or advance your tasks across delivery stages in real-time.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-700 transition"
+                  >
+                    <Plus className="h-4 w-4" />
+                    New Task
+                  </button>
+                  <button
+                    onClick={() => navigate("/employee/boards")}
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200 transition"
+                  >
+                    Full Boards
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { id: "todo", label: "To Do", dot: "bg-slate-400", badge: "bg-slate-100 text-slate-700 border-slate-200" },
+                  { id: "in_progress", label: "In Progress", dot: "bg-blue-500", badge: "bg-blue-50 text-blue-700 border-blue-200" },
+                  { id: "review", label: "In Review", dot: "bg-purple-500", badge: "bg-purple-50 text-purple-700 border-purple-200" },
+                  { id: "completed", label: "Completed", dot: "bg-emerald-500", badge: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+                ].map((col) => {
+                  const colTasks = tasks.filter((t) => {
+                    const s = (t.status || "").toLowerCase();
+                    if (col.id === "todo") return s === "pending" || s === "todo" || s === "to do";
+                    if (col.id === "in_progress") return s === "in progress" || s === "in_progress";
+                    if (col.id === "review") return s === "in review" || s === "review" || s === "in_review";
+                    if (col.id === "completed") return s === "completed" || s === "done";
+                    return false;
+                  });
+
+                  return (
+                    <div key={col.id} className="flex flex-col rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-950/40">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800">
+                        <div className="flex items-center gap-2">
+                          <span className={`h-2.5 w-2.5 rounded-full ${col.dot}`} />
+                          <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200">{col.label}</h3>
+                        </div>
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${col.badge}`}>
+                          {colTasks.length}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 flex flex-col gap-3 min-h-[160px]">
+                        {colTasks.length > 0 ? (
+                          colTasks.map((t) => (
+                            <div
+                              key={t.id}
+                              className="group rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-xs hover:border-teal-400 hover:shadow-md transition dark:border-slate-800 dark:bg-slate-900"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                  t.priority === "High" ? "bg-rose-50 text-rose-700 border border-rose-200" :
+                                  t.priority === "Medium" ? "bg-amber-50 text-amber-700 border border-amber-200" :
+                                  "bg-slate-100 text-slate-600 border border-slate-200"
+                                }`}>
+                                  {t.priority}
+                                </span>
+                                <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {t.dueDate}
+                                </span>
+                              </div>
+
+                              <h4 className="mt-2 text-xs font-bold text-slate-900 dark:text-white leading-snug group-hover:text-teal-600 transition">
+                                {t.title}
+                              </h4>
+
+                              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                <FolderKanban className="h-3 w-3 text-slate-400" />
+                                {t.project}
+                              </p>
+
+                              <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px]">
+                                <span className="text-slate-500 font-medium">Stage: {t.status}</span>
+                                <div className="flex items-center gap-1">
+                                  {col.id !== "completed" && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const nextStatus = col.id === "todo" ? "In Progress" : col.id === "in_progress" ? "In Review" : "Completed";
+                                        const updated = tasks.map(item => item.id === t.id ? { ...item, status: nextStatus } : item);
+                                        setTasks(updated);
+                                        setUserItem("employee_tasks", updated);
+                                      }}
+                                      className="rounded-md p-1 bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold cursor-pointer"
+                                      title="Advance stage"
+                                    >
+                                      <ChevronRight className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => navigate(`/employee/tasks/${t.id}`)}
+                                    className="rounded-md p-1 bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                                    title="View task"
+                                  >
+                                    <ArrowUpRight className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-32 rounded-xl border border-dashed border-slate-200 text-center p-3 text-xs text-slate-400 dark:border-slate-800">
+                            <span>No tasks</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </section>
           </div>

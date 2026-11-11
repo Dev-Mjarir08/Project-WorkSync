@@ -21,7 +21,9 @@ import {
   Activity,
   Layers,
   Sparkles,
-  BarChart2
+  BarChart2,
+  Table,
+  LayoutGrid
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
@@ -273,6 +275,7 @@ export const DashboardPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [taskSearchQuery, setTaskSearchQuery] = useState("");
   const [taskStatusFilter, setTaskStatusFilter] = useState("All");
+  const [tasksViewMode, setTasksViewMode] = useState("kanban");
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
 
   // Scoped Data Initialization
@@ -752,26 +755,160 @@ export const DashboardPage = () => {
                 </p>
               </div>
 
-              {/* Status Filter Buttons */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                {["All", "In Progress", "Completed", "Pending", "In Review"].map((status) => (
+              {/* View Switcher & Status Filter Buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1 border border-slate-200 bg-slate-100/80 p-0.5 rounded-xl shrink-0">
                   <button
-                    key={status}
                     type="button"
-                    onClick={() => setTaskStatusFilter(status)}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${taskStatusFilter === status
-                        ? "bg-blue-600 text-white shadow-xs"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
-                      }`}
+                    onClick={() => setTasksViewMode("kanban")}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                      tasksViewMode === "kanban"
+                        ? "bg-white text-blue-600 shadow-xs border border-slate-200/80"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
                   >
-                    {status}
+                    <Kanban size={13} />
+                    <span>Kanban Board</span>
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setTasksViewMode("table")}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                      tasksViewMode === "table"
+                        ? "bg-white text-blue-600 shadow-xs border border-slate-200/80"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <Table size={13} />
+                    <span>Table View</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1">
+                  {["All", "In Progress", "Completed", "Pending", "In Review"].map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => setTaskStatusFilter(status)}
+                      className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${taskStatusFilter === status
+                          ? "bg-blue-600 text-white shadow-xs"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+                        }`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto">
+            {/* Kanban or Table View */}
+            {tasksViewMode === "kanban" ? (
+              <div className="p-4 sm:p-5 bg-slate-50/50">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { id: "todo", label: "To Do / Pending", dot: "bg-slate-400", badge: "bg-slate-100 text-slate-700 border-slate-200" },
+                    { id: "in_progress", label: "In Progress", dot: "bg-blue-500", badge: "bg-blue-50 text-blue-700 border-blue-200" },
+                    { id: "review", label: "In Review", dot: "bg-purple-500", badge: "bg-purple-50 text-purple-700 border-purple-200" },
+                    { id: "completed", label: "Completed", dot: "bg-emerald-500", badge: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+                  ].map((col) => {
+                    const colTasks = filteredTasks.filter((t) => {
+                      const s = (t.status || "").toLowerCase();
+                      if (col.id === "todo") return s === "pending" || s === "todo" || s === "to do";
+                      if (col.id === "in_progress") return s === "in progress" || s === "in_progress";
+                      if (col.id === "review") return s === "in review" || s === "review" || s === "in_review";
+                      if (col.id === "completed") return s === "completed" || s === "done";
+                      return false;
+                    });
+
+                    return (
+                      <div key={col.id} className="flex flex-col rounded-xl border border-slate-200/80 bg-white p-3 shadow-2xs">
+                        <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <span className={`h-2.5 w-2.5 rounded-full ${col.dot}`} />
+                            <h4 className="text-xs font-bold text-slate-800">{col.label}</h4>
+                          </div>
+                          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${col.badge}`}>
+                            {colTasks.length}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex flex-col gap-2.5 min-h-[140px]">
+                          {colTasks.length > 0 ? (
+                            colTasks.map((task) => (
+                              <div
+                                key={task.id}
+                                className="group relative rounded-xl border border-slate-200/90 bg-white p-3 shadow-2xs hover:shadow-sm hover:border-blue-300 transition"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold ${priorityStyles[task.priority] || priorityStyles.Medium}`}>
+                                    <span className="h-1 w-1 rounded-full bg-current" />
+                                    {task.priority}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                    <Calendar size={10} />
+                                    {formatDate(task.dueDate)}
+                                  </span>
+                                </div>
+
+                                <h5 className="mt-2 text-xs font-semibold text-slate-900 leading-snug group-hover:text-blue-600 transition">
+                                  {task.title}
+                                </h5>
+
+                                <p className="mt-1 text-[10px] text-slate-400 truncate flex items-center gap-1">
+                                  <FolderKanban size={11} className="text-slate-400 shrink-0" />
+                                  {task.project}
+                                </p>
+
+                                <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-100 text-[10px]">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <div className={`flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-tr ${task.assigneeColor || 'from-blue-600 to-indigo-600'} text-[8px] font-bold text-white shrink-0`}>
+                                      {getInitials(task.assignee)}
+                                    </div>
+                                    <span className="truncate text-slate-600 font-medium">{task.assignee}</span>
+                                  </div>
+
+                                  <div className="flex items-center gap-1">
+                                    {col.id !== "completed" && (
+                                      <button
+                                        type="button"
+                                        title="Advance status"
+                                        onClick={() => {
+                                          const nextStatus = col.id === "todo" ? "In Progress" : col.id === "in_progress" ? "In Review" : "Completed";
+                                          const updated = tasks.map(t => t.id === task.id ? { ...t, status: nextStatus } : t);
+                                          setTasks(updated);
+                                          setUserItem("manager_tasks", updated);
+                                        }}
+                                        className="rounded-md p-1 bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 cursor-pointer transition"
+                                      >
+                                        <ArrowRight size={11} />
+                                      </button>
+                                    )}
+                                    <Link
+                                      to={`/manager/tasks/${task.id}`}
+                                      className="rounded-md p-1 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition"
+                                      title="View Details"
+                                    >
+                                      <ChevronRight size={11} />
+                                    </Link>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="flex flex-col items-center justify-center h-28 rounded-xl border border-dashed border-slate-200 text-center p-3 text-[11px] text-slate-400">
+                              <span>No tasks in this column</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
               <table className="w-full min-w-[700px] text-left text-xs">
                 <thead className="border-b border-slate-200 bg-slate-50/80 text-[10px] uppercase tracking-wider text-slate-500">
                   <tr>
@@ -889,15 +1026,17 @@ export const DashboardPage = () => {
                   Reset Filter
                 </button>
                 <Link
-                  to="/manager/boards/board-1"
+                  to="/manager/boards"
                   className="font-semibold text-blue-600 hover:text-blue-700 transition text-[11px] inline-flex items-center gap-1"
                 >
-                  <span>Open Kanban Board</span>
+                  <span>Open Full Kanban Board</span>
                   <ArrowRight size={12} />
                 </Link>
               </div>
             </div>
-          </section>
+            </>
+          )}
+        </section>
 
           {/* Team Overview Section */}
           <section className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">

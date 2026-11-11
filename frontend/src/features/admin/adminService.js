@@ -1,11 +1,76 @@
 import { getUserItem, setUserItem, getCurrentUser } from '../../utils/userStorage.js';
 
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined" && window.__ENV__?.API_URL) {
+    return `${window.__ENV__.API_URL}/api/v1/admin`;
+  }
+  const viteUrl = typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL;
+  if (viteUrl) {
+    return `${viteUrl.replace(/\/+$/, '')}/api/v1/admin`;
+  }
+  return "http://localhost:8081/api/v1/admin";
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
+const getAuthHeaders = () => {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const user = getCurrentUser();
+  const workspaceId = user?.workspaceId || (typeof window !== "undefined" ? localStorage.getItem("workspaceId") : null);
+
+  return {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(workspaceId ? { "x-workspace-id": workspaceId } : {})
+  };
+};
+
+const request = async (path, options = {}) => {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      ...getAuthHeaders(),
+      ...options.headers,
+    },
+  });
+
+  let body;
+  try {
+    body = await response.json();
+  } catch {
+    throw new Error("The Admin API returned an invalid response.");
+  }
+
+  if (!response.ok || body.success === false) {
+    throw new Error(body.message || `Request failed with status ${response.status}`);
+  }
+
+  return body.data;
+};
+
 const adminService = {
-  getBoards() {
+  async getDashboard() {
+    try {
+      return await request('/dashboard');
+    } catch {
+      return null;
+    }
+  },
+
+  async getBoards() {
+    try {
+      const data = await request('/boards');
+      if (Array.isArray(data?.boards) && data.boards.length > 0) {
+        return data.boards;
+      }
+    } catch {
+      // fallback
+    }
     return getUserItem('admin_boards', []);
   },
 
-  createBoard({ title, description, workspace, status = 'Planning', owner, members = [] }) {
+  async createBoard({ title, description, workspace, status = 'Planning', owner, members = [] }) {
     const user = getCurrentUser();
     const boards = getUserItem('admin_boards', []);
     const baseId = title
@@ -33,6 +98,19 @@ const adminService = {
       updatedAt: new Date().toISOString(),
       tasks: [],
     };
+
+    try {
+      await request('/boards', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: board.title,
+          description: board.description,
+          status: board.status
+        })
+      });
+    } catch {
+      // offline fallback
+    }
 
     boards.unshift(board);
     setUserItem('admin_boards', boards);
