@@ -1,34 +1,100 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, AlertCircle } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
-import { initialProjects } from "./ProjectsPage.jsx";
+import managerService from "../managerService.js";
 
-const teamMembers = [
-  "Devanshi Sharma (Engineering Manager)",
-  "Ayan Mukherjee (Fullstack Admin)",
-  "Rouhan Siddiqui (Frontend Dev)",
-  "Priya Patel (UI Designer)",
-  "Vikram Malhotra (Mobile Engineer)",
-  "Neha Verma (Data Analyst)",
-];
+const statusValues = {
+  "To Do": "todo",
+  "In Progress": "in_progress",
+  "In Review": "review",
+  Completed: "done",
+};
 
 const CreateTaskPage = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
+  const [projects, setProjects] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    projectId: "proj-1",
-    assignee: "Devanshi Sharma (Engineering Manager)",
+    projectId: "",
+    assigneeId: "",
     priority: "High",
     status: "To Do",
-    deadline: "2026-11-20",
+    deadline: "",
   });
 
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    let active = true;
+
+    managerService.getProjects()
+      .then((projectData) => {
+        if (!active) return;
+        setProjects(projectData);
+        setFormData((current) => ({
+          ...current,
+          projectId: current.projectId || projectData[0]?.id || "",
+        }));
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.message || "Unable to load projects.");
+      })
+      .finally(() => {
+        if (active) setLoadingProjects(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!formData.projectId) {
+      setTeamMembers([]);
+      setLoadingMembers(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    setError("");
+    setLoadingMembers(true);
+    managerService.getProjectMembers(formData.projectId)
+      .then((members) => {
+        if (!active) return;
+        setTeamMembers(members);
+        setFormData((current) => ({
+          ...current,
+          assigneeId: members.some((member) => member.id === current.assigneeId)
+            ? current.assigneeId
+            : "",
+        }));
+      })
+      .catch((requestError) => {
+        if (active) {
+          setTeamMembers([]);
+          setError(requestError.message || "Unable to load project members.");
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingMembers(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [formData.projectId]);
 
   const validate = () => {
     const errs = {};
@@ -42,11 +108,28 @@ const CreateTaskPage = () => {
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-    // UI-only submission according to strict scope specifications
-    navigate("/manager/tasks");
+    setError("");
+    setSubmitting(true);
+
+    try {
+      await managerService.createTask({
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        ...(formData.projectId ? { projectId: formData.projectId } : {}),
+        ...(formData.assigneeId ? { assigneeId: formData.assigneeId } : {}),
+        priority: formData.priority.toLowerCase(),
+        status: statusValues[formData.status],
+        dueDate: formData.deadline,
+      });
+      navigate("/manager/tasks", { replace: true });
+    } catch (requestError) {
+      setError(requestError.message || "Unable to create task.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const breadcrumbs = [
@@ -66,6 +149,12 @@ const CreateTaskPage = () => {
 
         {/* Page Content Body */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-4xl w-full mx-auto">
+          {error && (
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {error}
+            </div>
+          )}
+
           {/* Back Navigation & Intro */}
           <div>
             <Link
@@ -144,10 +233,14 @@ const CreateTaskPage = () => {
                   <div className="mt-1.5">
                     <select
                       value={formData.projectId}
-                      onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, projectId: e.target.value, assigneeId: "" })}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
+                      disabled={loadingProjects}
                     >
-                      {initialProjects.map((p) => (
+                      <option value="">
+                        {loadingProjects ? "Loading projects..." : "No project"}
+                      </option>
+                      {projects.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.name}
                         </option>
@@ -162,13 +255,17 @@ const CreateTaskPage = () => {
                   </label>
                   <div className="mt-1.5">
                     <select
-                      value={formData.assignee}
-                      onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
+                      value={formData.assigneeId}
+                      onChange={(e) => setFormData({ ...formData, assigneeId: e.target.value })}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
+                      disabled={!formData.projectId || loadingMembers}
                     >
-                      {teamMembers.map((m) => (
-                        <option key={m} value={m}>
-                          {m}
+                      <option value="">
+                        {loadingMembers ? "Loading members..." : "Unassigned"}
+                      </option>
+                      {teamMembers.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.name}
                         </option>
                       ))}
                     </select>
@@ -253,10 +350,17 @@ const CreateTaskPage = () => {
 
                 <button
                   type="submit"
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition active:scale-[0.98] cursor-pointer"
+                  disabled={submitting || loadingProjects || loadingMembers}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Plus size={15} />
-                  <span>Create Task</span>
+                  <span>
+                    {submitting
+                      ? "Creating..."
+                      : loadingProjects || loadingMembers
+                        ? "Loading options..."
+                        : "Create Task"}
+                  </span>
                 </button>
               </div>
             </form>

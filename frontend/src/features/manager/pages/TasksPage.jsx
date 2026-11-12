@@ -446,33 +446,42 @@ const TasksPage = () => {
             </div>
 
             {/* View Mode Toggle */}
-            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-xs self-start sm:self-auto">
-              <button
-                type="button"
-                onClick={() => setViewMode("table")}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
-                  viewMode === "table"
-                    ? "bg-slate-100 text-slate-900 font-semibold"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-                title="List view"
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <Link
+                to="/manager/tasks/create"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition"
               >
-                <List size={14} />
-                <span>List</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("grid")}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
-                  viewMode === "grid"
-                    ? "bg-slate-100 text-slate-900 font-semibold"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-                title="Cards view"
-              >
-                <LayoutGrid size={14} />
-                <span>Grid</span>
-              </button>
+                <Plus size={14} />
+                <span>Create Task</span>
+              </Link>
+              <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("table")}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
+                    viewMode === "table"
+                      ? "bg-slate-100 text-slate-900 font-semibold"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                  title="List view"
+                >
+                  <List size={14} />
+                  <span>List</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("grid")}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
+                    viewMode === "grid"
+                      ? "bg-slate-100 text-slate-900 font-semibold"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                  title="Cards view"
+                >
+                  <LayoutGrid size={14} />
+                  <span>Grid</span>
+                </button>
+              </div>
             </div>
           </div>
 

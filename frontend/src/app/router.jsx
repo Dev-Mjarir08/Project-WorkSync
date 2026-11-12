@@ -10,6 +10,8 @@ const ManagerProjectsPage = lazy(() => import('../features/manager/pages/Project
 const ManagerProjectDetailsPage = lazy(() => import('../features/manager/pages/ProjectDetailsPage.jsx'));
 const ManagerTasksPage = lazy(() => import('../features/manager/pages/TasksPage.jsx'));
 const ManagerBoardPage = lazy(() => import('../features/manager/pages/BoardsPage.jsx'));
+const ManagerCalendarPage = lazy(() => import('../features/manager/pages/CalendarPage.jsx'));
+const ManagerCreateTaskPage = lazy(() => import('../features/manager/pages/CreateTaskPage.jsx'));
 
 const DashboardPage = lazy(() => import('../features/super-admin/pages/DashboardPage.jsx'));
 const UsersPage = lazy(() => import('../features/super-admin/pages/UsersPage.jsx'));
@@ -53,7 +55,9 @@ export const AppRoutes = () => {
             <Route path="/manager/projects" element={<ManagerProjectsPage />} />
             <Route path="/manager/projects/:projectId" element={<ManagerProjectDetailsPage />} />
             <Route path="/manager/tasks" element={<ManagerTasksPage />} />
+            <Route path="/manager/tasks/create" element={<ManagerCreateTaskPage />} />
             <Route path="/manager/boards/:boardId" element={<ManagerBoardPage />} />
+            <Route path="/manager/calendar" element={<ManagerCalendarPage />} />
           </>
         ) : (
           <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
@@ -61,7 +65,9 @@ export const AppRoutes = () => {
             <Route path="/manager/projects" element={<ManagerProjectsPage />} />
             <Route path="/manager/projects/:projectId" element={<ManagerProjectDetailsPage />} />
             <Route path="/manager/tasks" element={<ManagerTasksPage />} />
+            <Route path="/manager/tasks/create" element={<ManagerCreateTaskPage />} />
             <Route path="/manager/boards/:boardId" element={<ManagerBoardPage />} />
+            <Route path="/manager/calendar" element={<ManagerCalendarPage />} />
           </Route>
         )}
 
