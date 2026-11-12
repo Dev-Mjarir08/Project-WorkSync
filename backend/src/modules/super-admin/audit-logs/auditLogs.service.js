@@ -5,19 +5,35 @@ import { resolveWorkspaceDoc } from '../workspaces/workspaces.service.js';
 
 const escapeRegex = (str = '') => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-export const getAllAuditLogs = async (query = {}) => {
+export const getAllAuditLogs = async (query = {}, actorUser = null) => {
   const { search = '', category = 'all', status = 'all', page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = query;
 
   const filter = {};
+  const andConditions = [];
+
+  if (actorUser) {
+    andConditions.push({
+      $or: [
+        { 'actor.user': actorUser._id },
+        { 'actor.email': actorUser.email }
+      ]
+    });
+  }
 
   if (search.trim()) {
     const cleanSearch = escapeRegex(search.trim());
-    filter.$or = [
-      { action: { $regex: cleanSearch, $options: 'i' } },
-      { details: { $regex: cleanSearch, $options: 'i' } },
-      { target: { $regex: cleanSearch, $options: 'i' } },
-      { 'actor.name': { $regex: cleanSearch, $options: 'i' } }
-    ];
+    andConditions.push({
+      $or: [
+        { action: { $regex: cleanSearch, $options: 'i' } },
+        { details: { $regex: cleanSearch, $options: 'i' } },
+        { target: { $regex: cleanSearch, $options: 'i' } },
+        { 'actor.name': { $regex: cleanSearch, $options: 'i' } }
+      ]
+    });
+  }
+
+  if (andConditions.length > 0) {
+    filter.$and = andConditions;
   }
 
   if (category && category !== 'all') {

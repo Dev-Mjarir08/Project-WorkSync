@@ -4,7 +4,7 @@ import * as workspacesService from './workspaces.service.js';
 import * as memberService from '../../members/member.service.js';
 
 export const getWorkspaces = asyncHandler(async (req, res) => {
-  const result = await workspacesService.getAllWorkspaces(req.query);
+  const result = await workspacesService.getAllWorkspaces(req.query, req.user);
   return res.status(200).json(new ApiResponse(200, result, 'Workspaces retrieved successfully'));
 });
 

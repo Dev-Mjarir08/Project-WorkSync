@@ -3,7 +3,7 @@ import { ApiResponse } from '../../../utils/ApiResponse.js';
 import * as usersService from './users.service.js';
 
 export const getUsers = asyncHandler(async (req, res) => {
-  const result = await usersService.getAllUsers(req.query);
+  const result = await usersService.getAllUsers(req.query, req.user);
   return res.status(200).json(new ApiResponse(200, result, 'Users list retrieved successfully'));
 });
 

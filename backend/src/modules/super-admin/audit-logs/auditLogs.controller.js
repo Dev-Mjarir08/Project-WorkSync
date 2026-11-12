@@ -3,7 +3,7 @@ import { ApiResponse } from '../../../utils/ApiResponse.js';
 import * as auditLogsService from './auditLogs.service.js';
 
 export const getAuditLogs = asyncHandler(async (req, res) => {
-  const result = await auditLogsService.getAllAuditLogs(req.query);
+  const result = await auditLogsService.getAllAuditLogs(req.query, req.user);
   return res.status(200).json(new ApiResponse(200, result, 'Audit logs retrieved successfully'));
 });
 

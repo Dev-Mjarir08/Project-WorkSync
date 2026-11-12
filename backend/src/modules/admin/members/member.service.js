@@ -247,3 +247,8 @@ export const getMemberBoards = async (workspaceId, memberId) => {
   return boards;
 };
 
+export const inviteMember = async (workspaceId, data, actorUser) => {
+  const { sendInvitation } = await import('../invitations/invitation.service.js');
+  return sendInvitation(workspaceId, data, actorUser);
+};
+

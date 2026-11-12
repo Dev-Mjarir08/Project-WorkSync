@@ -71,3 +71,9 @@ export const getMemberBoards = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, { boards: data }, 'Member accessible boards fetched successfully'));
 });
 
+export const inviteMember = asyncHandler(async (req, res) => {
+  const wsId = getWorkspaceId(req);
+  const data = await memberService.inviteMember(wsId, req.body, req.user);
+  return res.status(201).json(new ApiResponse(201, { invitation: data }, 'Member invited successfully'));
+});
+

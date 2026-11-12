@@ -31,190 +31,6 @@ import { getUserItem, setUserItem, getCurrentUser } from "../../../utils/userSto
 
 const DASHBOARD_API_URL = "http://localhost:8081/api/v1/manager/dashboard";
 
-const defaultInitialProjects = [
-  {
-    id: "proj-1",
-    name: "WorkSync Web Platform",
-    category: "Core SaaS",
-    key: "WS-WEB",
-    status: "Active",
-    statusColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    completedTasks: 18,
-    totalTasks: 24,
-    progress: 75,
-  },
-  {
-    id: "proj-2",
-    name: "Real-Time Sync Engine",
-    category: "Infrastructure",
-    key: "WS-SYNC",
-    status: "Active",
-    statusColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    completedTasks: 12,
-    totalTasks: 16,
-    progress: 75,
-  },
-  {
-    id: "proj-3",
-    name: "Mobile Companion App",
-    category: "Mobile",
-    key: "WS-MOB",
-    status: "Planning",
-    statusColor: "bg-amber-50 text-amber-700 border-amber-200",
-    completedTasks: 4,
-    totalTasks: 12,
-    progress: 33,
-  },
-];
-
-const defaultInitialTasks = [
-  {
-    id: "task-1",
-    title: "Implement real-time Kanban board drag-and-drop",
-    project: "WorkSync Web Platform",
-    assignee: "Rouhan Siddiqui",
-    assigneeRole: "Frontend Dev",
-    assigneeColor: "from-blue-600 to-indigo-600",
-    priority: "High",
-    status: "In Progress",
-    dueDate: "Nov 15, 2026",
-  },
-  {
-    id: "task-2",
-    title: "Refactor Role-Based Access Control and Route Guards",
-    project: "WorkSync Web Platform",
-    assignee: "Jarir Multani",
-    assigneeRole: "Lead Architect",
-    assigneeColor: "from-purple-600 to-indigo-600",
-    priority: "High",
-    status: "Completed",
-    dueDate: "Nov 12, 2026",
-  },
-  {
-    id: "task-3",
-    title: "Configure isolated multi-tenant team workspaces",
-    project: "Real-Time Sync Engine",
-    assignee: "Ayan Mukherjee",
-    assigneeRole: "Backend Admin",
-    assigneeColor: "from-cyan-500 to-blue-600",
-    priority: "Medium",
-    status: "In Progress",
-    dueDate: "Nov 18, 2026",
-  },
-  {
-    id: "task-4",
-    title: "Design light theme dashboard layouts & metric tokens",
-    project: "WorkSync Web Platform",
-    assignee: "Priya Patel",
-    assigneeRole: "Product Designer",
-    assigneeColor: "from-amber-500 to-orange-600",
-    priority: "Medium",
-    status: "Completed",
-    dueDate: "Nov 10, 2026",
-  },
-  {
-    id: "task-5",
-    title: "Setup automated CI/CD build & telemetry alerts",
-    project: "Real-Time Sync Engine",
-    assignee: "Sarah Connor",
-    assigneeRole: "DevOps Engineer",
-    assigneeColor: "from-emerald-500 to-teal-600",
-    priority: "Low",
-    status: "Pending",
-    dueDate: "Nov 22, 2026",
-  },
-];
-
-const defaultInitialTeam = [
-  {
-    id: "tm-1",
-    name: "Rouhan Siddiqui",
-    role: "Frontend Dev",
-    totalAssigned: 8,
-    completed: 6,
-    inProgress: 2,
-    overdue: 0,
-    completionRate: 75,
-    avatar: "RS",
-    color: "from-blue-600 to-indigo-600",
-  },
-  {
-    id: "tm-2",
-    name: "Ayan Mukherjee",
-    role: "Backend Lead",
-    totalAssigned: 9,
-    completed: 7,
-    inProgress: 2,
-    overdue: 0,
-    completionRate: 78,
-    avatar: "AM",
-    color: "from-cyan-500 to-blue-600",
-  },
-  {
-    id: "tm-3",
-    name: "Priya Patel",
-    role: "UI/UX Designer",
-    totalAssigned: 6,
-    completed: 5,
-    inProgress: 1,
-    overdue: 0,
-    completionRate: 83,
-    avatar: "PP",
-    color: "from-purple-600 to-indigo-600",
-  },
-  {
-    id: "tm-4",
-    name: "Sarah Connor",
-    role: "DevOps Admin",
-    totalAssigned: 5,
-    completed: 4,
-    inProgress: 1,
-    overdue: 0,
-    completionRate: 80,
-    avatar: "SC",
-    color: "from-emerald-500 to-teal-600",
-  },
-];
-
-const defaultInitialActivities = [
-  {
-    id: "act-1",
-    user: "Rouhan Siddiqui",
-    action: "updated deliverable status to In Progress",
-    target: "Kanban drag-and-drop",
-    time: "15m ago",
-    avatar: "RS",
-    color: "from-blue-600 to-indigo-600",
-  },
-  {
-    id: "act-2",
-    user: "Jarir Multani",
-    action: "completed security audit for",
-    target: "RBAC Route Guards",
-    time: "1h ago",
-    avatar: "JM",
-    color: "from-purple-600 to-indigo-600",
-  },
-  {
-    id: "act-3",
-    user: "Ayan Mukherjee",
-    action: "updated board target for",
-    target: "Real-Time Sync Engine",
-    time: "3h ago",
-    avatar: "AM",
-    color: "from-cyan-500 to-blue-600",
-  },
-  {
-    id: "act-4",
-    user: "Priya Patel",
-    action: "attached prototype specs to",
-    target: "WorkSync Web Platform",
-    time: "5h ago",
-    avatar: "PP",
-    color: "from-amber-500 to-orange-600",
-  },
-];
-
 const statusStyles = {
   "In Progress": "bg-blue-50 text-blue-700 border-blue-200",
   Completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -278,34 +94,11 @@ export const DashboardPage = () => {
   const [tasksViewMode, setTasksViewMode] = useState("kanban");
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
 
-  // Scoped Data Initialization
-  const [projects, setProjects] = useState(() => {
-    const saved = getUserItem("manager_projects");
-    if (saved && Array.isArray(saved) && saved.length > 0) return saved;
-    setUserItem("manager_projects", defaultInitialProjects);
-    return defaultInitialProjects;
-  });
-
-  const [tasks, setTasks] = useState(() => {
-    const saved = getUserItem("manager_tasks");
-    if (saved && Array.isArray(saved) && saved.length > 0) return saved;
-    setUserItem("manager_tasks", defaultInitialTasks);
-    return defaultInitialTasks;
-  });
-
-  const [teamMembersData, setTeamMembersData] = useState(() => {
-    const saved = getUserItem("manager_team");
-    if (saved && Array.isArray(saved) && saved.length > 0) return saved;
-    setUserItem("manager_team", defaultInitialTeam);
-    return defaultInitialTeam;
-  });
-
-  const [recentActivities, setRecentActivities] = useState(() => {
-    const saved = getUserItem("manager_activities");
-    if (saved && Array.isArray(saved) && saved.length > 0) return saved;
-    setUserItem("manager_activities", defaultInitialActivities);
-    return defaultInitialActivities;
-  });
+  // Scoped Data Initialization - starts empty for new users
+  const [projects, setProjects] = useState(() => getUserItem("manager_projects", []));
+  const [tasks, setTasks] = useState(() => getUserItem("manager_tasks", []));
+  const [teamMembersData, setTeamMembersData] = useState(() => getUserItem("manager_team", []));
+  const [recentActivities, setRecentActivities] = useState(() => getUserItem("manager_activities", []));
 
   // Modal form state
   const [newTask, setNewTask] = useState({
@@ -709,23 +502,27 @@ export const DashboardPage = () => {
                   </div>
 
                   <div className="space-y-3">
-                    {recentActivities.slice(0, 4).map((act) => (
-                      <div key={act.id} className="flex items-start gap-2.5 text-xs">
-                        <div
-                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr ${act.color} text-[9px] font-bold text-white shadow-xs`}
-                        >
-                          {act.avatar}
+                    {recentActivities.length > 0 ? (
+                      recentActivities.slice(0, 4).map((act) => (
+                        <div key={act.id} className="flex items-start gap-2.5 text-xs">
+                          <div
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr ${act.color || "from-blue-600 to-indigo-600"} text-[9px] font-bold text-white shadow-xs`}
+                          >
+                            {act.avatar || "U"}
+                          </div>
+                          <div className="min-w-0 flex-1 leading-snug">
+                            <p className="text-slate-700 text-[11px]">
+                              <span className="font-semibold text-slate-900">{act.user}</span>{" "}
+                              {act.action}{" "}
+                              {act.target && <span className="font-semibold text-blue-600">{act.target}</span>}
+                            </p>
+                            <span className="text-[10px] text-slate-400 mt-0.5 block">{act.time}</span>
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1 leading-snug">
-                          <p className="text-slate-700 text-[11px]">
-                            <span className="font-semibold text-slate-900">{act.user}</span>{" "}
-                            {act.action}{" "}
-                            {act.target && <span className="font-semibold text-blue-600">{act.target}</span>}
-                          </p>
-                          <span className="text-[10px] text-slate-400 mt-0.5 block">{act.time}</span>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      <p className="text-[11px] text-slate-400 py-3 text-center">No recent team activities yet.</p>
+                    )}
                   </div>
                 </div>
               </div>

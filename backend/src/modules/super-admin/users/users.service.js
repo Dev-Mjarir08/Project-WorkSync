@@ -27,10 +27,22 @@ const recordAudit = async ({ action, category = 'user_management', details, acto
   }
 };
 
-export const getAllUsers = async (query = {}) => {
+export const getAllUsers = async (query = {}, actorUser) => {
   const { search = '', role = 'all', status = 'all', page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = query;
 
   const filter = {};
+
+  if (actorUser) {
+    const { Workspace } = await import('../../../models/Workspace.js');
+    const { WorkspaceMember } = await import('../../../models/WorkspaceMember.js');
+    const myWorkspaces = await Workspace.find({
+      $or: [{ owner: actorUser._id }, { createdBy: actorUser._id }]
+    }).select('_id');
+    const myWsIds = myWorkspaces.map(w => w._id);
+    const myMemberships = await WorkspaceMember.find({ workspace: { $in: myWsIds } }).select('user');
+    const allowedUserIds = [actorUser._id, ...myMemberships.map(m => m.user)];
+    filter._id = { $in: allowedUserIds };
+  }
 
   if (search.trim()) {
     const cleanSearch = escapeRegex(search.trim());

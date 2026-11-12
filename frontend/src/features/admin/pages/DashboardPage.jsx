@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   ArrowDown,
   ArrowUpRight,
@@ -46,18 +46,33 @@ const getMemberInitials = (name) =>
   name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toLocaleUpperCase();
 
 const DashboardPage = () => {
-  const boards = adminService.getBoards();
+  const [boards, setBoards] = useState([]);
+  const [dashboardTasks, setDashboardTasks] = useState(() => getDashboardTasks());
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [teamFilter, setTeamFilter] = useState('all');
   const [sortBy, setSortBy] = useState('dueDate');
   const [taskViewMode, setTaskViewMode] = useState('kanban');
 
-  const dashboardTasks = useMemo(() => getDashboardTasks(), []);
+  useEffect(() => {
+    let mounted = true;
+    adminService.getBoards().then((b) => {
+      if (mounted && Array.isArray(b)) setBoards(b);
+    });
+    adminService.getDashboard().then((dash) => {
+      if (mounted && Array.isArray(dash?.tasks) && dash.tasks.length > 0) {
+        setDashboardTasks(dash.tasks);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const dashboardStats = useMemo(() => getDashboardStats(), [dashboardTasks]);
 
   const memberById = useMemo(
-    () => new Map(boards.flatMap((board) => [board.owner, ...board.members]).map((member) => [member.id, member])),
+    () => new Map((Array.isArray(boards) ? boards : []).flatMap((board) => [board.owner, ...(board.members || [])].filter(Boolean)).map((member) => [member.id, member])),
     [boards]
   );
   const teams = useMemo(

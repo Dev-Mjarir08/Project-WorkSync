@@ -5,6 +5,7 @@ const router = Router();
 
 router.get('/', memberController.getMembers);
 router.post('/', memberController.addMember);
+router.post('/invite', memberController.inviteMember);
 router.get('/:memberId', memberController.getMemberById);
 router.patch('/:memberId', memberController.updateMember);
 router.patch('/:memberId/role', memberController.updateMemberRole);

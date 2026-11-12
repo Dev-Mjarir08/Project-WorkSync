@@ -52,17 +52,33 @@ const recordAudit = async ({ action, category = 'workspace', details, actor, tar
   }
 };
 
-export const getAllWorkspaces = async (query = {}) => {
+export const getAllWorkspaces = async (query = {}, actorUser) => {
   const { search = '', status = 'all', plan = 'all', page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = query;
 
   const filter = {};
 
+  if (actorUser) {
+    filter.$or = [
+      { owner: actorUser._id },
+      { createdBy: actorUser._id }
+    ];
+  }
+
   if (search.trim()) {
     const cleanSearch = escapeRegex(search.trim());
-    filter.$or = [
+    const searchFilter = [
       { name: { $regex: cleanSearch, $options: 'i' } },
       { slug: { $regex: cleanSearch, $options: 'i' } }
     ];
+    if (filter.$or) {
+      filter.$and = [
+        { $or: filter.$or },
+        { $or: searchFilter }
+      ];
+      delete filter.$or;
+    } else {
+      filter.$or = searchFilter;
+    }
   }
 
   if (status && status !== 'all') {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CheckCircle2,
@@ -30,6 +30,7 @@ import {
   FolderKanban
 } from "lucide-react";
 import { getCurrentUser, getUserItem, setUserItem } from "../../../utils/userStorage.js";
+import { employeeService } from "../employeeService.js";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -60,6 +61,26 @@ export default function DashboardPage() {
     status: "Pending",
     dueDate: "Oct 28, 2026",
   });
+
+  // Fetch live tasks and dashboard on mount
+  useEffect(() => {
+    let mounted = true;
+    employeeService.getDashboard().then((dash) => {
+      if (!mounted) return;
+      if (Array.isArray(dash?.recentTasks) && dash.recentTasks.length > 0) {
+        setTasks(dash.recentTasks);
+      }
+    });
+    employeeService.getTasks().then((liveTasks) => {
+      if (!mounted) return;
+      if (Array.isArray(liveTasks) && liveTasks.length > 0) {
+        setTasks(liveTasks);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Dynamic Calculated Stats based on current tasks state
   const statsComputed = useMemo(() => {
