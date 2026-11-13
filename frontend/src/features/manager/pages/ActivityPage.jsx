@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Activity,
@@ -38,7 +38,7 @@ import {
 
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
-import { getUserItem, setUserItem } from "../../../utils/userStorage.js";
+import managerService from "../managerService.js";
 
 
 // Standard team members from workspace
@@ -379,36 +379,16 @@ const initialFeedDataFallback = [
     starred: false,
   },
 ];
-// Prefer saved workspace data, retaining the original sample data as a fallback.
-const storedTeamMembers = getUserItem("manager_team", []);
-const storedProjects = getUserItem("manager_projects", []);
-const storedTasks = getUserItem("manager_tasks", []);
-const storedActivities = getUserItem("manager_activities", []);
-
-const teamMembersList =
-  Array.isArray(storedTeamMembers) && storedTeamMembers.length > 0
-    ? storedTeamMembers
-    : teamMembersListFallback;
-const projectsList =
-  Array.isArray(storedProjects) && storedProjects.length > 0
-    ? storedProjects
-    : projectsListFallback;
-const tasksList =
-  Array.isArray(storedTasks) && storedTasks.length > 0
-    ? storedTasks
-    : tasksListFallback;
-const initialFeedData =
-  Array.isArray(storedActivities) && storedActivities.length > 0
-    ? storedActivities
-    : initialFeedDataFallback;
-
 export default function ActivityPage() {
   const navigate = useNavigate();
-  const [feed, setFeed] = useState(initialFeedData);
-
-  useEffect(() => {
-    setUserItem("manager_activities", feed);
-  }, [feed]);
+  const [feed, setFeed] = useState([]);
+  const [tasksList, setTasksList] = useState([]);
+  const [projectsList, setProjectsList] = useState([]);
+  const [teamMembersList, setTeamMembersList] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
+  const [loading, setLoading] = useState(true);
+  const [mutationLoading, setMutationLoading] = useState(false);
+  const [error, setError] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Active view tab: 'all' | 'task_updates' | 'comments' | 'team_activities'
@@ -419,19 +399,13 @@ export default function ActivityPage() {
   const [selectedProject, setSelectedProject] = useState("All Projects");
   const [selectedActor, setSelectedActor] = useState("All Actors");
   const [selectedDateRange, setSelectedDateRange] = useState("all");
-  const [onlyStarred, setOnlyStarred] = useState(false);
-  const [isLiveActive, setIsLiveActive] = useState(true);
 
   // Quick Composer State
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerType, setComposerType] = useState("comment"); // 'comment' | 'task_update'
-  const [composerTask, setComposerTask] = useState(tasksList[0]?.id || "");
+  const [composerTask, setComposerTask] = useState("");
   const [composerText, setComposerText] = useState("");
   const [composerStatusTo, setComposerStatusTo] = useState("In Progress");
-
-  // Comment reply state (mapping of activityId -> text)
-  const [activeReplyId, setActiveReplyId] = useState(null);
-  const [replyInputText, setReplyInputText] = useState("");
 
   // Inspect Modal State
   const [inspectItem, setInspectItem] = useState(null);
@@ -439,6 +413,96 @@ export default function ActivityPage() {
 
   // Real-time flash notification banner
   const [bannerNotice, setBannerNotice] = useState(null);
+
+  const loadFeed = useCallback(async (page = 1, append = false) => {
+    setLoading(true);
+    setError("");
+    try {
+      const [activityData, tasks, projects, teamData] = await Promise.all([
+        managerService.getActivities({ page, limit: 20 }),
+        managerService.getTasks(),
+        managerService.getProjects(),
+        managerService.getTeamMembers(),
+      ]);
+      if (!Array.isArray(activityData?.activities) || !activityData?.pagination) {
+        throw new Error("The Manager API returned an invalid activity response.");
+      }
+      const taskMap = new Map(tasks.map((task) => [String(task.id || task._id), task]));
+      const projectMap = new Map(projects.map((project) => [
+        String(project.id || project._id),
+        { id: project.id || project._id, name: project.name || project.title || "Project" },
+      ]));
+      const mappedFeed = activityData.activities.map((activity) => {
+        const activityId = String(activity.id || activity._id);
+        const entityId = String(activity.entityId || activity.metadata?.task || "");
+        const task = taskMap.get(entityId) || null;
+        const projectId = task?.project?.id || task?.project?._id || activity.metadata?.projectId;
+        const rawProject = task?.project || projectMap.get(String(projectId)) || null;
+        const createdAt = activity.createdAt ? new Date(activity.createdAt) : null;
+        const ageInDays = createdAt && !Number.isNaN(createdAt.getTime())
+          ? Math.floor((Date.now() - createdAt.getTime()) / 86400000)
+          : Infinity;
+        const action = String(activity.action || "ACTIVITY").replace(/_/g, " ");
+        const isComment = action.toLowerCase().includes("comment");
+        const user = activity.user || {};
+        const actorName = user.name || "Workspace member";
+        const actorAvatar = actorName.split(/\s+/).filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+        return {
+          id: activityId,
+          category: isComment ? "comment" : activity.type === "task" ? "task_update" : "team_activity",
+          actionType: action.toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase()),
+          title: activity.entityName || task?.title || action,
+          content: activity.details || activity.description || "",
+          actor: {
+            name: actorName,
+            role: user.role || "Workspace member",
+            avatar: actorAvatar || "?",
+            color: "from-blue-600 to-indigo-600",
+            email: user.email || "",
+          },
+          project: rawProject
+            ? { id: rawProject.id || rawProject._id || projectId, name: rawProject.name || rawProject.title || "Project" }
+            : null,
+          task: task ? { id: task.id || task._id, title: task.title } : null,
+          timestamp: createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toLocaleString() : "Time unavailable",
+          dateGroup: ageInDays < 1 ? "Today" : ageInDays < 2 ? "Yesterday" : ageInDays < 7 ? "Earlier This Week" : "Last Week",
+          isoTime: activity.createdAt || "",
+          starred: false,
+          likesCount: 0,
+          hasLiked: false,
+          replies: [],
+        };
+      });
+      setFeed((current) => append ? [...current, ...mappedFeed] : mappedFeed);
+      setTasksList(tasks.map((task) => ({
+        ...task,
+        id: task.id || task._id,
+        projectId: task.project?.id || task.project?._id || "",
+      })));
+      setProjectsList(projects.map((project) => ({
+        id: project.id || project._id,
+        name: project.name || project.title || "Project",
+      })));
+      setTeamMembersList((teamData?.members || []).map((member) => ({
+        id: member.id || member.memberId || member.userId,
+        name: member.name || "Workspace member",
+        avatar: member.name?.split(/\s+/).filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "?",
+        color: "from-blue-600 to-indigo-600",
+      })));
+      setPagination(activityData.pagination);
+      if (tasks.length) {
+        setComposerTask((current) => current || String(tasks[0].id || tasks[0]._id));
+      }
+    } catch (loadError) {
+      setError(loadError.message || "Unable to load activity feed.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadFeed();
+  }, [loadFeed]);
 
   // Unique list of authors for dropdown
   const authorOptions = useMemo(() => {
@@ -448,7 +512,7 @@ export default function ActivityPage() {
 
   // Dynamic statistics
   const stats = useMemo(() => {
-    const total = feed.length;
+    const total = pagination.total || feed.length;
     const taskUpdatesCount = feed.filter((i) => i.category === "task_update").length;
     const commentsCount = feed.filter((i) => i.category === "comment").length;
     const teamActivitiesCount = feed.filter((i) => i.category === "team_activity").length;
@@ -463,7 +527,7 @@ export default function ActivityPage() {
       teamActivitiesCount,
       totalDiscussions: commentsCount + totalReplies,
     };
-  }, [feed]);
+  }, [feed, pagination.total]);
 
   // Filtered dataset
   const filteredFeed = useMemo(() => {
@@ -496,9 +560,6 @@ export default function ActivityPage() {
         return false;
       }
 
-      // 5. Starred filter
-      if (onlyStarred && !item.starred) return false;
-
       // 6. Date Range filter
       if (selectedDateRange === "today" && item.dateGroup !== "Today") return false;
       if (selectedDateRange === "yesterday" && item.dateGroup !== "Yesterday") return false;
@@ -506,7 +567,7 @@ export default function ActivityPage() {
 
       return true;
     });
-  }, [feed, activeTab, searchQuery, selectedProject, selectedActor, onlyStarred, selectedDateRange]);
+  }, [feed, activeTab, searchQuery, selectedProject, selectedActor, selectedDateRange]);
 
   // Group by Date for timeline clarity
   const groupedFeed = useMemo(() => {
@@ -519,143 +580,40 @@ export default function ActivityPage() {
     return groups;
   }, [filteredFeed]);
 
-  // Toggle Like Reaction on Comments
-  const handleToggleLike = (id, e) => {
-    e.stopPropagation();
-    setFeed((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          const hasLiked = item.hasLiked;
-          return {
-            ...item,
-            hasLiked: !hasLiked,
-            likesCount: hasLiked ? Math.max(0, item.likesCount - 1) : item.likesCount + 1,
-          };
-        }
-        return item;
-      })
-    );
-  };
-
-  // Toggle Star / Bookmark
-  const handleToggleStar = (id, e) => {
-    e.stopPropagation();
-    setFeed((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, starred: !item.starred } : item))
-    );
-  };
-
-  // Submit Reply to Comment Thread
-  const handleSubmitReply = (activityId, e) => {
-    e.preventDefault();
-    if (!replyInputText.trim()) return;
-
-    const newReply = {
-      id: `rep-${Date.now().toString().slice(-4)}`,
-      actor: {
-        name: "Devanshi Sharma",
-        role: "Engineering Manager",
-        avatar: "DS",
-        color: "from-blue-600 to-indigo-600",
-      },
-      text: replyInputText.trim(),
-      timestamp: "Just now",
-    };
-
-    setFeed((prev) =>
-      prev.map((item) => {
-        if (item.id === activityId) {
-          return {
-            ...item,
-            replies: [...(item.replies || []), newReply],
-          };
-        }
-        return item;
-      })
-    );
-
-    setReplyInputText("");
-    setActiveReplyId(null);
-    setBannerNotice("Reply posted to discussion thread!");
-    setTimeout(() => setBannerNotice(null), 3000);
-  };
-
   // Post New Activity / Comment from Composer
-  const handlePostComposer = (e) => {
+  const handlePostComposer = async (e) => {
     e.preventDefault();
-    if (!composerText.trim()) return;
-
-    const chosenTask = tasksList.find((t) => t.id === composerTask) || tasksList[0];
-
+    const chosenTask = tasksList.find((task) => String(task.id) === String(composerTask));
     if (!chosenTask) {
-      setBannerNotice("No tasks are available. Add a task before posting an update.");
+      setError("Select a task before posting.");
       return;
     }
 
-    const chosenProject =
-      projectsList.find((p) => p.id === chosenTask.projectId) || projectsList[0] || null;
-
-    const newId = `act-${Date.now().toString().slice(-4)}`;
-    let newItem = null;
-
-    if (composerType === "comment") {
-      newItem = {
-        id: newId,
-        category: "comment",
-        actionType: "Comment Added",
-        title: `Commented on '${chosenTask.title}'`,
-        content: composerText.trim(),
-        actor: {
-          name: "Devanshi Sharma",
-          role: "Engineering Manager",
-          avatar: "DS",
-          color: "from-blue-600 to-indigo-600",
-          email: "devanshi.sharma@worksync.io",
-        },
-        project: chosenProject,
-        task: chosenTask,
-        timestamp: "Just now",
-        dateGroup: "Today",
-        isoTime: new Date().toISOString(),
-        likesCount: 0,
-        hasLiked: false,
-        replies: [],
-        starred: false,
-      };
-    } else {
-      newItem = {
-        id: newId,
-        category: "task_update",
-        actionType: "Status Changed",
-        title: `${chosenTask.title}`,
-        content: composerText.trim(),
-        actor: {
-          name: "Devanshi Sharma",
-          role: "Engineering Manager",
-          avatar: "DS",
-          color: "from-blue-600 to-indigo-600",
-          email: "devanshi.sharma@worksync.io",
-        },
-        project: chosenProject,
-        task: chosenTask,
-        timestamp: "Just now",
-        dateGroup: "Today",
-        isoTime: new Date().toISOString(),
-        diff: {
-          label: "Status Changed",
-          from: "In Progress",
-          to: composerStatusTo,
-          badgeColor: composerStatusTo === "Completed" ? "emerald" : "blue",
-        },
-        starred: false,
-      };
+    if (composerType === "comment" && !composerText.trim()) return;
+    setMutationLoading(true);
+    setError("");
+    try {
+      if (composerType === "comment") {
+        await managerService.addTaskComment(chosenTask.id, composerText.trim());
+      } else {
+        const statusValues = {
+          "To Do": "todo",
+          "In Progress": "in_progress",
+          "In Review": "review",
+          Completed: "done",
+        };
+        await managerService.updateTaskStatus(chosenTask.id, statusValues[composerStatusTo]);
+      }
+      await loadFeed(1);
+      setComposerText("");
+      setComposerOpen(false);
+      setBannerNotice(composerType === "comment" ? "Comment posted." : "Task status updated.");
+      setTimeout(() => setBannerNotice(null), 3500);
+    } catch (actionError) {
+      setError(actionError.message || "Unable to update the selected task.");
+    } finally {
+      setMutationLoading(false);
     }
-
-    setFeed((prev) => [newItem, ...prev]);
-    setComposerText("");
-    setComposerOpen(false);
-    setBannerNotice(`Posted new ${composerType === "comment" ? "comment" : "task update"} successfully!`);
-    setTimeout(() => setBannerNotice(null), 3500);
   };
 
   // Export to CSV
@@ -691,7 +649,6 @@ export default function ActivityPage() {
     setSelectedProject("All Projects");
     setSelectedActor("All Actors");
     setSelectedDateRange("all");
-    setOnlyStarred(false);
   };
 
   // Copy Id to clipboard
@@ -735,6 +692,11 @@ export default function ActivityPage() {
         )}
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
+          {error && (
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {error}
+            </div>
+          )}
           {/* Top Page Header (Matching team requirements: Activity & Comments) */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
@@ -760,23 +722,14 @@ export default function ActivityPage() {
 
             {/* Quick Action Toolbar */}
             <div className="flex flex-wrap items-center gap-2.5">
-              {/* Live sync indicator */}
               <button
                 type="button"
-                onClick={() => setIsLiveActive(!isLiveActive)}
-                className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold border transition-all ${
-                  isLiveActive
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                    : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
-                }`}
-                title={isLiveActive ? "Pause Live Sync" : "Resume Live Sync"}
+                onClick={() => loadFeed()}
+                disabled={loading}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50"
               >
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    isLiveActive ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
-                  }`}
-                />
-                <span>{isLiveActive ? "Live Sync Active" : "Paused"}</span>
+                <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+                <span>{loading ? "Refreshing..." : "Refresh"}</span>
               </button>
 
               {/* Toggle Post Quick Comment / Update Composer */}
@@ -887,11 +840,13 @@ export default function ActivityPage() {
                     {m.avatar}
                   </div>
                 ))}
-                <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold ring-2 ring-white">
-                  +{teamMembersList.length - 5}
-                </div>
+                {teamMembersList.length > 5 && (
+                  <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold ring-2 ring-white">
+                    +{teamMembersList.length - 5}
+                  </div>
+                )}
               </div>
-              <p className="mt-2 text-xs text-slate-400">7 members actively syncing</p>
+              <p className="mt-2 text-xs text-slate-400">{teamMembersList.length} workspace members</p>
             </div>
           </section>
 
@@ -908,7 +863,7 @@ export default function ActivityPage() {
                       Post to Activity & Comments Feed
                     </h3>
                     <p className="text-[11px] text-slate-500">
-                      Add a comment to a task discussion or log a quick task status change.
+                      Post a task comment or update a task status through the Manager API.
                     </p>
                   </div>
                 </div>
@@ -982,28 +937,26 @@ export default function ActivityPage() {
                 )}
 
                 {/* Content Input Area */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">
-                    {composerType === "comment" ? "Comment / Note Content" : "Update Summary / Note"}
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={composerText}
-                    onChange={(e) => setComposerText(e.target.value)}
-                    placeholder={
-                      composerType === "comment"
-                        ? "Write a comment or tag team members e.g. '@Ayan live presence tested successfully!'"
-                        : "Describe what was accomplished or blockers resolved..."
-                    }
-                    className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
+                {composerType === "comment" && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">
+                      Comment / Note Content
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={composerText}
+                      onChange={(e) => setComposerText(e.target.value)}
+                      placeholder="Write a comment on the selected task..."
+                      className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+                )}
 
                 {/* Submit Row */}
                 <div className="flex items-center justify-between pt-1">
                   <div className="flex items-center gap-2 text-xs text-slate-400">
                     <AtSign size={13} />
-                    <span>Supports @mentioning team members</span>
+                    <span>Comments attach to the selected task.</span>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -1016,11 +969,11 @@ export default function ActivityPage() {
                     </button>
                     <button
                       type="submit"
-                      disabled={!composerText.trim()}
+                      disabled={mutationLoading || !composerTask || (composerType === "comment" && !composerText.trim())}
                       className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50 transition-all"
                     >
                       <Send size={13} />
-                      <span>Post to Feed</span>
+                      <span>{mutationLoading ? "Saving..." : "Submit"}</span>
                     </button>
                   </div>
                 </div>
@@ -1098,22 +1051,6 @@ export default function ActivityPage() {
                 </button>
               </div>
 
-              {/* Starred Bookmark Button */}
-              <button
-                type="button"
-                onClick={() => setOnlyStarred(!onlyStarred)}
-                className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold border transition-all shrink-0 self-start sm:self-auto ${
-                  onlyStarred
-                    ? "bg-amber-50 text-amber-800 border-amber-300"
-                    : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                }`}
-              >
-                <Bookmark
-                  size={14}
-                  className={onlyStarred ? "fill-amber-500 text-amber-500" : "text-slate-400"}
-                />
-                <span>Starred ({feed.filter((i) => i.starred).length})</span>
-              </button>
             </div>
 
             {/* Dropdown Filters Row */}
@@ -1178,7 +1115,6 @@ export default function ActivityPage() {
               selectedProject !== "All Projects" ||
               selectedActor !== "All Actors" ||
               selectedDateRange !== "all" ||
-              onlyStarred ||
               searchQuery) && (
               <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
                 <div className="flex flex-wrap items-center gap-1.5 text-slate-500">
@@ -1218,7 +1154,11 @@ export default function ActivityPage() {
 
           {/* Timeline Feed Container */}
           <section className="space-y-6">
-            {Object.keys(groupedFeed).length === 0 || filteredFeed.length === 0 ? (
+            {loading && feed.length === 0 ? (
+              <div role="status" className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-sm text-slate-500">
+                Loading activity feed...
+              </div>
+            ) : Object.keys(groupedFeed).length === 0 || filteredFeed.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                   <Activity size={28} />
@@ -1330,21 +1270,6 @@ export default function ActivityPage() {
                                     <span className="hidden sm:inline-block text-xs font-medium text-slate-400">
                                       {item.timestamp}
                                     </span>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleToggleStar(item.id, e)}
-                                      className="p-1 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-slate-100 transition-colors"
-                                      title={item.starred ? "Unstar" : "Star item"}
-                                    >
-                                      <Bookmark
-                                        size={15}
-                                        className={
-                                          item.starred
-                                            ? "fill-amber-500 text-amber-500"
-                                            : "text-slate-400"
-                                        }
-                                      />
-                                    </button>
                                   </div>
                                 </div>
 
@@ -1352,7 +1277,7 @@ export default function ActivityPage() {
                                 {isComment ? (
                                   <div className="rounded-xl border border-violet-100 bg-violet-50/40 p-3.5 space-y-2">
                                     <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal">
-                                      {item.content.split(" ").map((word, idx) =>
+                                      {String(item.content || "").split(" ").map((word, idx) =>
                                         word.startsWith("@") ? (
                                           <span
                                             key={idx}
@@ -1365,95 +1290,14 @@ export default function ActivityPage() {
                                         )
                                       )}
                                     </p>
-
-                                    {/* Comment Interactive Bar (Like & Reply) */}
-                                    <div className="flex items-center gap-3 pt-1 text-xs">
-                                      <button
-                                        type="button"
-                                        onClick={(e) => handleToggleLike(item.id, e)}
-                                        className={`inline-flex items-center gap-1 font-semibold transition-colors ${
-                                          item.hasLiked
-                                            ? "text-rose-600 font-bold"
-                                            : "text-slate-500 hover:text-rose-600"
-                                        }`}
-                                      >
-                                        <Heart
-                                          size={13}
-                                          className={
-                                            item.hasLiked ? "fill-rose-500 text-rose-500" : ""
-                                          }
-                                        />
-                                        <span>{item.likesCount || 0} Likes</span>
-                                      </button>
-
-                                      <span className="text-slate-300">•</span>
-
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setActiveReplyId(
-                                            activeReplyId === item.id ? null : item.id
-                                          )
-                                        }
-                                        className="inline-flex items-center gap-1 font-semibold text-slate-500 hover:text-violet-700 transition-colors"
+                                    {item.task && (
+                                      <Link
+                                        to={`/manager/tasks/${item.task.id}`}
+                                        className="inline-flex items-center gap-1 text-xs font-semibold text-violet-700 hover:text-violet-900"
                                       >
                                         <MessageCircle size={13} />
-                                        <span>
-                                          Reply ({item.replies ? item.replies.length : 0})
-                                        </span>
-                                      </button>
-                                    </div>
-
-                                    {/* Nested Discussion Replies */}
-                                    {item.replies && item.replies.length > 0 && (
-                                      <div className="mt-3 space-y-2 border-t border-violet-100 pt-2.5">
-                                        {item.replies.map((rep) => (
-                                          <div
-                                            key={rep.id}
-                                            className="flex items-start gap-2.5 rounded-lg bg-white/90 p-2.5 border border-slate-200/80 text-xs"
-                                          >
-                                            <div
-                                              className={`flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br ${rep.actor.color} text-white font-bold text-[9px] shrink-0`}
-                                            >
-                                              {rep.actor.avatar}
-                                            </div>
-                                            <div className="flex-1">
-                                              <div className="flex items-center justify-between">
-                                                <span className="font-bold text-slate-900">
-                                                  {rep.actor.name}
-                                                </span>
-                                                <span className="text-[10px] text-slate-400">
-                                                  {rep.timestamp}
-                                                </span>
-                                              </div>
-                                              <p className="mt-0.5 text-slate-600">{rep.text}</p>
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-
-                                    {/* Inline Reply Input Box */}
-                                    {activeReplyId === item.id && (
-                                      <form
-                                        onSubmit={(e) => handleSubmitReply(item.id, e)}
-                                        className="mt-3 flex items-center gap-2 pt-1"
-                                      >
-                                        <input
-                                          type="text"
-                                          value={replyInputText}
-                                          onChange={(e) => setReplyInputText(e.target.value)}
-                                          placeholder={`Reply to ${item.actor.name}...`}
-                                          className="flex-1 rounded-xl border border-violet-200 bg-white px-3 py-1.5 text-xs text-slate-800 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-400"
-                                          autoFocus
-                                        />
-                                        <button
-                                          type="submit"
-                                          className="rounded-xl bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700"
-                                        >
-                                          Send
-                                        </button>
-                                      </form>
+                                        Open task discussion
+                                      </Link>
                                     )}
                                   </div>
                                 ) : (
@@ -1533,6 +1377,17 @@ export default function ActivityPage() {
                   </div>
                 );
               })
+            )}
+            {!loading && pagination.page < pagination.pages && (
+              <div className="flex justify-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => loadFeed(pagination.page + 1, true)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Load more activities
+                </button>
+              </div>
             )}
           </section>
         </main>

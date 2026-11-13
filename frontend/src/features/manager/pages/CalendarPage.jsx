@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -14,94 +14,7 @@ import {
 
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
-import { getUserItem } from "../../../utils/userStorage.js";
-
-// Sample calendar events - frontend only
-const initialEvents = [
-  {
-    id: 1,
-    title: "WorkSync Dashboard UI",
-    date: "2026-11-05",
-    time: "10:00 AM",
-    type: "Task",
-    description: "Complete the manager dashboard interface.",
-    location: "WorkSync Project",
-  },
-  {
-    id: 2,
-    title: "Team Weekly Meeting",
-    date: "2026-11-06",
-    time: "11:30 AM",
-    type: "Meeting",
-    description: "Discuss project progress and team priorities.",
-    location: "Conference Room",
-  },
-  {
-    id: 3,
-    title: "Mobile App Design",
-    date: "2026-11-09",
-    time: "02:00 PM",
-    type: "Task",
-    description: "Review mobile application design.",
-    location: "Mobile Companion App",
-  },
-  {
-    id: 4,
-    title: "Real-Time Sync Deadline",
-    date: "2026-11-12",
-    time: "05:00 PM",
-    type: "Deadline",
-    description: "Final delivery of the real-time synchronization module.",
-    location: "Real-Time Sync Engine",
-  },
-  {
-    id: 5,
-    title: "Sprint Planning",
-    date: "2026-11-13",
-    time: "10:30 AM",
-    type: "Meeting",
-    description: "Plan upcoming sprint tasks and assignments.",
-    location: "Meeting Room A",
-  },
-  {
-    id: 6,
-    title: "API Documentation",
-    date: "2026-11-16",
-    time: "12:00 PM",
-    type: "Task",
-    description: "Review and complete API documentation.",
-    location: "WorkSync Project",
-  },
-  {
-    id: 7,
-    title: "Client Portal Deadline",
-    date: "2026-11-20",
-    time: "04:00 PM",
-    type: "Deadline",
-    description: "Submit the client onboarding portal.",
-    location: "Client Onboarding Portal",
-  },
-  {
-    id: 8,
-    title: "Team Performance Review",
-    date: "2026-11-24",
-    time: "03:00 PM",
-    type: "Meeting",
-    description: "Review team performance and workload.",
-    location: "Conference Room",
-  },
-  {
-    id: 9,
-    title: "Analytics Module",
-    date: "2026-11-27",
-    time: "01:00 PM",
-    type: "Task",
-    description: "Complete analytics and reporting module.",
-    location: "Analytics & Reporting Hub",
-  },
-];
-
-const getScopedEvents = () => getUserItem("manager_events", initialEvents);
+import managerService from "../managerService.js";
 
 const eventStyles = {
   Task: {
@@ -136,12 +49,46 @@ const CalendarPage = () => {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [events] = useState(getScopedEvents);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [currentMonth, setCurrentMonth] = useState(
     new Date(today.getFullYear(), today.getMonth(), 1)
   );
   const [selectedDate, setSelectedDate] = useState(formatDateKey(today));
   const [activeFilter, setActiveFilter] = useState("All");
+
+  const loadTasks = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const tasks = await managerService.getTasks();
+      setEvents(tasks.filter((task) => task.dueDate).map((task) => {
+        const dueDate = String(task.dueDate);
+        const due = new Date(dueDate);
+        return {
+          id: task.id || task._id,
+          title: task.title || "Untitled task",
+          date: dueDate.slice(0, 10),
+          time: dueDate.includes("T") && !dueDate.endsWith("T00:00:00.000Z")
+            ? due.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+            : "Due all day",
+          type: "Task",
+          description: task.description || "Task due date",
+          location: task.project?.name || task.project?.title || "No project",
+          isDeadline: true,
+        };
+      }));
+    } catch (loadError) {
+      setError(loadError.message || "Unable to load tasks for the calendar.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
 
   const monthName = currentMonth.toLocaleDateString("en-US", {
     month: "long",
@@ -156,7 +103,9 @@ const CalendarPage = () => {
         event.location.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesFilter =
-        activeFilter === "All" || event.type === activeFilter;
+        activeFilter === "All" ||
+        event.type === activeFilter ||
+        (activeFilter === "Deadline" && event.isDeadline);
 
       return matchesSearch && matchesFilter;
     });
@@ -177,8 +126,8 @@ const CalendarPage = () => {
 
   const counts = {
     Task: monthEvents.filter((event) => event.type === "Task").length,
-    Meeting: monthEvents.filter((event) => event.type === "Meeting").length,
-    Deadline: monthEvents.filter((event) => event.type === "Deadline").length,
+    Meeting: 0,
+    Deadline: monthEvents.filter((event) => event.isDeadline).length,
   };
 
   // Build calendar grid with Monday as the first day.
@@ -283,6 +232,11 @@ const CalendarPage = () => {
         />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
+          {error && (
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {error}
+            </div>
+          )}
 
           {/* Page Heading */}
           <section className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -292,12 +246,12 @@ const CalendarPage = () => {
                   Calendar
                 </h1>
                 <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 border border-blue-200">
-                  {monthEvents.length} Events
+                  {monthEvents.length} Task deadlines
                 </span>
               </div>
 
               <p className="mt-1 text-sm text-slate-500">
-                Manage tasks, meetings, and project deadlines in one place.
+                Task due dates from your projects. Meeting events are not provided by the backend.
               </p>
             </div>
 
@@ -321,9 +275,10 @@ const CalendarPage = () => {
             />
             <SummaryCard
               title="Meetings"
-              count={counts.Meeting}
+              count="—"
               icon={Users}
               color="purple"
+              subtitle="No meeting API"
             />
             <SummaryCard
               title="Deadlines"
@@ -346,7 +301,7 @@ const CalendarPage = () => {
                     {monthName}
                   </h2>
                   <p className="text-xs text-slate-500 mt-1">
-                    Select a date to view scheduled events.
+                    Select a date to view tasks due on that day.
                   </p>
                 </div>
 
@@ -496,7 +451,9 @@ const CalendarPage = () => {
               </div>
 
               <div className="p-4 space-y-3">
-                {selectedEvents.length > 0 ? (
+                {loading ? (
+                  <p className="py-12 text-center text-sm text-slate-500">Loading task due dates...</p>
+                ) : selectedEvents.length > 0 ? (
                   selectedEvents.map((event) => {
                     const style = eventStyles[event.type];
                     const Icon = style.icon;
@@ -557,7 +514,7 @@ const CalendarPage = () => {
 
               <div className="px-4 pb-4">
                 <p className="text-[11px] text-slate-400 text-center">
-                  Calendar events are currently sample data.
+                  Calendar entries are tasks returned by the Manager task API. Meetings are unavailable.
                 </p>
               </div>
             </div>
@@ -569,7 +526,7 @@ const CalendarPage = () => {
 };
 
 // Summary Card
-const SummaryCard = ({ title, count, icon: Icon, color }) => {
+const SummaryCard = ({ title, count, icon: Icon, color, subtitle = "This month" }) => {
   const styles = {
     blue: "bg-blue-50 text-blue-600",
     purple: "bg-purple-50 text-purple-600",
@@ -584,9 +541,7 @@ const SummaryCard = ({ title, count, icon: Icon, color }) => {
           <h3 className="text-2xl font-bold text-slate-900 mt-2">
             {count}
           </h3>
-          <p className="text-xs text-slate-400 mt-1">
-            This month
-          </p>
+          <p className="text-xs text-slate-400 mt-1">{subtitle}</p>
         </div>
 
         <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${styles[color]}`}>

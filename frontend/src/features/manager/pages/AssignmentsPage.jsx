@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Search,
   Menu,
@@ -11,62 +11,17 @@ import {
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
-import { getUserItem, setUserItem } from "../../../utils/userStorage.js";
+import managerService from "../managerService.js";
 
-const initialAssignments = [
-  {
-    id: 1,
-    title: "Design dashboard UI",
-    project: "WorkSync Web App",
-    assignee: "Aarav Patel",
-    status: "In Progress",
-    priority: "High",
-    deadline: "2026-11-05",
-  },
-  {
-    id: 2,
-    title: "Implement login validation",
-    project: "WorkSync Web App",
-    assignee: "Priya Shah",
-    status: "To Do",
-    priority: "Medium",
-    deadline: "2026-11-08",
-  },
-  {
-    id: 3,
-    title: "Test notification flow",
-    project: "Notifications",
-    assignee: "Unassigned",
-    status: "To Do",
-    priority: "Low",
-    deadline: "2026-11-12",
-  },
-  {
-    id: 4,
-    title: "Optimize API response time",
-    project: "Real-Time Sync Engine",
-    assignee: "Rohan Mehta",
-    status: "In Review",
-    priority: "High",
-    deadline: "2026-11-15",
-  },
-  {
-    id: 5,
-    title: "Prepare analytics dashboard",
-    project: "Analytics & Reporting Hub",
-    assignee: "Neha Desai",
-    status: "Completed",
-    priority: "Medium",
-    deadline: "2026-10-25",
-  },
-];
+const taskStatusLabel = (status) => ({
+  todo: "To Do",
+  in_progress: "In Progress",
+  review: "In Review",
+  done: "Completed",
+}[String(status || "").toLowerCase()] || "To Do");
 
-const employees = [
-  "Aarav Patel",
-  "Priya Shah",
-  "Rohan Mehta",
-  "Neha Desai",
-];
+const taskPriorityLabel = (priority) =>
+  String(priority || "low").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 const statusStyles = {
   "To Do": "bg-slate-100 text-slate-700 border-slate-200",
@@ -82,16 +37,51 @@ const priorityStyles = {
 };
 
 export default function AssignmentsPage() {
-  const [assignments, setAssignments] = useState(() => {
-    const saved = getUserItem("manager_assignments", null);
-    return Array.isArray(saved) ? saved : initialAssignments;
-  });
+  const [assignments, setAssignments] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [employeeFilter, setEmployeeFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState("");
+
+  const loadAssignments = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [tasks, teamData] = await Promise.all([
+        managerService.getTasks(),
+        managerService.getTeamMembers(),
+      ]);
+      const members = Array.isArray(teamData?.members) ? teamData.members : [];
+      setEmployees(members.map((member) => ({
+        id: member.userId,
+        name: member.name,
+      })).filter((member) => member.id && member.name));
+      setAssignments(tasks.map((task) => ({
+        id: task.id,
+        title: task.title || "Untitled task",
+        project: task.project?.name || "No project",
+        assigneeId: task.assignee?.id || task.assignee?._id || "",
+        assignee: task.assignee?.name || "Unassigned",
+        status: taskStatusLabel(task.status),
+        priority: taskPriorityLabel(task.priority),
+        deadline: task.dueDate || "",
+      })));
+    } catch (loadError) {
+      setError(loadError.message || "Unable to load task assignments.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAssignments();
+  }, [loadAssignments]);
 
   const counts = useMemo(
     () => ({
@@ -136,26 +126,24 @@ export default function AssignmentsPage() {
 
   function openAssignment(task) {
     setEditingTask(task);
-    setSelectedEmployee(
-      task.assignee === "Unassigned" ? "" : task.assignee
-    );
+    setSelectedEmployee(task.assigneeId || "__unassigned__");
   }
 
-  function saveAssignment() {
+  async function saveAssignment() {
     if (!editingTask || !selectedEmployee) return;
-
-    setAssignments((current) => {
-      const updated = current.map((task) =>
-        task.id === editingTask.id
-          ? { ...task, assignee: selectedEmployee }
-          : task
-      );
-      setUserItem("manager_assignments", updated);
-      return updated;
-    });
-
-    setEditingTask(null);
-    setSelectedEmployee("");
+    setSaving(true);
+    setError("");
+    try {
+      const assigneeId = selectedEmployee === "__unassigned__" ? null : selectedEmployee;
+      await managerService.updateTask(editingTask.id, { assigneeId });
+      await loadAssignments();
+      setEditingTask(null);
+      setSelectedEmployee("");
+    } catch (saveError) {
+      setError(saveError.message || "Unable to update the task assignment.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function resetFilters() {
@@ -182,6 +170,11 @@ export default function AssignmentsPage() {
         />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
+          {error && (
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {error}
+            </div>
+          )}
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
@@ -273,8 +266,8 @@ export default function AssignmentsPage() {
                 <option value="All">All employees</option>
                 <option value="Unassigned">Unassigned</option>
                 {employees.map((employee) => (
-                  <option key={employee} value={employee}>
-                    {employee}
+                  <option key={employee.id} value={employee.name}>
+                    {employee.name}
                   </option>
                 ))}
               </select>
@@ -312,7 +305,9 @@ export default function AssignmentsPage() {
                 </thead>
 
                 <tbody className="divide-y divide-slate-100">
-                  {filteredAssignments.map((task) => (
+                  {loading ? (
+                    <tr><td colSpan={6} className="px-5 py-12 text-center text-xs text-slate-500">Loading task assignments...</td></tr>
+                  ) : filteredAssignments.map((task) => (
                     <tr key={task.id} className="hover:bg-slate-50">
                       <td className="px-5 py-4">
                         <p className="font-medium text-slate-900">
@@ -348,14 +343,14 @@ export default function AssignmentsPage() {
                       </td>
 
                       <td className="px-5 py-4 text-xs text-slate-600">
-                        {new Date(`${task.deadline}T12:00:00`).toLocaleDateString(
+                        {task.deadline ? new Date(task.deadline).toLocaleDateString(
                           "en-IN",
                           {
                             day: "numeric",
                             month: "short",
                             year: "numeric",
                           }
-                        )}
+                        ) : "No due date"}
                       </td>
 
                       <td className="px-5 py-4 text-right">
@@ -370,7 +365,7 @@ export default function AssignmentsPage() {
                     </tr>
                   ))}
 
-                  {filteredAssignments.length === 0 && (
+                  {!loading && filteredAssignments.length === 0 && (
                     <tr>
                       <td
                         colSpan={6}
@@ -425,9 +420,10 @@ export default function AssignmentsPage() {
               className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none"
             >
               <option value="">Choose an employee</option>
+              <option value="__unassigned__">Unassigned</option>
               {employees.map((employee) => (
-                <option key={employee} value={employee}>
-                  {employee}
+                <option key={employee.id} value={employee.id}>
+                  {employee.name}
                 </option>
               ))}
             </select>
@@ -443,10 +439,10 @@ export default function AssignmentsPage() {
               <button
                 type="button"
                 onClick={saveAssignment}
-                disabled={!selectedEmployee}
+                disabled={!selectedEmployee || saving}
                 className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Save Assignment
+                {saving ? "Saving..." : "Save Assignment"}
               </button>
             </div>
           </div>

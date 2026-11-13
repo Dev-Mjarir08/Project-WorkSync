@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bell,
   Search,
@@ -18,73 +18,7 @@ import {
 } from "lucide-react";
 
 import Sidebar from "../../../components/layout/Sidebar.jsx";
-import { getUserItem, setUserItem } from "../../../utils/userStorage.js";
-
-const initialNotifications = [
-  {
-    id: 1,
-    title: "New task assigned to you",
-    message: "Rahul Sharma assigned you a new task: Create dashboard UI.",
-    type: "Task",
-    time: "10 minutes ago",
-    date: "Today",
-    unread: true,
-  },
-  {
-    id: 2,
-    title: "Project deadline approaching",
-    message: "The Client Portal project deadline is approaching. Please review pending tasks.",
-    type: "Deadline",
-    time: "30 minutes ago",
-    date: "Today",
-    unread: true,
-  },
-  {
-    id: 3,
-    title: "Project updated",
-    message: "The WorkSync project details have been updated by the manager.",
-    type: "Project",
-    time: "2 hours ago",
-    date: "Today",
-    unread: true,
-  },
-  {
-    id: 4,
-    title: "Task marked as completed",
-    message: "Priya Patel completed the task: Design mobile screens.",
-    type: "Task",
-    time: "5 hours ago",
-    date: "Today",
-    unread: false,
-  },
-  {
-    id: 5,
-    title: "New team discussion",
-    message: "A new comment was added to the project discussion.",
-    type: "Discussion",
-    time: "Yesterday",
-    date: "Yesterday",
-    unread: false,
-  },
-  {
-    id: 6,
-    title: "Upcoming task deadline",
-    message: "The task API documentation is due soon.",
-    type: "Deadline",
-    time: "Yesterday",
-    date: "Yesterday",
-    unread: false,
-  },
-  {
-    id: 7,
-    title: "Project status changed",
-    message: "The Mobile App project status has been updated.",
-    type: "Project",
-    time: "2 days ago",
-    date: "Earlier",
-    unread: false,
-  },
-];
+import managerService from "../managerService.js";
 
 const categoryStyles = {
   Task: {
@@ -103,19 +37,72 @@ const categoryStyles = {
     icon: MessageSquare,
     color: "bg-emerald-50 text-emerald-600",
   },
+  Other: {
+    icon: Bell,
+    color: "bg-slate-100 text-slate-600",
+  },
+};
+
+const normalizeNotification = (notification) => {
+  const createdAt = notification.createdAt ? new Date(notification.createdAt) : null;
+  const ageInDays = createdAt && !Number.isNaN(createdAt.getTime())
+    ? Math.floor((Date.now() - createdAt.getTime()) / 86400000)
+    : Infinity;
+  const rawType = String(notification.type || "").toLowerCase();
+  const type = rawType === "task" ? "Task"
+    : rawType === "deadline" ? "Deadline"
+      : rawType === "project" ? "Project"
+        : ["comment", "discussion"].includes(rawType) ? "Discussion" : "Other";
+
+  return {
+    id: notification._id || notification.id,
+    title: notification.title || "Notification",
+    message: notification.message || "",
+    type,
+    time: createdAt && !Number.isNaN(createdAt.getTime())
+      ? createdAt.toLocaleString()
+      : "Date unavailable",
+    date: ageInDays < 1 ? "Today" : ageInDays < 2 ? "Yesterday" : "Earlier",
+    unread: !notification.isRead,
+  };
 };
 
 const NotificationsPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [notifications, setNotifications] = useState(() =>
-    getUserItem("manager_notifications", initialNotifications)
-  );
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
 
-  const unreadCount = notifications.filter(
-    (notification) => notification.unread
-  ).length;
+  const loadNotifications = useCallback(async (page = 1, append = false) => {
+    setLoading(true);
+    setError("");
+    try {
+      const filters = { page, limit: 20 };
+      if (activeFilter === "Unread") filters.isRead = false;
+      if (activeFilter === "Read") filters.isRead = true;
+      const result = await managerService.getNotifications(filters);
+      if (!Array.isArray(result?.notifications) || !result?.pagination) {
+        throw new Error("The Manager API returned an invalid notifications response.");
+      }
+      const next = result.notifications.map(normalizeNotification);
+      setNotifications((current) => append ? [...current, ...next] : next);
+      setUnreadCount(Number(result.unreadCount) || 0);
+      setPagination(result.pagination);
+    } catch (loadError) {
+      setError(loadError.message || "Unable to load notifications.");
+    } finally {
+      setLoading(false);
+    }
+  }, [activeFilter]);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
 
   const filteredNotifications = useMemo(() => {
     return notifications.filter((notification) => {
@@ -123,50 +110,82 @@ const NotificationsPage = () => {
         notification.title.toLowerCase().includes(search.toLowerCase()) ||
         notification.message.toLowerCase().includes(search.toLowerCase());
 
-      const matchesFilter =
-        activeFilter === "All" ||
-        (activeFilter === "Unread" && notification.unread) ||
-        (activeFilter === "Read" && !notification.unread) ||
-        notification.type === activeFilter;
+      let matchesFilter = true;
+      if (activeFilter === "Unread") matchesFilter = notification.unread;
+      else if (activeFilter === "Read") matchesFilter = !notification.unread;
+      else if (["Task", "Deadline", "Project", "Discussion"].includes(activeFilter)) {
+        matchesFilter = notification.type === activeFilter;
+      }
 
       return matchesSearch && matchesFilter;
     });
   }, [notifications, search, activeFilter]);
 
-  const markAsRead = (id) => {
-    setNotifications((previous) => {
-      const updated = previous.map((notification) =>
-        notification.id === id
-          ? { ...notification, unread: false }
-          : notification
-      );
-      setUserItem("manager_notifications", updated);
-      return updated;
-    });
+  const markAsRead = async (id) => {
+    setBusy(true);
+    setError("");
+    try {
+      await managerService.markNotificationAsRead(id);
+      await loadNotifications(pagination.page);
+    } catch (actionError) {
+      setError(actionError.message || "Unable to mark the notification as read.");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications((previous) => {
-      const updated = previous.map((notification) => ({
-        ...notification,
-        unread: false,
-      }));
-      setUserItem("manager_notifications", updated);
-      return updated;
-    });
+  const markAllAsRead = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await managerService.markAllNotificationsAsRead();
+      await loadNotifications(1);
+    } catch (actionError) {
+      setError(actionError.message || "Unable to mark notifications as read.");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const deleteNotification = (id) => {
-    setNotifications((previous) => {
-      const updated = previous.filter((notification) => notification.id !== id);
-      setUserItem("manager_notifications", updated);
-      return updated;
-    });
+  const deleteNotification = async (id) => {
+    setBusy(true);
+    setError("");
+    try {
+      await managerService.deleteNotification(id);
+      await loadNotifications(pagination.page);
+    } catch (actionError) {
+      setError(actionError.message || "Unable to delete the notification.");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const clearAllNotifications = () => {
-    setNotifications([]);
-    setUserItem("manager_notifications", []);
+  const clearAllNotifications = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const firstPage = await managerService.getNotifications({ page: 1, limit: 100 });
+      if (!Array.isArray(firstPage?.notifications) || !firstPage?.pagination) {
+        throw new Error("The Manager API returned an invalid notifications response.");
+      }
+      const allNotifications = [...firstPage.notifications];
+      for (let page = 2; page <= firstPage.pagination.pages; page += 1) {
+        const nextPage = await managerService.getNotifications({ page, limit: 100 });
+        if (!Array.isArray(nextPage?.notifications)) {
+          throw new Error("The Manager API returned an invalid notifications page.");
+        }
+        allNotifications.push(...nextPage.notifications);
+      }
+      await Promise.all(allNotifications.map((notification) =>
+        managerService.deleteNotification(notification._id || notification.id)
+      ));
+      await loadNotifications(1);
+    } catch (actionError) {
+      setError(actionError.message || "Unable to clear notifications.");
+      await loadNotifications(1);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const filters = ["All", "Unread", "Read", "Task", "Deadline", "Project", "Discussion"];
@@ -219,6 +238,11 @@ const NotificationsPage = () => {
         </header>
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
+          {error && (
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {error}
+            </div>
+          )}
           {/* Overview */}
           <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -233,7 +257,7 @@ const NotificationsPage = () => {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={markAllAsRead}
-                disabled={unreadCount === 0}
+                disabled={unreadCount === 0 || busy}
                 className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
               >
                 <CheckCheck size={16} />
@@ -242,7 +266,7 @@ const NotificationsPage = () => {
 
               <button
                 onClick={clearAllNotifications}
-                disabled={notifications.length === 0}
+                disabled={pagination.total === 0 || busy}
                 className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-40"
               >
                 <Trash2 size={16} />
@@ -255,7 +279,7 @@ const NotificationsPage = () => {
           <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <StatCard
               title="Total Notifications"
-              value={notifications.length}
+              value={pagination.total}
               icon={<Bell size={21} />}
               color="blue"
             />
@@ -267,7 +291,7 @@ const NotificationsPage = () => {
             />
             <StatCard
               title="Read Notifications"
-              value={notifications.length - unreadCount}
+              value={Math.max(0, pagination.total - unreadCount)}
               icon={<CheckCircleIcon />}
               color="emerald"
             />
@@ -385,6 +409,7 @@ const NotificationsPage = () => {
                                 {notification.unread && (
                                   <button
                                     onClick={() => markAsRead(notification.id)}
+                                    disabled={busy}
                                     title="Mark as read"
                                     aria-label="Mark as read"
                                     className="p-2 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
@@ -397,6 +422,7 @@ const NotificationsPage = () => {
                                   onClick={() =>
                                     deleteNotification(notification.id)
                                   }
+                                  disabled={busy}
                                   title="Delete notification"
                                   aria-label="Delete notification"
                                   className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50"
@@ -412,7 +438,13 @@ const NotificationsPage = () => {
                   )
               )}
 
-              {filteredNotifications.length === 0 && (
+              {loading && notifications.length === 0 && (
+                <div className="py-16 text-center text-sm text-slate-500">
+                  Loading notifications...
+                </div>
+              )}
+
+              {!loading && filteredNotifications.length === 0 && (
                 <div className="py-16 text-center">
                   <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
                     <Bell size={25} className="text-slate-400" />
@@ -438,6 +470,18 @@ const NotificationsPage = () => {
                 </div>
               )}
             </div>
+            {pagination.page < pagination.pages && (
+              <div className="border-t border-slate-100 p-4 text-center">
+                <button
+                  type="button"
+                  disabled={loading || busy}
+                  onClick={() => loadNotifications(pagination.page + 1, true)}
+                  className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {loading ? "Loading..." : "Load more"}
+                </button>
+              </div>
+            )}
           </section>
         </main>
       </div>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import {
   ClipboardList,
@@ -10,18 +10,14 @@ import {
   Users,
   ArrowUpRight,
   TrendingUp,
-  Bell,
-  Search,
   Calendar,
-  Menu,
   X,
   ChevronRight,
   FolderKanban,
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
-
-const DASHBOARD_API_URL = "http://localhost:8081/api/v1/manager/dashboard";
+import managerService from "../managerService.js";
 
 const summaryCardDefinitions = [
   {
@@ -49,107 +45,6 @@ const summaryCardDefinitions = [
     color: "bg-rose-50 text-rose-600 border border-rose-100",
   },
 ];
-
-const LOCAL_DEV_MOCK_DATA = {
-  overview: {
-    stats: {
-      totalTasks: 12,
-      totalProjects: 2,
-      assignedProjects: 2,
-      inProgressTasks: 4,
-      completedTasks: 6,
-      overdueTasks: 1,
-      completionRate: 50,
-    },
-    myProjects: [
-      {
-        id: "local-project-1",
-        name: "WorkSync Web App",
-        key: "CORE",
-        status: "active",
-        completedTasks: 8,
-        totalTasks: 12,
-        progress: 67,
-      },
-      {
-        id: "local-project-2",
-        name: "Team Management",
-        key: "TEAM",
-        status: "active",
-        completedTasks: 2,
-        totalTasks: 6,
-        progress: 33,
-      },
-    ],
-    recentTasks: [
-      {
-        id: "local-task-1",
-        title: "Connect manager dashboard metrics",
-        status: "in_progress",
-        priority: "high",
-        dueDate: "2026-11-10T00:00:00.000Z",
-        assignee: { name: "Alex Rivera" },
-        project: { name: "WorkSync Web App" },
-      },
-      {
-        id: "local-task-2",
-        title: "Review team assignments",
-        status: "review",
-        priority: "medium",
-        dueDate: "2026-11-12T00:00:00.000Z",
-        assignee: { name: "Sam Lee" },
-        project: { name: "Team Management" },
-      },
-      {
-        id: "local-task-3",
-        title: "Document API response fields",
-        status: "done",
-        priority: "low",
-        dueDate: "2026-11-04T00:00:00.000Z",
-        assignee: { name: "Jordan Kim" },
-        project: { name: "WorkSync Web App" },
-      },
-    ],
-    recentActivities: [
-      {
-        id: "local-activity-1",
-        user: { name: "Alex Rivera" },
-        description: "moved a task to In Progress",
-        entityName: "Connect manager dashboard metrics",
-        createdAt: "2026-11-06T09:30:00.000Z",
-      },
-      {
-        id: "local-activity-2",
-        user: { name: "Sam Lee" },
-        description: "completed a task",
-        entityName: "Update project documentation",
-        createdAt: "2026-11-06T08:15:00.000Z",
-      },
-    ],
-  },
-  teamPerformance: [
-    {
-      id: "local-member-1",
-      name: "Alex Rivera",
-      workspaceRole: "manager",
-      totalAssigned: 5,
-      completed: 3,
-      inProgress: 2,
-      overdue: 1,
-      completionRate: 60,
-    },
-    {
-      id: "local-member-2",
-      name: "Sam Lee",
-      workspaceRole: "member",
-      totalAssigned: 4,
-      completed: 2,
-      inProgress: 1,
-      overdue: 0,
-      completionRate: 50,
-    },
-  ],
-};
 
 const statusStyles = {
   "In Progress": "bg-blue-50 text-blue-700 border-blue-200",
@@ -215,67 +110,37 @@ const getProjectStatusColor = (status) => {
   return "bg-slate-100 text-slate-600 border-slate-200";
 };
 
-const fetchDashboardData = async (endpoint, token, signal) => {
-  const response = await fetch(`${DASHBOARD_API_URL}${endpoint}`, {
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    signal,
-  });
-  let body = null;
-  try {
-    body = await response.json();
-  } catch {
-    body = null;
-  }
-
-  if (!response.ok || body?.success === false) {
-    const error = new Error(body?.message || `Dashboard request failed (${response.status})`);
-    error.status = response.status;
-    throw error;
-  }
-
-  return body?.data ?? body;
-};
-
-const sampleNotifications = [
-  { id: 1, text: "Ayan updated 'Design login page' to In Progress", time: "15m ago", unread: true },
-  { id: 2, text: "Rouhan completed 'Set up workspace'", time: "2h ago", unread: true },
-  { id: 3, text: "Review task assignments pending approval", time: "5h ago", unread: false },
-];
-
 const DashboardPage = () => {
-  const navigate = useNavigate();
-  const { user, token } = useSelector((state) => state.auth);
+  const { user } = useSelector((state) => state.auth);
   const [tasks, setTasks] = useState([]);
   const [stats, setStats] = useState({});
   const [projects, setProjects] = useState([]);
+  const [projectOptions, setProjectOptions] = useState([]);
+  const [projectMembers, setProjectMembers] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [teamMembersData, setTeamMembersData] = useState([]);
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [teamLoading, setTeamLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState("");
   const [teamError, setTeamError] = useState("");
-  const [usingLocalMockData, setUsingLocalMockData] = useState(false);
+  const [taskFormError, setTaskFormError] = useState("");
+  const [savingTask, setSavingTask] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [taskSearchQuery, setTaskSearchQuery] = useState("");
   const [taskStatusFilter, setTaskStatusFilter] = useState("All");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [notificationList, setNotificationList] = useState(sampleNotifications);
 
   // Form state for Create Task Modal
   const [newTask, setNewTask] = useState({
     title: "",
-    project: "WorkSync Web App",
-    assignee: "Ayan",
-    priority: "High",
-    dueDate: "Oct 28, 2026",
+    projectId: "",
+    assigneeId: "",
+    priority: "high",
+    dueDate: "",
   });
 
   useEffect(() => {
-    const controller = new AbortController();
     let active = true;
 
     const applyOverviewData = (overview) => {
@@ -359,73 +224,81 @@ const DashboardPage = () => {
       );
     };
 
-    if (!token) {
-      if (import.meta.env.DEV) {
-        applyOverviewData(LOCAL_DEV_MOCK_DATA.overview);
-        applyTeamData({ teamPerformance: LOCAL_DEV_MOCK_DATA.teamPerformance });
-        setUsingLocalMockData(true);
-        setDashboardError("");
-        setTeamError("");
-      } else {
-        setDashboardError("Please sign in to view your manager dashboard.");
-        setTeamError("");
-      }
-      setDashboardLoading(false);
-      setTeamLoading(false);
-      return () => controller.abort();
-    }
-
     setDashboardLoading(true);
     setTeamLoading(true);
-    setUsingLocalMockData(false);
     setDashboardError("");
     setTeamError("");
 
-    fetchDashboardData("/", token, controller.signal)
+    managerService.getDashboardOverview()
       .then((overview) => {
         if (!active) return;
         applyOverviewData(overview);
       })
       .catch((error) => {
-        if (active && error.name !== "AbortError") {
-          if (import.meta.env.DEV && [401, 403].includes(error.status)) {
-            applyOverviewData(LOCAL_DEV_MOCK_DATA.overview);
-            setUsingLocalMockData(true);
-            setDashboardError("");
-          } else {
-            setDashboardError(error.message || "Unable to load dashboard data.");
-          }
-        }
+        if (active) setDashboardError(error.message || "Unable to load dashboard data.");
       })
       .finally(() => {
         if (active) setDashboardLoading(false);
       });
 
-    fetchDashboardData("/team-performance", token, controller.signal)
+    managerService.getDashboardTeamPerformance()
       .then((result) => {
         if (!active) return;
         applyTeamData(result);
       })
       .catch((error) => {
-        if (active && error.name !== "AbortError") {
-          if (import.meta.env.DEV && [401, 403].includes(error.status)) {
-            applyTeamData({ teamPerformance: LOCAL_DEV_MOCK_DATA.teamPerformance });
-            setUsingLocalMockData(true);
-            setTeamError("");
-          } else {
-            setTeamError(error.message || "Unable to load team performance.");
-          }
-        }
+        if (active) setTeamError(error.message || "Unable to load team performance.");
       })
       .finally(() => {
         if (active) setTeamLoading(false);
       });
 
+    managerService.getProjects()
+      .then((projectData) => {
+        if (!active) return;
+        setProjectOptions(projectData);
+        setNewTask((current) => ({
+          ...current,
+          projectId: current.projectId || projectData[0]?.id || projectData[0]?._id || "",
+        }));
+      })
+      .catch((error) => {
+        if (active) setTaskFormError(error.message || "Unable to load project options.");
+      });
+
     return () => {
       active = false;
-      controller.abort();
     };
-  }, [token]);
+  }, [refreshKey]);
+
+  useEffect(() => {
+    let active = true;
+    if (!newTask.projectId) {
+      setProjectMembers([]);
+      return () => {
+        active = false;
+      };
+    }
+    managerService.getProjectMembers(newTask.projectId)
+      .then((members) => {
+        if (!active) return;
+        setProjectMembers(members);
+        setNewTask((current) => ({
+          ...current,
+          assigneeId: members.some((member) =>
+            String(member.id || member.userId || member._id) === String(current.assigneeId)
+          )
+            ? current.assigneeId
+            : "",
+        }));
+      })
+      .catch((error) => {
+        if (active) setTaskFormError(error.message || "Unable to load project members.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [newTask.projectId]);
 
   // Filter tasks based on search query and status filter
   const filteredTasks = useMemo(() => {
@@ -456,43 +329,28 @@ const DashboardPage = () => {
     change: summaryChanges[index],
   }));
 
-  const handleCreateTaskSubmit = (e) => {
+  const handleCreateTaskSubmit = async (e) => {
     e.preventDefault();
     if (!newTask.title.trim()) return;
-
-    const assigneeColors = {
-      Devanshi: "from-blue-600 to-indigo-600",
-      Ayan: "from-cyan-500 to-blue-600",
-      Rouhan: "from-emerald-500 to-teal-600",
-      Jarir: "from-blue-500 to-cyan-600",
-    };
-
-    const created = {
-      id: Date.now(),
-      title: newTask.title.trim(),
-      project: newTask.project,
-      assignee: newTask.assignee,
-      assigneeRole:
-        newTask.assignee === "Devanshi"
-          ? "Manager"
-          : newTask.assignee === "Ayan" || newTask.assignee === "Jarir"
-          ? "Admin"
-          : "Employee",
-      assigneeColor: assigneeColors[newTask.assignee] || "from-slate-600 to-slate-800",
-      priority: newTask.priority,
-      status: "In Progress",
-      dueDate: newTask.dueDate || "Nov 01, 2026",
-    };
-
-    setTasks([created, ...tasks]);
-    setNewTask({
-      title: "",
-      project: "WorkSync Web App",
-      assignee: "Ayan",
-      priority: "High",
-      dueDate: "Oct 28, 2026",
-    });
-    setShowCreateTaskModal(false);
+    setSavingTask(true);
+    setTaskFormError("");
+    try {
+      await managerService.createTask({
+        title: newTask.title.trim(),
+        ...(newTask.projectId ? { projectId: newTask.projectId } : {}),
+        ...(newTask.assigneeId ? { assigneeId: newTask.assigneeId } : {}),
+        priority: newTask.priority,
+        status: "todo",
+        ...(newTask.dueDate ? { dueDate: newTask.dueDate } : {}),
+      });
+      setNewTask((current) => ({ ...current, title: "", assigneeId: "", dueDate: "" }));
+      setShowCreateTaskModal(false);
+      setRefreshKey((current) => current + 1);
+    } catch (error) {
+      setTaskFormError(error.message || "Unable to create the task.");
+    } finally {
+      setSavingTask(false);
+    }
   };
 
   return (
@@ -535,13 +393,6 @@ const DashboardPage = () => {
               <ArrowUpRight size={14} />
             </Link>
           </header>
-
-          {usingLocalMockData && (
-            <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900" role="status">
-              <span className="font-bold">LOCAL DEVELOPMENT MOCK DATA</span>{" "}
-              This dashboard is showing temporary sample data. Backend authentication and authorization remain enabled.
-            </p>
-          )}
 
           {dashboardLoading && (
             <p className="text-xs text-slate-500" role="status">Loading dashboard data...</p>
@@ -656,7 +507,7 @@ const DashboardPage = () => {
               </div>
             </div>
 
-            {/* Sprint Velocity & Activity Insights (1 Column) */}
+            {/* Workspace Task Snapshot & Activity */}
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between pb-4 border-b border-slate-100">
@@ -665,26 +516,27 @@ const DashboardPage = () => {
                       <TrendingUp size={16} />
                     </div>
                     <div>
-                      <h3 className="text-xs font-bold text-slate-900">Sprint 4 Velocity</h3>
-                      <p className="text-[10px] text-slate-500">Oct 14 - Oct 28 cycle</p>
+                      <h3 className="text-xs font-bold text-slate-900">Workspace Task Snapshot</h3>
+                      <p className="text-[10px] text-slate-500">
+                        {Number(stats.totalTasks) || 0} tasks across the workspace
+                      </p>
                     </div>
                   </div>
                   <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
-                    +18%
+                    {Number(stats.completionRate) || 0}% complete
                   </span>
                 </div>
 
-                {/* Velocity Stats */}
                 <div className="mt-4 grid grid-cols-2 gap-2.5">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
-                    <p className="text-[10px] font-medium text-slate-500">Points Done</p>
-                    <p className="mt-1 text-xl font-extrabold text-slate-900">34</p>
-                    <p className="mt-0.5 text-[10px] text-emerald-700 font-semibold">of 42 points</p>
+                    <p className="text-[10px] font-medium text-slate-500">Completed Tasks</p>
+                    <p className="mt-1 text-xl font-extrabold text-slate-900">{Number(stats.completedTasks) || 0}</p>
+                    <p className="mt-0.5 text-[10px] text-emerald-700 font-semibold">Current workspace total</p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
-                    <p className="text-[10px] font-medium text-slate-500">Days Remaining</p>
-                    <p className="mt-1 text-xl font-extrabold text-slate-900">6</p>
-                    <p className="mt-0.5 text-[10px] text-blue-700 font-semibold">On Schedule</p>
+                    <p className="text-[10px] font-medium text-slate-500">Overdue Tasks</p>
+                    <p className="mt-1 text-xl font-extrabold text-slate-900">{Number(stats.overdueTasks) || 0}</p>
+                    <p className="mt-0.5 text-[10px] text-rose-700 font-semibold">Require attention</p>
                   </div>
                 </div>
 
@@ -968,14 +820,16 @@ const DashboardPage = () => {
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700">Project</label>
                 <select
-                  value={newTask.project}
-                  onChange={(e) => setNewTask({ ...newTask, project: e.target.value })}
+                  value={newTask.projectId}
+                  onChange={(e) => setNewTask({ ...newTask, projectId: e.target.value, assigneeId: "" })}
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                 >
-                  <option value="WorkSync Web App">WorkSync Web App</option>
-                  <option value="Mobile Companion App">Mobile Companion App</option>
-                  <option value="Real-Time Sync Engine">Real-Time Sync Engine</option>
-                  <option value="Team Management">Team Management</option>
+                  {projectOptions.length === 0 && <option value="">No projects available</option>}
+                  {projectOptions.map((project) => (
+                    <option key={project.id || project._id} value={project.id || project._id}>
+                      {project.name || project.title || "Untitled project"}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -983,14 +837,16 @@ const DashboardPage = () => {
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700">Assignee</label>
                   <select
-                    value={newTask.assignee}
-                    onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })}
+                    value={newTask.assigneeId}
+                    onChange={(e) => setNewTask({ ...newTask, assigneeId: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                   >
-                    <option value="Devanshi">Devanshi (Manager)</option>
-                    <option value="Ayan">Ayan (Admin)</option>
-                    <option value="Rouhan">Rouhan (Employee)</option>
-                    <option value="Jarir">Jarir (Admin)</option>
+                    <option value="">Unassigned</option>
+                    {projectMembers.map((member) => (
+                      <option key={member.id || member.userId || member._id} value={member.id || member.userId || member._id}>
+                        {member.name || member.email || "Team member"}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -1001,9 +857,9 @@ const DashboardPage = () => {
                     onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                   >
-                    <option value="High">High</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Low">Low</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
                   </select>
                 </div>
               </div>
@@ -1011,13 +867,14 @@ const DashboardPage = () => {
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700">Due Date</label>
                 <input
-                  type="text"
-                  placeholder="e.g. Oct 30, 2026"
+                  type="date"
                   value={newTask.dueDate}
                   onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
                 />
               </div>
+
+              {taskFormError && <p role="alert" className="text-xs text-rose-700">{taskFormError}</p>}
 
               <div className="mt-4 flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
                 <button
@@ -1029,10 +886,11 @@ const DashboardPage = () => {
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700"
+                  disabled={savingTask || !newTask.title.trim() || !newTask.projectId}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50"
                 >
                   <Plus size={14} />
-                  <span>Add Task</span>
+                  <span>{savingTask ? "Saving..." : "Add Task"}</span>
                 </button>
               </div>
             </form>
