@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as tasksController from './tasks.controller.js';
+import * as commentsController from '../comments/comments.controller.js';
 
 const router = Router();
 
@@ -20,5 +21,10 @@ router.patch('/:taskId/due-date', tasksController.updateTaskDueDate);
 router.patch('/:taskId/move', tasksController.moveTask);
 
 router.get('/:taskId/activities', tasksController.getTaskActivities);
+
+router.get('/:taskId/comments', commentsController.getTaskComments);
+router.post('/:taskId/comments', commentsController.addTaskComment);
+router.post('/:taskId/comments/:commentId/replies', commentsController.addCommentReply);
+router.get('/:taskId/comments/:commentId/replies', commentsController.getCommentReplies);
 
 export default router;
