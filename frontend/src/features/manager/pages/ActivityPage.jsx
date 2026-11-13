@@ -38,9 +38,11 @@ import {
 
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
+import { getUserItem, setUserItem } from "../../../utils/userStorage.js";
+
 
 // Standard team members from workspace
-const teamMembersList = [
+const teamMembersListFallback = [
   { id: "tm-1", name: "Devanshi Sharma", role: "Engineering Manager", avatar: "DS", color: "from-blue-600 to-indigo-600" },
   { id: "tm-2", name: "Ayan Mukherjee", role: "Fullstack Admin", avatar: "AM", color: "from-cyan-500 to-blue-600" },
   { id: "tm-3", name: "Rouhan Siddiqui", role: "Frontend Dev", avatar: "RS", color: "from-emerald-500 to-teal-600" },
@@ -51,7 +53,7 @@ const teamMembersList = [
 ];
 
 // Standard projects catalog
-const projectsList = [
+const projectsListFallback = [
   { id: "proj-1", name: "WorkSync Web App" },
   { id: "proj-2", name: "Mobile Companion App" },
   { id: "proj-3", name: "Real-Time Sync Engine" },
@@ -60,7 +62,7 @@ const projectsList = [
 ];
 
 // Standard task options for referencing
-const tasksList = [
+const tasksListFallback = [
   { id: "task-1", title: "Implement WebSocket connection and live presence sync", projectId: "proj-1" },
   { id: "task-2", title: "Design light theme SaaS workspace layout and card tokens", projectId: "proj-1" },
   { id: "task-3", title: "Build Kanban board column state and status transition handlers", projectId: "proj-1" },
@@ -76,7 +78,7 @@ const tasksList = [
 // 1. Recent task updates (status, priority, deadline, assignment)
 // 2. Comments & discussions (with replies, reactions, @mentions)
 // 3. Team activities (sprint milestones, PR reviews, member onboarding)
-const initialFeedData = [
+const initialFeedDataFallback = [
   {
     id: "act-201",
     category: "task_update", // 'task_update' | 'comment' | 'team_activity'
@@ -377,10 +379,36 @@ const initialFeedData = [
     starred: false,
   },
 ];
+// Prefer saved workspace data, retaining the original sample data as a fallback.
+const storedTeamMembers = getUserItem("manager_team", []);
+const storedProjects = getUserItem("manager_projects", []);
+const storedTasks = getUserItem("manager_tasks", []);
+const storedActivities = getUserItem("manager_activities", []);
+
+const teamMembersList =
+  Array.isArray(storedTeamMembers) && storedTeamMembers.length > 0
+    ? storedTeamMembers
+    : teamMembersListFallback;
+const projectsList =
+  Array.isArray(storedProjects) && storedProjects.length > 0
+    ? storedProjects
+    : projectsListFallback;
+const tasksList =
+  Array.isArray(storedTasks) && storedTasks.length > 0
+    ? storedTasks
+    : tasksListFallback;
+const initialFeedData =
+  Array.isArray(storedActivities) && storedActivities.length > 0
+    ? storedActivities
+    : initialFeedDataFallback;
 
 export default function ActivityPage() {
   const navigate = useNavigate();
   const [feed, setFeed] = useState(initialFeedData);
+
+  useEffect(() => {
+    setUserItem("manager_activities", feed);
+  }, [feed]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Active view tab: 'all' | 'task_updates' | 'comments' | 'team_activities'
@@ -397,7 +425,7 @@ export default function ActivityPage() {
   // Quick Composer State
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerType, setComposerType] = useState("comment"); // 'comment' | 'task_update'
-  const [composerTask, setComposerTask] = useState(tasksList[0].id);
+  const [composerTask, setComposerTask] = useState(tasksList[0]?.id || "");
   const [composerText, setComposerText] = useState("");
   const [composerStatusTo, setComposerStatusTo] = useState("In Progress");
 
@@ -451,8 +479,8 @@ export default function ActivityPage() {
         const matchesTitle = item.title.toLowerCase().includes(q);
         const matchesContent = item.content.toLowerCase().includes(q);
         const matchesActor = item.actor.name.toLowerCase().includes(q);
-        const matchesProject = item.project?.name.toLowerCase().includes(q);
-        const matchesTask = item.task?.title.toLowerCase().includes(q);
+        const matchesProject = item.project?.name?.toLowerCase().includes(q);
+        const matchesTask = item.task?.title?.toLowerCase().includes(q);
         if (!matchesTitle && !matchesContent && !matchesActor && !matchesProject && !matchesTask) {
           return false;
         }
@@ -558,8 +586,14 @@ export default function ActivityPage() {
     if (!composerText.trim()) return;
 
     const chosenTask = tasksList.find((t) => t.id === composerTask) || tasksList[0];
+
+    if (!chosenTask) {
+      setBannerNotice("No tasks are available. Add a task before posting an update.");
+      return;
+    }
+
     const chosenProject =
-      projectsList.find((p) => p.id === chosenTask.projectId) || projectsList[0];
+      projectsList.find((p) => p.id === chosenTask.projectId) || projectsList[0] || null;
 
     const newId = `act-${Date.now().toString().slice(-4)}`;
     let newItem = null;
@@ -911,8 +945,10 @@ export default function ActivityPage() {
                     <select
                       value={composerTask}
                       onChange={(e) => setComposerTask(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:border-blue-500 focus:bg-white"
+                      disabled={tasksList.length === 0}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:border-blue-500 focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
+                      {tasksList.length === 0 && <option value="">No tasks available</option>}
                       {tasksList.map((t) => (
                         <option key={t.id} value={t.id}>
                           [{t.id.toUpperCase()}] {t.title}

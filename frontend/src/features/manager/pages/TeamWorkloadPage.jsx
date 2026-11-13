@@ -17,6 +17,7 @@ import {
 
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
+import { getUserItem } from "../../../utils/userStorage.js";
 
 // Frontend mock data
 const employees = [
@@ -79,6 +80,11 @@ const employees = [
   },
 ];
 
+const getScopedEmployees = () => {
+  const saved = getUserItem("manager_team", null);
+  return Array.isArray(saved) && saved.length > 0 ? saved : employees;
+};
+
 const getWorkload = (pending, inProgress) => {
   const activeTasks = pending + inProgress;
 
@@ -112,23 +118,25 @@ const TeamWorkloadPage = () => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
 
   const employeeStats = useMemo(() => {
-    return employees.map((employee) => {
-      const pending = employee.tasks.filter(
-        (task) => task.status === "Pending"
+    return getScopedEmployees().map((employee) => {
+      const tasks = Array.isArray(employee.tasks) ? employee.tasks : [];
+      const pending = tasks.filter(
+        (task) => task.status === "Pending" || task.status === "To Do"
       ).length;
 
-      const inProgress = employee.tasks.filter(
+      const inProgress = tasks.filter(
         (task) => task.status === "In Progress"
       ).length;
 
-      const completed = employee.tasks.filter(
+      const completed = tasks.filter(
         (task) => task.status === "Completed"
       ).length;
 
-      const total = employee.tasks.length;
+      const total = tasks.length;
 
       return {
         ...employee,
+        tasks,
         pending,
         inProgress,
         completed,

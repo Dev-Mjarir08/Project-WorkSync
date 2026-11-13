@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import Sidebar from "../../../components/layout/Sidebar.jsx";
+import { getUserItem, setUserItem } from "../../../utils/userStorage.js";
 
 const initialNotifications = [
   {
@@ -106,7 +107,9 @@ const categoryStyles = {
 
 const NotificationsPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState(() =>
+    getUserItem("manager_notifications", initialNotifications)
+  );
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
 
@@ -131,32 +134,39 @@ const NotificationsPage = () => {
   }, [notifications, search, activeFilter]);
 
   const markAsRead = (id) => {
-    setNotifications((previous) =>
-      previous.map((notification) =>
+    setNotifications((previous) => {
+      const updated = previous.map((notification) =>
         notification.id === id
           ? { ...notification, unread: false }
           : notification
-      )
-    );
+      );
+      setUserItem("manager_notifications", updated);
+      return updated;
+    });
   };
 
   const markAllAsRead = () => {
-    setNotifications((previous) =>
-      previous.map((notification) => ({
+    setNotifications((previous) => {
+      const updated = previous.map((notification) => ({
         ...notification,
         unread: false,
-      }))
-    );
+      }));
+      setUserItem("manager_notifications", updated);
+      return updated;
+    });
   };
 
   const deleteNotification = (id) => {
-    setNotifications((previous) =>
-      previous.filter((notification) => notification.id !== id)
-    );
+    setNotifications((previous) => {
+      const updated = previous.filter((notification) => notification.id !== id);
+      setUserItem("manager_notifications", updated);
+      return updated;
+    });
   };
 
   const clearAllNotifications = () => {
     setNotifications([]);
+    setUserItem("manager_notifications", []);
   };
 
   const filters = ["All", "Unread", "Read", "Task", "Deadline", "Project", "Discussion"];

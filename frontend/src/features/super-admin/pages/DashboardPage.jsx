@@ -119,15 +119,15 @@ export const DashboardPage = () => {
           </div>
           <div className="mt-4 flex items-baseline justify-between">
             <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              {stats?.totalUsers || '0'}
+              {stats?.totalUsers ?? 0}
             </h3>
             <span className="flex items-center gap-1 text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
               <ArrowUpRight className="h-3.5 w-3.5" />
-              {stats?.usersGrowth || '+14.2%'}
+              {stats?.usersGrowth ?? '0%'}
             </span>
           </div>
           <p className="mt-2 text-xs text-slate-400 flex items-center justify-between">
-            <span>Across all tenants</span>
+            <span>Managed users</span>
             <span className="text-indigo-400 group-hover:translate-x-1 transition-transform inline-flex items-center gap-0.5">
               Directory <ArrowRight className="h-3 w-3" />
             </span>
@@ -146,11 +146,11 @@ export const DashboardPage = () => {
           </div>
           <div className="mt-4 flex items-baseline justify-between">
             <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              {stats?.activeWorkspaces || '5'}
+              {stats?.activeWorkspaces ?? 0}
             </h3>
             <span className="flex items-center gap-1 text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
               <ArrowUpRight className="h-3.5 w-3.5" />
-              {stats?.workspacesGrowth || '+8.5%'}
+              {stats?.workspacesGrowth ?? '0%'}
             </span>
           </div>
           <p className="mt-2 text-xs text-slate-400 flex items-center justify-between">
@@ -382,11 +382,11 @@ export const DashboardPage = () => {
               <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
                 <div className="p-1.5 rounded-lg bg-slate-950/60 border border-slate-800">
                   <span className="text-[10px] text-slate-500">Active</span>
-                  <p className="font-bold text-emerald-400 text-xs">{rolesSummary?.active || '6'} Online</p>
+                  <p className="font-bold text-emerald-400 text-xs">{rolesSummary?.active ?? 0} Online</p>
                 </div>
                 <div className="p-1.5 rounded-lg bg-slate-950/60 border border-slate-800">
                   <span className="text-[10px] text-slate-500">Admins</span>
-                  <p className="font-bold text-blue-400 text-xs">{rolesSummary?.admin || '2'} Admins</p>
+                  <p className="font-bold text-blue-400 text-xs">{rolesSummary?.admin ?? 0} Admins</p>
                 </div>
               </div>
             </div>
@@ -468,27 +468,35 @@ export const DashboardPage = () => {
             </div>
           </div>
 
-          {/* Simple Visual Bar Chart */}
-          <div className="pt-6 grid grid-cols-5 gap-3 items-end h-48 border-b border-slate-800 pb-2">
-            {userGrowthChart?.map((item, idx) => {
-              const maxUsers = 2000;
-              const heightPercent = Math.min(Math.round((item.users / maxUsers) * 100), 100);
-              return (
-                <div key={idx} className="flex flex-col items-center gap-2 h-full justify-end group">
-                  <div className="text-[11px] font-mono text-slate-400 group-hover:text-indigo-400 transition-colors">
-                    {item.users}
+          {/* Adoption Telemetry Chart */}
+          {!userGrowthChart || userGrowthChart.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-48 border-b border-slate-800 pb-2 text-center text-slate-500">
+              <TrendingUp className="h-8 w-8 text-slate-600 mb-2" />
+              <p className="text-xs">No adoption telemetry recorded yet for this administrator.</p>
+              <p className="text-[11px] text-slate-600">Provision workspaces to start charting adoption trends.</p>
+            </div>
+          ) : (
+            <div className="pt-6 grid grid-cols-5 gap-3 items-end h-48 border-b border-slate-800 pb-2">
+              {userGrowthChart.map((item, idx) => {
+                const maxUsers = 100;
+                const heightPercent = Math.min(Math.round(((item.users || 1) / maxUsers) * 100), 100);
+                return (
+                  <div key={idx} className="flex flex-col items-center gap-2 h-full justify-end group">
+                    <div className="text-[11px] font-mono text-slate-400 group-hover:text-indigo-400 transition-colors">
+                      {item.users}
+                    </div>
+                    <div className="w-full max-w-[42px] bg-slate-800/80 rounded-t-lg overflow-hidden flex flex-col justify-end h-32 relative">
+                      <div
+                        style={{ height: `${Math.max(heightPercent, 10)}%` }}
+                        className="w-full bg-gradient-to-t from-indigo-600 to-purple-500 rounded-t-lg transition-all duration-500 group-hover:from-indigo-500 group-hover:to-purple-400"
+                      ></div>
+                    </div>
+                    <span className="text-xs font-semibold text-slate-400">{item.month}</span>
                   </div>
-                  <div className="w-full max-w-[42px] bg-slate-800/80 rounded-t-lg overflow-hidden flex flex-col justify-end h-32 relative">
-                    <div
-                      style={{ height: `${heightPercent}%` }}
-                      className="w-full bg-gradient-to-t from-indigo-600 to-purple-500 rounded-t-lg transition-all duration-500 group-hover:from-indigo-500 group-hover:to-purple-400"
-                    ></div>
-                  </div>
-                  <span className="text-xs font-semibold text-slate-400">{item.month}</span>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="p-6 rounded-2xl bg-[#0d1322] border border-slate-800/80 shadow-xl space-y-4">

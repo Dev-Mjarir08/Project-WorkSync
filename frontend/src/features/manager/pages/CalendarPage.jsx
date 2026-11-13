@@ -14,6 +14,7 @@ import {
 
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
+import { getUserItem } from "../../../utils/userStorage.js";
 
 // Sample calendar events - frontend only
 const initialEvents = [
@@ -100,6 +101,8 @@ const initialEvents = [
   },
 ];
 
+const getScopedEvents = () => getUserItem("manager_events", initialEvents);
+
 const eventStyles = {
   Task: {
     color: "bg-blue-50 text-blue-700 border-blue-200",
@@ -133,7 +136,7 @@ const CalendarPage = () => {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [events] = useState(initialEvents);
+  const [events] = useState(getScopedEvents);
   const [currentMonth, setCurrentMonth] = useState(
     new Date(today.getFullYear(), today.getMonth(), 1)
   );

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
+import { getUserItem } from "../../../utils/userStorage.js";
 
 // Initial realistic team members dataset with detailed assigned tasks
 export const initialTeamMembers = [
@@ -317,6 +318,11 @@ export const initialTeamMembers = [
   },
 ];
 
+export const getScopedTeamMembers = () => {
+  const saved = getUserItem("manager_team", null);
+  return Array.isArray(saved) && saved.length > 0 ? saved : initialTeamMembers;
+};
+
 // Badge & styling maps consistent with existing pages
 const priorityStyles = {
   High: "bg-rose-50 text-rose-700 border-rose-200/80",
@@ -343,7 +349,7 @@ const memberStatusStyles = {
 };
 
 const TeamPage = () => {
-  const [members] = useState(initialTeamMembers);
+  const [members] = useState(getScopedTeamMembers);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [selectedRole, setSelectedRole] = useState("All");

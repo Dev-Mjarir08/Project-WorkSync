@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
+import { getUserItem, setUserItem } from "../../../utils/userStorage.js";
 
 const initialAssignments = [
   {
@@ -81,7 +82,10 @@ const priorityStyles = {
 };
 
 export default function AssignmentsPage() {
-  const [assignments, setAssignments] = useState(initialAssignments);
+  const [assignments, setAssignments] = useState(() => {
+    const saved = getUserItem("manager_assignments", null);
+    return Array.isArray(saved) ? saved : initialAssignments;
+  });
   const [search, setSearch] = useState("");
   const [employeeFilter, setEmployeeFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -140,13 +144,15 @@ export default function AssignmentsPage() {
   function saveAssignment() {
     if (!editingTask || !selectedEmployee) return;
 
-    setAssignments((current) =>
-      current.map((task) =>
+    setAssignments((current) => {
+      const updated = current.map((task) =>
         task.id === editingTask.id
           ? { ...task, assignee: selectedEmployee }
           : task
-      )
-    );
+      );
+      setUserItem("manager_assignments", updated);
+      return updated;
+    });
 
     setEditingTask(null);
     setSelectedEmployee("");

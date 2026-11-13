@@ -1,10 +1,16 @@
 import React from 'react';
-import ReactDOM from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import App from './app/App.jsx';
 import AppProviders from './app/providers.jsx';
 import './styles/index.css';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const rootElement = document.getElementById('root');
+
+if (!rootElement) {
+  throw new Error('The application root element was not found.');
+}
+
+createRoot(rootElement).render(
   <React.StrictMode>
     <AppProviders>
       <App />
