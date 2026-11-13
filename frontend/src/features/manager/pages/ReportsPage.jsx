@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   TrendingUp,
@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
+import managerService from "../managerService.js";
 
 // ==========================================
 // DATASETS & BENCHMARKS
@@ -47,7 +48,7 @@ const sprintVelocityData = [
   { sprint: "Sprint 4 (Active)", planned: 42, completed: 34, velocity: 34, rate: 81.0, dates: "Oct 14 - Oct 28", current: true },
 ];
 
-const burndownDays = [
+const defaultBurndownDays = [
   { day: "Day 1", ideal: 42, actual: 42 },
   { day: "Day 2", ideal: 37.8, actual: 41 },
   { day: "Day 3", ideal: 33.6, actual: 38 },
@@ -540,6 +541,27 @@ const ReportsPage = () => {
   const [hoveredBurndownDay, setHoveredBurndownDay] = useState(null);
   const [selectedTaskModal, setSelectedTaskModal] = useState(null);
 
+  // Live reports state: Burndown & Productivity Throughput
+  const [burndownDays, setBurndownDays] = useState(defaultBurndownDays);
+  const [productivityData, setProductivityData] = useState(null);
+
+  const fetchLiveReports = () => {
+    managerService.getBurndownReports().then((res) => {
+      if (res?.burndown && Array.isArray(res.burndown) && res.burndown.length > 0) {
+        setBurndownDays(res.burndown);
+      }
+    });
+    managerService.getProductivityReports().then((res) => {
+      if (res?.weeks) {
+        setProductivityData(res);
+      }
+    });
+  };
+
+  useEffect(() => {
+    fetchLiveReports();
+  }, []);
+
   // Show auto-dismissing toast
   const triggerToast = (msg) => {
     setToastMessage(msg);
@@ -551,15 +573,23 @@ const ReportsPage = () => {
   // Simulate data refresh
   const handleRefresh = () => {
     setIsRefreshing(true);
+    fetchLiveReports();
     setTimeout(() => {
       setIsRefreshing(false);
-      triggerToast("Sprint analytics and project metrics updated successfully!");
+      triggerToast("Sprint analytics, burndown trajectory, and productivity metrics updated successfully!");
     }, 600);
   };
 
-  // Export CSV generator
-  const handleExportCSV = () => {
+  // Direct CSV Export Generator (GET /api/v1/manager/reports/export)
+  const handleExportCSV = async () => {
     setExportMenuOpen(false);
+    try {
+      await managerService.downloadExportCSV({ timeframe, project: selectedProject });
+      triggerToast("CSV Report downloaded successfully from server!");
+      return;
+    } catch (err) {
+      console.warn("Server CSV export failed, falling back to client CSV:", err.message);
+    }
 
     const headers = [
       "Task ID",
@@ -1527,6 +1557,48 @@ const ReportsPage = () => {
                   <span className="rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 border border-slate-200 shadow-xs self-start sm:self-auto">
                     Forecast: 40 Story Points
                   </span>
+                </div>
+
+                {/* Team Throughput Timeline Chart (GET /api/v1/manager/reports/productivity) */}
+                <div className="mt-6 rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-100">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Activity className="size-4 text-blue-600" />
+                        <h3 className="text-sm font-bold text-slate-900">Team Throughput Timeline</h3>
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                          Live Productivity
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Weekly task creation vs completion throughput velocity across sprint cycles.
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 uppercase font-semibold">Average Throughput</span>
+                      <p className="text-sm font-bold text-slate-900">{productivityData?.averageThroughput || 8.5} tasks / week</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {(productivityData?.weeks || [
+                      { label: "Week 1", created: 12, completed: 10, throughputRate: 83 },
+                      { label: "Week 2", created: 15, completed: 14, throughputRate: 93 },
+                      { label: "Week 3", created: 11, completed: 9, throughputRate: 82 },
+                      { label: "Week 4", created: 14, completed: 12, throughputRate: 86 },
+                    ]).map((w, idx) => (
+                      <div key={idx} className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-center">
+                        <span className="text-xs font-bold text-slate-800">{w.label}</span>
+                        <div className="mt-2 flex items-center justify-center gap-3 text-xs">
+                          <span className="text-slate-500">+{w.created} new</span>
+                          <span className="font-semibold text-emerald-600">✓ {w.completed} done</span>
+                        </div>
+                        <div className="mt-2 text-[10px] font-bold text-blue-600">
+                          {w.throughputRate}% throughput
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

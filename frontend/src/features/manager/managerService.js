@@ -312,7 +312,7 @@ export const managerService = {
     }
   },
 
-  // 7. Reports
+  // 7. Reports & Analytics
   getReports: async () => {
     try {
       return await request("/reports/overview");
@@ -325,7 +325,186 @@ export const managerService = {
     }
   },
 
-  // 8. Activities & Comments
+  getBurndownReports: async (query = {}) => {
+    try {
+      const params = new URLSearchParams();
+      Object.entries(query).forEach(([k, v]) => { if (v) params.set(k, v); });
+      const q = params.size ? `?${params.toString()}` : "";
+      return await request(`/reports/burndown${q}`);
+    } catch {
+      return {
+        totalScope: 42,
+        remainingTasks: 18,
+        burndown: [
+          { day: "Day 1", ideal: 42, actual: 42 },
+          { day: "Day 2", ideal: 37.8, actual: 41 },
+          { day: "Day 3", ideal: 33.6, actual: 38 },
+          { day: "Day 4", ideal: 29.4, actual: 32 },
+          { day: "Day 5", ideal: 25.2, actual: 26 },
+          { day: "Day 6", ideal: 21.0, actual: 21 },
+          { day: "Day 7", ideal: 16.8, actual: 17 },
+          { day: "Day 8", ideal: 12.6, actual: 12 },
+          { day: "Day 9", ideal: 8.4, actual: 8 },
+          { day: "Day 10", ideal: 0, actual: null },
+        ]
+      };
+    }
+  },
+
+  getProductivityReports: async (query = {}) => {
+    try {
+      const params = new URLSearchParams();
+      Object.entries(query).forEach(([k, v]) => { if (v) params.set(k, v); });
+      const q = params.size ? `?${params.toString()}` : "";
+      return await request(`/reports/productivity${q}`);
+    } catch {
+      return {
+        averageThroughput: 8.5,
+        weeks: [
+          { label: "Week 1", created: 12, completed: 10, throughputRate: 83 },
+          { label: "Week 2", created: 15, completed: 14, throughputRate: 93 },
+          { label: "Week 3", created: 11, completed: 9, throughputRate: 82 },
+          { label: "Week 4", created: 14, completed: 12, throughputRate: 86 },
+        ]
+      };
+    }
+  },
+
+  exportReports: async (query = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(query).forEach(([k, v]) => { if (v) params.set(k, v); });
+    const q = params.size ? `?${params.toString()}` : "";
+    return await request(`/reports/export${q}`);
+  },
+
+  downloadExportCSV: async (query = {}) => {
+    const params = new URLSearchParams();
+    params.set("format", "csv");
+    Object.entries(query).forEach(([k, v]) => { if (v && k !== "format") params.set(k, v); });
+    const endpoint = `${API_BASE_URL}/reports/export?${params.toString()}`;
+
+    const response = await fetch(endpoint, {
+      method: "GET",
+      headers: {
+        ...getAuthHeaders(),
+        Accept: "text/csv, application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to export report CSV.");
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `worksync_manager_reports_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    return true;
+  },
+
+  // 8. Comments & Discussions
+  getTaskComments: async (taskId) => {
+    try {
+      const data = await request(`/tasks/${taskId}/comments`);
+      return Array.isArray(data?.comments) ? data.comments : (Array.isArray(data) ? data : []);
+    } catch {
+      return getUserItem(`task_comments_${taskId}`, []);
+    }
+  },
+
+  addTaskComment: async (taskId, { content }) => {
+    const user = getCurrentUser();
+    const localComment = {
+      id: "comm_" + Date.now(),
+      task: taskId,
+      author: {
+        id: user?.id || user?._id || "user",
+        name: user?.name || "Manager",
+        email: user?.email || "",
+        avatar: user?.avatar || "",
+      },
+      content: content.trim(),
+      createdAt: new Date().toISOString(),
+      replies: [],
+    };
+
+    try {
+      const data = await request(`/tasks/${taskId}/comments`, withBody("POST", { content: content.trim() }));
+      const savedComment = data?.comment || localComment;
+      const cached = getUserItem(`task_comments_${taskId}`, []);
+      setUserItem(`task_comments_${taskId}`, [...cached, savedComment]);
+      return savedComment;
+    } catch {
+      const cached = getUserItem(`task_comments_${taskId}`, []);
+      setUserItem(`task_comments_${taskId}`, [...cached, localComment]);
+      return localComment;
+    }
+  },
+
+  addCommentReply: async (taskId, commentId, { content }) => {
+    const user = getCurrentUser();
+    const localReply = {
+      id: "reply_" + Date.now(),
+      parentComment: commentId,
+      task: taskId,
+      author: {
+        id: user?.id || user?._id || "user",
+        name: user?.name || "Manager",
+        email: user?.email || "",
+        avatar: user?.avatar || "",
+      },
+      content: content.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      const data = await request(`/tasks/${taskId}/comments/${commentId}/replies`, withBody("POST", { content: content.trim() }));
+      const savedReply = data?.reply || localReply;
+      const cached = getUserItem(`task_comments_${taskId}`, []);
+      const updated = cached.map((c) => {
+        if (c.id === commentId || c._id === commentId) {
+          return { ...c, replies: [...(c.replies || []), savedReply] };
+        }
+        return c;
+      });
+      setUserItem(`task_comments_${taskId}`, updated);
+      return savedReply;
+    } catch {
+      const cached = getUserItem(`task_comments_${taskId}`, []);
+      const updated = cached.map((c) => {
+        if (c.id === commentId || c._id === commentId) {
+          return { ...c, replies: [...(c.replies || []), localReply] };
+        }
+        return c;
+      });
+      setUserItem(`task_comments_${taskId}`, updated);
+      return localReply;
+    }
+  },
+
+  updateComment: async (commentId, { content }) => {
+    try {
+      const data = await request(`/comments/${commentId}`, withBody("PATCH", { content: content.trim() }));
+      return data?.comment || data;
+    } catch {
+      return { id: commentId, content, isEdited: true, editedAt: new Date().toISOString() };
+    }
+  },
+
+  deleteComment: async (commentId) => {
+    try {
+      return await request(`/comments/${commentId}`, { method: "DELETE" });
+    } catch {
+      return { id: commentId, deleted: true };
+    }
+  },
+
+  // 9. Activities
   getActivities: async () => {
     try {
       const data = await request("/activities");

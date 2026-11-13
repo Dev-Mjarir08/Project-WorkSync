@@ -18,6 +18,11 @@ import {
   FolderKanban,
   User,
   ArrowRight,
+  MessageSquare,
+  Send,
+  Edit3,
+  Trash2,
+  CornerDownRight,
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
@@ -259,6 +264,105 @@ const TasksPage = () => {
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedTaskDetails, setSelectedTaskDetails] = useState(null);
+
+  // Modal Comments & Discussions State
+  const [modalComments, setModalComments] = useState([]);
+  const [modalNewComment, setModalNewComment] = useState("");
+  const [modalCommentLoading, setModalCommentLoading] = useState(false);
+  const [modalReplyingId, setModalReplyingId] = useState(null);
+  const [modalReplyText, setModalReplyText] = useState("");
+  const [modalEditingId, setModalEditingId] = useState(null);
+  const [modalEditText, setModalEditText] = useState("");
+
+  useEffect(() => {
+    if (selectedTaskDetails?.id) {
+      managerService.getTaskComments(selectedTaskDetails.id).then((res) => {
+        setModalComments(Array.isArray(res) ? res : []);
+      });
+      setModalNewComment("");
+      setModalReplyingId(null);
+      setModalEditingId(null);
+    }
+  }, [selectedTaskDetails?.id]);
+
+  // POST /api/v1/manager/tasks/:taskId/comments – Add task comment in modal
+  const handleAddCommentInModal = async (e) => {
+    e.preventDefault();
+    if (!modalNewComment.trim() || modalCommentLoading || !selectedTaskDetails?.id) return;
+    setModalCommentLoading(true);
+    try {
+      const added = await managerService.addTaskComment(selectedTaskDetails.id, {
+        content: modalNewComment.trim(),
+      });
+      setModalComments((prev) => [...prev, added]);
+      setModalNewComment("");
+    } catch (err) {
+      console.error("Failed to add comment in modal:", err);
+    } finally {
+      setModalCommentLoading(false);
+    }
+  };
+
+  // POST /api/v1/manager/tasks/:taskId/comments/:commentId/replies – Reply to comment
+  const handleReplyInModal = async (commentId) => {
+    if (!modalReplyText.trim() || modalCommentLoading || !selectedTaskDetails?.id) return;
+    setModalCommentLoading(true);
+    try {
+      const reply = await managerService.addCommentReply(selectedTaskDetails.id, commentId, {
+        content: modalReplyText.trim(),
+      });
+      setModalComments((prev) =>
+        prev.map((c) => {
+          const cId = c.id || c._id;
+          if (cId === commentId) {
+            return { ...c, replies: [...(c.replies || []), reply] };
+          }
+          return c;
+        })
+      );
+      setModalReplyingId(null);
+      setModalReplyText("");
+    } catch (err) {
+      console.error("Failed to reply to comment in modal:", err);
+    } finally {
+      setModalCommentLoading(false);
+    }
+  };
+
+  // PATCH /api/v1/manager/comments/:commentId – Edit comment
+  const handleEditInModal = async (commentId) => {
+    if (!modalEditText.trim() || modalCommentLoading) return;
+    setModalCommentLoading(true);
+    try {
+      await managerService.updateComment(commentId, { content: modalEditText.trim() });
+      setModalComments((prev) =>
+        prev.map((c) => {
+          const cId = c.id || c._id;
+          if (cId === commentId) {
+            return { ...c, content: modalEditText.trim(), text: modalEditText.trim() };
+          }
+          return c;
+        })
+      );
+      setModalEditingId(null);
+      setModalEditText("");
+    } catch (err) {
+      console.error("Failed to update comment in modal:", err);
+    } finally {
+      setModalCommentLoading(false);
+    }
+  };
+
+  // DELETE /api/v1/manager/comments/:commentId – Delete comment
+  const handleDeleteInModal = async (commentId) => {
+    if (!window.confirm("Delete this comment?")) return;
+    try {
+      await managerService.deleteComment(commentId);
+      setModalComments((prev) => prev.filter((c) => (c.id || c._id) !== commentId));
+    } catch (err) {
+      console.error("Failed to delete comment in modal:", err);
+    }
+  };
 
   // New task form state
   const [newTask, setNewTask] = useState({
@@ -886,7 +990,7 @@ const TasksPage = () => {
             className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
             onClick={() => setSelectedTaskDetails(null)}
           />
-          <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl z-10 space-y-4">
+          <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-xl z-10 space-y-4">
             <div className="flex items-start justify-between border-b border-slate-100 pb-3">
               <div>
                 <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-200">
@@ -959,6 +1063,162 @@ const TasksPage = () => {
               </div>
             </div>
 
+            {/* Modal Comments & Discussion Section (POST /tasks/:taskId/comments) */}
+            <div className="border-t border-slate-100 pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                  <MessageSquare size={14} className="text-blue-600" />
+                  <span>Task Discussion & Comments</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.2 text-[10px] text-slate-600 font-semibold">
+                    {modalComments.length}
+                  </span>
+                </div>
+              </div>
+
+              {/* Comments list */}
+              <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+                {modalComments.length > 0 ? (
+                  modalComments.map((c) => {
+                    const cId = c.id || c._id;
+                    const cAuthor = c.author?.name || c.author || "Team Member";
+                    const isReplying = modalReplyingId === cId;
+                    const isEditing = modalEditingId === cId;
+
+                    return (
+                      <div key={cId} className="rounded-xl border border-slate-100 bg-slate-50/70 p-2.5 text-xs space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-slate-800 text-[11px]">{cAuthor}</span>
+                          <div className="flex items-center gap-2 text-[10px]">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModalReplyingId(isReplying ? null : cId);
+                                setModalReplyText("");
+                              }}
+                              className="text-blue-600 hover:underline flex items-center gap-0.5 cursor-pointer"
+                            >
+                              <CornerDownRight size={10} />
+                              <span>Reply</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModalEditingId(isEditing ? null : cId);
+                                setModalEditText(c.content || c.text || "");
+                              }}
+                              className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                              title="Edit comment"
+                            >
+                              <Edit3 size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteInModal(cId)}
+                              className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                              title="Delete comment"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {isEditing ? (
+                          <div className="space-y-1.5 pt-1">
+                            <input
+                              type="text"
+                              value={modalEditText}
+                              onChange={(e) => setModalEditText(e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-800 outline-none focus:border-blue-500"
+                            />
+                            <div className="flex justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setModalEditingId(null)}
+                                className="rounded px-2 py-0.5 text-[10px] text-slate-500 hover:bg-slate-200 cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleEditInModal(cId)}
+                                className="rounded bg-blue-600 px-2.5 py-0.5 text-[10px] font-semibold text-white hover:bg-blue-700 cursor-pointer"
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-slate-700 text-[11px] leading-snug">{c.content || c.text}</p>
+                        )}
+
+                        {/* Nested replies */}
+                        {Array.isArray(c.replies) && c.replies.length > 0 && (
+                          <div className="pl-3 border-l-2 border-slate-200 space-y-1.5 mt-1.5">
+                            {c.replies.map((r) => (
+                              <div key={r.id || r._id} className="text-[10px] bg-white p-1.5 rounded border border-slate-100">
+                                <span className="font-semibold text-slate-800">{r.author?.name || r.author || "Member"}: </span>
+                                <span className="text-slate-600">{r.content || r.text}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Reply box */}
+                        {isReplying && (
+                          <div className="space-y-1.5 pt-1">
+                            <input
+                              type="text"
+                              placeholder={`Reply to ${cAuthor}...`}
+                              value={modalReplyText}
+                              onChange={(e) => setModalReplyText(e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-800 outline-none focus:border-blue-500"
+                            />
+                            <div className="flex justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setModalReplyingId(null)}
+                                className="rounded px-2 py-0.5 text-[10px] text-slate-500 hover:bg-slate-200 cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleReplyInModal(cId)}
+                                className="rounded bg-blue-600 px-2.5 py-0.5 text-[10px] font-semibold text-white hover:bg-blue-700 cursor-pointer"
+                              >
+                                Send Reply
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-[11px] text-slate-400 italic py-2 text-center">No comments on this task yet.</p>
+                )}
+              </div>
+
+              {/* Add comment in modal form (POST /api/v1/manager/tasks/:taskId/comments) */}
+              <form onSubmit={handleAddCommentInModal} className="flex items-center gap-2 pt-1">
+                <input
+                  type="text"
+                  placeholder="Write a comment in modal..."
+                  value={modalNewComment}
+                  onChange={(e) => setModalNewComment(e.target.value)}
+                  className="flex-1 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500"
+                />
+                <button
+                  type="submit"
+                  disabled={modalCommentLoading || !modalNewComment.trim()}
+                  className="inline-flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition cursor-pointer"
+                >
+                  <Send size={11} />
+                  <span>Send</span>
+                </button>
+              </form>
+            </div>
+
             <div className="flex items-center justify-between pt-3 border-t border-slate-100">
               {selectedTaskDetails.boardId && (
                 <Link
@@ -973,7 +1233,7 @@ const TasksPage = () => {
               <button
                 type="button"
                 onClick={() => setSelectedTaskDetails(null)}
-                className="rounded-xl bg-slate-100 px-4 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200 transition"
+                className="rounded-xl bg-slate-100 px-4 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200 transition cursor-pointer"
               >
                 Close
               </button>
