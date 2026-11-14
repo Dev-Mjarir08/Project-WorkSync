@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Search,
   Menu,
@@ -17,81 +17,7 @@ import {
 
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
-import { getUserItem } from "../../../utils/userStorage.js";
-
-// Frontend mock data
-const employees = [
-  {
-    id: 1,
-    name: "Rahul Sharma",
-    email: "rahul@worksync.com",
-    role: "Frontend Developer",
-    tasks: [
-      { id: 101, title: "Create dashboard UI", project: "WorkSync", priority: "High", status: "In Progress", dueDate: "2026-11-02" },
-      { id: 102, title: "Implement responsive navbar", project: "WorkSync", priority: "Medium", status: "Pending", dueDate: "2026-11-04" },
-      { id: 103, title: "Fix login page bugs", project: "Client Portal", priority: "High", status: "Pending", dueDate: "2026-11-05" },
-      { id: 104, title: "Update profile page", project: "WorkSync", priority: "Low", status: "Completed", dueDate: "2026-10-25" },
-    ],
-  },
-  {
-    id: 2,
-    name: "Priya Patel",
-    email: "priya@worksync.com",
-    role: "UI/UX Designer",
-    tasks: [
-      { id: 201, title: "Design mobile screens", project: "Mobile App", priority: "High", status: "In Progress", dueDate: "2026-11-03" },
-      { id: 202, title: "Prepare design system", project: "WorkSync", priority: "Medium", status: "Pending", dueDate: "2026-11-06" },
-      { id: 203, title: "Review dashboard design", project: "WorkSync", priority: "Low", status: "Completed", dueDate: "2026-10-26" },
-    ],
-  },
-  {
-    id: 3,
-    name: "Amit Verma",
-    email: "amit@worksync.com",
-    role: "Backend Developer",
-    tasks: [
-      { id: 301, title: "Develop authentication API", project: "WorkSync", priority: "High", status: "Pending", dueDate: "2026-11-01" },
-      { id: 302, title: "Database optimization", project: "Client Portal", priority: "High", status: "In Progress", dueDate: "2026-11-03" },
-      { id: 303, title: "API documentation", project: "WorkSync", priority: "Medium", status: "Pending", dueDate: "2026-11-07" },
-      { id: 304, title: "Fix API validation", project: "Client Portal", priority: "Medium", status: "Completed", dueDate: "2026-10-24" },
-      { id: 305, title: "Update user endpoints", project: "WorkSync", priority: "Low", status: "Pending", dueDate: "2026-11-08" },
-    ],
-  },
-  {
-    id: 4,
-    name: "Sneha Desai",
-    email: "sneha@worksync.com",
-    role: "QA Engineer",
-    tasks: [
-      { id: 401, title: "Test registration flow", project: "WorkSync", priority: "Medium", status: "Completed", dueDate: "2026-10-27" },
-      { id: 402, title: "Test task management", project: "WorkSync", priority: "High", status: "Pending", dueDate: "2026-11-05" },
-    ],
-  },
-  {
-    id: 5,
-    name: "Karan Mehta",
-    email: "karan@worksync.com",
-    role: "Frontend Developer",
-    tasks: [
-      { id: 501, title: "Build project overview", project: "Client Portal", priority: "High", status: "In Progress", dueDate: "2026-11-02" },
-      { id: 502, title: "Improve table layout", project: "WorkSync", priority: "Low", status: "Completed", dueDate: "2026-10-28" },
-      { id: 503, title: "Add notification UI", project: "WorkSync", priority: "Medium", status: "Pending", dueDate: "2026-11-06" },
-    ],
-  },
-];
-
-const getScopedEmployees = () => {
-  const saved = getUserItem("manager_team", null);
-  return Array.isArray(saved) && saved.length > 0 ? saved : employees;
-};
-
-const getWorkload = (pending, inProgress) => {
-  const activeTasks = pending + inProgress;
-
-  if (activeTasks >= 4) return "High";
-  if (activeTasks >= 2) return "Medium";
-  return "Low";
-};
+import managerService from "../managerService.js";
 
 const workloadStyles = {
   High: "bg-red-50 text-red-600",
@@ -108,49 +34,88 @@ const priorityStyles = {
 const statusStyles = {
   Pending: "bg-amber-50 text-amber-700",
   "In Progress": "bg-blue-50 text-blue-700",
+  "In Review": "bg-purple-50 text-purple-700",
   Completed: "bg-emerald-50 text-emerald-700",
 };
+
+const displayStatus = (status) => ({
+  todo: "Pending",
+  in_progress: "In Progress",
+  review: "In Review",
+  done: "Completed",
+}[String(status || "").toLowerCase()] || "Pending");
+
+const displayPriority = (priority) =>
+  String(priority || "low").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 const TeamWorkloadPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [workloadFilter, setWorkloadFilter] = useState("All");
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [employeeStats, setEmployeeStats] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const employeeStats = useMemo(() => {
-    return getScopedEmployees().map((employee) => {
-      const tasks = Array.isArray(employee.tasks) ? employee.tasks : [];
-      const pending = tasks.filter(
-        (task) => task.status === "Pending" || task.status === "To Do"
-      ).length;
-
-      const inProgress = tasks.filter(
-        (task) => task.status === "In Progress"
-      ).length;
-
-      const completed = tasks.filter(
-        (task) => task.status === "Completed"
-      ).length;
-
-      const total = tasks.length;
-
-      return {
-        ...employee,
-        tasks,
-        pending,
-        inProgress,
-        completed,
-        total,
-        workload: getWorkload(pending, inProgress),
-        progress: total ? Math.round((completed / total) * 100) : 0,
-      };
-    });
+  const loadWorkload = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [workloadData, tasks] = await Promise.all([
+        managerService.getTeamWorkload(),
+        managerService.getTasks(),
+      ]);
+      if (!Array.isArray(workloadData?.workloads)) {
+        throw new Error("The Manager API returned an invalid team workload response.");
+      }
+      const mapped = workloadData.workloads.map((member) => {
+        const breakdown = member.breakdown || {};
+        const memberTasks = tasks
+          .filter((task) => String(task.assignee?.id || task.assignee?._id || task.assigneeId || "") === String(member.userId))
+          .map((task) => ({
+            id: task.id || task._id,
+            title: task.title || "Untitled task",
+            project: task.project?.name || task.project?.title || "No project",
+            priority: displayPriority(task.priority),
+            status: displayStatus(task.status),
+            dueDate: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "No due date",
+          }));
+        const total = Number(member.totalTasks) || 0;
+        const completed = Number(member.completedTasks) || 0;
+        const capacityStatus = String(member.capacityStatus || "").toLowerCase();
+        return {
+          ...member,
+          id: member.memberId,
+          role: member.role || "Team member",
+          tasks: memberTasks,
+          pending: Number(breakdown.todo) || 0,
+          inProgress: Number(breakdown.inProgress) || 0,
+          completed,
+          total,
+          workload: capacityStatus === "overloaded" || capacityStatus === "busy"
+            ? "High"
+            : capacityStatus === "moderate" ? "Medium" : "Low",
+          progress: total ? Math.round((completed / total) * 100) : 0,
+          activeTasks: Number(member.activeTasks) || 0,
+        };
+      });
+      setEmployeeStats(mapped);
+    } catch (loadError) {
+      setError(loadError.message || "Unable to load team workload.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadWorkload();
+  }, [loadWorkload]);
 
   const filteredEmployees = employeeStats.filter((employee) => {
     const matchesSearch =
-      employee.name.toLowerCase().includes(search.toLowerCase()) ||
-      employee.email.toLowerCase().includes(search.toLowerCase());
+      (employee.name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (employee.email || "").toLowerCase().includes(search.toLowerCase());
 
     const matchesWorkload =
       workloadFilter === "All" ||
@@ -168,6 +133,22 @@ const TeamWorkloadPage = () => {
     }),
     { members: 0, pending: 0, inProgress: 0, completed: 0 }
   );
+
+  const openMemberWorkload = async (employee) => {
+    setSelectedEmployee(employee);
+    setDetailsLoading(true);
+    setError("");
+    try {
+      const workload = await managerService.getTeamMemberWorkload(employee.memberId);
+      setSelectedEmployee((current) => current && current.id === employee.id
+        ? { ...current, ...workload, tasks: employee.tasks }
+        : current);
+    } catch (loadError) {
+      setError(loadError.message || "Unable to load member workload details.");
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex antialiased">
@@ -187,6 +168,11 @@ const TeamWorkloadPage = () => {
         />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
+          {error && (
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {error}
+            </div>
+          )}
           {/* Introduction */}
           <div>
             <h2 className="text-lg font-semibold text-slate-800">
@@ -287,7 +273,9 @@ const TeamWorkloadPage = () => {
                 </thead>
 
                 <tbody className="divide-y divide-slate-100">
-                  {filteredEmployees.map((employee) => (
+                  {loading ? (
+                    <tr><td colSpan={8} className="py-12 text-center text-sm text-slate-500">Loading team workload...</td></tr>
+                  ) : filteredEmployees.map((employee) => (
                     <tr
                       key={employee.id}
                       className="hover:bg-slate-50/70 transition-colors"
@@ -349,7 +337,7 @@ const TeamWorkloadPage = () => {
 
                       <td className="px-6 py-4 text-right">
                         <button
-                          onClick={() => setSelectedEmployee(employee)}
+                          onClick={() => openMemberWorkload(employee)}
                           className="text-sm font-semibold text-blue-600 hover:text-blue-800"
                         >
                           View Tasks
@@ -358,7 +346,7 @@ const TeamWorkloadPage = () => {
                     </tr>
                   ))}
 
-                  {filteredEmployees.length === 0 && (
+                  {!loading && filteredEmployees.length === 0 && (
                     <tr>
                       <td colSpan="8" className="text-center py-12">
                         <Users
@@ -399,10 +387,10 @@ const TeamWorkloadPage = () => {
 
             <div className="space-y-5">
               {employeeStats.map((employee) => {
-                const active = employee.pending + employee.inProgress;
+                const active = employee.activeTasks;
                 const maxActive = Math.max(
                   1,
-                  ...employeeStats.map((item) => item.pending + item.inProgress)
+                  ...employeeStats.map((item) => item.activeTasks)
                 );
                 const width = (active / maxActive) * 100;
 
@@ -479,7 +467,11 @@ const TeamWorkloadPage = () => {
               </h4>
 
               <div className="space-y-3">
-                {selectedEmployee.tasks.map((task) => (
+                {detailsLoading ? (
+                  <p className="py-6 text-center text-sm text-slate-500">Loading member workload...</p>
+                ) : selectedEmployee.tasks.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-slate-500">No tasks assigned to this member.</p>
+                ) : selectedEmployee.tasks.map((task) => (
                   <div
                     key={task.id}
                     className="border border-slate-200 rounded-xl p-4"

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   User,
   Mail,
@@ -18,35 +18,85 @@ import {
 
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
-import { getCurrentUser, getUserItem, setUserItem } from "../../../utils/userStorage.js";
-import { authService } from "../../auth/authService.js";
+import managerService from "../managerService.js";
 
-const getInitialProfile = () => {
-  const saved = getUserItem("manager_profile", null);
-  if (saved) return saved;
+const emptyProfile = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  role: "",
+  department: "",
+  location: "",
+  bio: "",
+  joinedDate: "",
+  avatar: "",
+  accountStatus: "Unknown",
+};
 
-  const user = getCurrentUser();
-  const nameParts = (user?.name || "Project Manager").trim().split(/\s+/);
+const normalizeProfile = (apiProfile, previous = emptyProfile) => {
+  const [firstName = "", ...lastNameParts] = String(apiProfile.name || "").trim().split(/\s+/);
   return {
-    firstName: nameParts[0] || "Project",
-    lastName: nameParts.slice(1).join(" ") || "Manager",
-    email: user?.email || "manager@worksync.com",
-    phone: "+91 98765 43210",
-    role: user?.role === "manager" ? "Project Manager" : user?.role || "Project Manager",
-    department: "Management",
-    location: "Ahmedabad, Gujarat, India",
-    bio: "Experienced project manager focused on team collaboration, project delivery, and improving productivity.",
-    joinedDate: "2026",
+    ...previous,
+    firstName,
+    lastName: lastNameParts.join(" "),
+    email: apiProfile.email || "",
+    role: apiProfile.workspaceRole || apiProfile.role || previous.role || "Manager",
+    bio: apiProfile.bio || "",
+    joinedDate: apiProfile.createdAt
+      ? new Date(apiProfile.createdAt).toLocaleDateString()
+      : previous.joinedDate || "Unavailable",
+    avatar: apiProfile.avatar || previous.avatar || "",
+    accountStatus: apiProfile.isActive === false ? "Inactive" : "Active",
   };
 };
 
 const ProfilePage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [profile, setProfile] = useState(getInitialProfile);
-  const [formData, setFormData] = useState(getInitialProfile);
+  const [profile, setProfile] = useState(emptyProfile);
+  const [formData, setFormData] = useState(emptyProfile);
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
   const [successMessage, setSuccessMessage] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [sessions, setSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [revokingSession, setRevokingSession] = useState("");
+
+  const loadProfile = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const apiProfile = await managerService.getProfile();
+      const normalized = normalizeProfile(apiProfile);
+      setProfile(normalized);
+      setFormData(normalized);
+    } catch (loadError) {
+      setError(loadError.message || "Unable to load your profile.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== "account") return;
+    setSessionsLoading(true);
+    managerService.getSessions()
+      .then((result) => {
+        if (!Array.isArray(result?.sessions)) {
+          throw new Error("The Manager API returned an invalid sessions response.");
+        }
+        setSessions(result.sessions);
+      })
+      .catch((loadError) => setError(loadError.message || "Unable to load active sessions."))
+      .finally(() => setSessionsLoading(false));
+  }, [activeTab]);
 
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordData, setPasswordData] = useState({
@@ -75,10 +125,9 @@ const ProfilePage = () => {
 
     try {
       setUpdatingPassword(true);
-      await authService.changePassword({
+      await managerService.changePassword({
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
-        email: profile.email,
       });
       setPasswordSuccess("Password updated successfully!");
       setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
@@ -93,7 +142,7 @@ const ProfilePage = () => {
     }
   };
 
-  const fullName = `${profile.firstName} ${profile.lastName}`;
+  const fullName = `${profile.firstName} ${profile.lastName}`.trim() || "Manager profile";
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -115,15 +164,45 @@ const ProfilePage = () => {
     setIsEditing(false);
   };
 
-  const handleSave = (event) => {
+  const handleSave = async (event) => {
     event.preventDefault();
+    setSavingProfile(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const apiProfile = await managerService.updateProfile({
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        email: formData.email,
+        bio: formData.bio,
+      });
+      let updatedProfile = normalizeProfile(apiProfile, profile);
+      if (formData.avatar.trim() && formData.avatar !== profile.avatar) {
+        const avatarResult = await managerService.updateAvatar(formData.avatar.trim());
+        updatedProfile = { ...updatedProfile, avatar: avatarResult.avatar || formData.avatar.trim() };
+      }
+      setProfile(updatedProfile);
+      setFormData(updatedProfile);
+      setIsEditing(false);
+      setSuccessMessage("Profile updated successfully.");
+    } catch (saveError) {
+      setError(saveError.message || "Unable to update your profile.");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
-    setProfile(formData);
-    setUserItem("manager_profile", formData);
-    setIsEditing(false);
-    setSuccessMessage("Profile updated successfully.");
-
-    setTimeout(() => setSuccessMessage(""), 3000);
+  const revokeSession = async (sessionId) => {
+    setRevokingSession(sessionId);
+    setError("");
+    try {
+      await managerService.revokeSession(sessionId);
+      const result = await managerService.getSessions();
+      setSessions(result.sessions);
+    } catch (revokeError) {
+      setError(revokeError.message || "Unable to revoke the session.");
+    } finally {
+      setRevokingSession("");
+    }
   };
 
   const handleTabChange = (tab) => {
@@ -145,6 +224,16 @@ const ProfilePage = () => {
         <Header setMobileOpen={setMobileMenuOpen} />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
+          {error && (
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {error}
+            </div>
+          )}
+          {loading && (
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+              Loading profile...
+            </div>
+          )}
           {/* Success Message */}
           {successMessage && (
             <div className="flex items-center gap-2 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
@@ -165,10 +254,14 @@ const ProfilePage = () => {
             <div className="px-5 sm:px-8 pb-6">
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-12 relative">
                 <div className="flex items-end gap-4">
-                  <div className="w-24 h-24 rounded-2xl border-4 border-white bg-blue-100 text-blue-700 flex items-center justify-center text-3xl font-bold shadow-sm">
-                    {profile.firstName.charAt(0)}
-                    {profile.lastName.charAt(0)}
-                  </div>
+                  {profile.avatar ? (
+                    <img src={profile.avatar} alt="" className="w-24 h-24 rounded-2xl border-4 border-white object-cover shadow-sm" />
+                  ) : (
+                    <div className="w-24 h-24 rounded-2xl border-4 border-white bg-blue-100 text-blue-700 flex items-center justify-center text-3xl font-bold shadow-sm">
+                      {profile.firstName.charAt(0)}
+                      {profile.lastName.charAt(0)}
+                    </div>
+                  )}
 
                   <div className="pb-1">
                     <h2 className="text-xl font-bold text-slate-800">
@@ -198,7 +291,7 @@ const ProfilePage = () => {
                 </span>
                 <span className="flex items-center gap-2">
                   <MapPin size={15} />
-                  {profile.location}
+                  {profile.location || "Location not provided"}
                 </span>
                 <span className="flex items-center gap-2">
                   <ShieldCheck size={15} className="text-emerald-600" />
@@ -283,7 +376,7 @@ const ProfilePage = () => {
                     name="firstName"
                     value={isEditing ? formData.firstName : profile.firstName}
                     onChange={handleChange}
-                    disabled={!isEditing}
+                    disabled={!isEditing || loading || savingProfile}
                     placeholder="Enter first name"
                   />
 
@@ -292,7 +385,7 @@ const ProfilePage = () => {
                     name="lastName"
                     value={isEditing ? formData.lastName : profile.lastName}
                     onChange={handleChange}
-                    disabled={!isEditing}
+                    disabled={!isEditing || loading || savingProfile}
                     placeholder="Enter last name"
                   />
 
@@ -302,7 +395,7 @@ const ProfilePage = () => {
                     type="email"
                     value={isEditing ? formData.email : profile.email}
                     onChange={handleChange}
-                    disabled={!isEditing}
+                    disabled={!isEditing || loading || savingProfile}
                     placeholder="Enter email address"
                   />
 
@@ -311,16 +404,16 @@ const ProfilePage = () => {
                     name="phone"
                     value={isEditing ? formData.phone : profile.phone}
                     onChange={handleChange}
-                    disabled={!isEditing}
+                    disabled
                     placeholder="Enter phone number"
                   />
 
                   <FormField
                     label="Job Title"
                     name="role"
-                    value={isEditing ? formData.role : profile.role}
+                    value={profile.role}
                     onChange={handleChange}
-                    disabled={!isEditing}
+                    disabled
                     placeholder="Enter job title"
                   />
 
@@ -329,7 +422,7 @@ const ProfilePage = () => {
                     name="department"
                     value={isEditing ? formData.department : profile.department}
                     onChange={handleChange}
-                    disabled={!isEditing}
+                    disabled
                     placeholder="Enter department"
                   />
 
@@ -339,7 +432,7 @@ const ProfilePage = () => {
                       name="location"
                       value={isEditing ? formData.location : profile.location}
                       onChange={handleChange}
-                      disabled={!isEditing}
+                      disabled
                       placeholder="Enter your location"
                     />
                   </div>
@@ -351,7 +444,7 @@ const ProfilePage = () => {
                     <textarea
                       name="bio"
                       rows={4}
-                      disabled={!isEditing}
+                      disabled={!isEditing || loading || savingProfile}
                       value={isEditing ? formData.bio : profile.bio}
                       onChange={handleChange}
                       placeholder="Write something about yourself..."
@@ -359,6 +452,24 @@ const ProfilePage = () => {
                     />
                   </div>
                 </div>
+
+                {isEditing && (
+                  <p className="text-xs text-slate-500">
+                    Phone, job title, department, and location are not editable because the Manager profile API does not support them.
+                  </p>
+                )}
+
+                {isEditing && (
+                  <FormField
+                    label="Avatar URL"
+                    name="avatar"
+                    type="url"
+                    value={formData.avatar}
+                    onChange={handleChange}
+                    disabled={loading || savingProfile}
+                    placeholder="https://..."
+                  />
+                )}
 
                 {isEditing && (
                   <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
@@ -373,10 +484,11 @@ const ProfilePage = () => {
 
                     <button
                       type="submit"
-                      className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
+                      disabled={savingProfile || loading}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
                     >
                       <Save size={16} />
-                      Save Changes
+                      {savingProfile ? "Saving..." : "Save Changes"}
                     </button>
                   </div>
                 )}
@@ -400,18 +512,18 @@ const ProfilePage = () => {
                 <InfoRow
                   icon={<BriefcaseBusiness size={19} />}
                   label="Account Role"
-                  value="Manager"
+                  value={profile.role || "Manager"}
                 />
                 <InfoRow
                   icon={<ShieldCheck size={19} />}
                   label="Account Status"
-                  value="Active"
-                  success
+                  value={profile.accountStatus}
+                  success={profile.accountStatus === "Active"}
                 />
                 <InfoRow
                   icon={<CalendarDays size={19} />}
                   label="Member Since"
-                  value={profile.joinedDate}
+                  value={profile.joinedDate || "Unavailable"}
                 />
                 <InfoRow
                   icon={<Mail size={19} />}
@@ -519,6 +631,39 @@ const ProfilePage = () => {
                     </form>
                   )}
                 </div>
+
+                <div className="pt-4 border-t border-slate-100">
+                  <h3 className="text-sm font-semibold text-slate-800">Active Sessions</h3>
+                  {sessionsLoading ? (
+                    <p className="mt-3 text-sm text-slate-500">Loading active sessions...</p>
+                  ) : sessions.length === 0 ? (
+                    <p className="mt-3 text-sm text-slate-500">No active sessions reported.</p>
+                  ) : (
+                    <div className="mt-3 space-y-3">
+                      {sessions.map((session) => {
+                        const sessionId = session.id || session._id;
+                        return (
+                          <div key={sessionId} className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">{session.device || session.userAgent || "Session"}</p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {session.ip || "IP unavailable"} · Last active {session.lastActive ? new Date(session.lastActive).toLocaleString() : "unknown"}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => revokeSession(sessionId)}
+                              disabled={!sessionId || revokingSession === sessionId}
+                              className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                            >
+                              {revokingSession === sessionId ? "Revoking..." : "Revoke"}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             </section>
           )}
@@ -576,30 +721,43 @@ const InfoRow = ({ icon, label, value, success }) => (
 );
 
 const PreferencesSection = () => {
-  const [preferences, setPreferences] = useState({
-    taskUpdates: true,
-    projectUpdates: true,
-    emailNotifications: false,
-    deadlineReminders: true,
-  });
+  const [preferences, setPreferences] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [savingKey, setSavingKey] = useState("");
+  const [error, setError] = useState("");
 
-  const togglePreference = (key) => {
-    setPreferences((previous) => ({
-      ...previous,
-      [key]: !previous[key],
-    }));
+  useEffect(() => {
+    managerService.getNotificationSettings()
+      .then(setPreferences)
+      .catch((loadError) => setError(loadError.message || "Unable to load notification settings."))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const togglePreference = async (key) => {
+    setSavingKey(key);
+    setError("");
+    try {
+      const settings = await managerService.updateNotificationSettings({
+        [key]: !preferences[key],
+      });
+      setPreferences(settings);
+    } catch (saveError) {
+      setError(saveError.message || "Unable to update notification settings.");
+    } finally {
+      setSavingKey("");
+    }
   };
 
   const options = [
     {
-      key: "taskUpdates",
-      title: "Task Updates",
+      key: "taskAlerts",
+      title: "Task Alerts",
       description: "Receive updates when tasks are assigned or completed.",
     },
     {
-      key: "projectUpdates",
-      title: "Project Updates",
-      description: "Get notified about important project changes.",
+      key: "announcementsAlerts",
+      title: "Announcements",
+      description: "Get notified about important workspace announcements.",
     },
     {
       key: "emailNotifications",
@@ -607,9 +765,19 @@ const PreferencesSection = () => {
       description: "Receive notifications through your email.",
     },
     {
-      key: "deadlineReminders",
-      title: "Deadline Reminders",
-      description: "Get reminders about upcoming task deadlines.",
+      key: "weeklyDigest",
+      title: "Weekly Digest",
+      description: "Receive a weekly summary of workspace activity.",
+    },
+    {
+      key: "inAppNotifications",
+      title: "In-app Notifications",
+      description: "Show notifications inside WorkSync.",
+    },
+    {
+      key: "mentionAlerts",
+      title: "Mention Alerts",
+      description: "Receive alerts when you are mentioned.",
     },
   ];
 
@@ -622,8 +790,10 @@ const PreferencesSection = () => {
         </p>
       </div>
 
+      {error && <p role="alert" className="px-5 pt-4 text-sm text-rose-700">{error}</p>}
+      {loading && <p className="px-5 pt-4 text-sm text-slate-500">Loading preferences...</p>}
       <div className="p-5 sm:p-6 divide-y divide-slate-100">
-        {options.map((option) => (
+        {!loading && preferences && options.map((option) => (
           <div
             key={option.key}
             className="flex items-center justify-between gap-4 py-5 first:pt-0 last:pb-0"
@@ -642,6 +812,7 @@ const PreferencesSection = () => {
               role="switch"
               aria-checked={preferences[option.key]}
               onClick={() => togglePreference(option.key)}
+              disabled={Boolean(savingKey)}
               className={`relative w-11 h-6 rounded-full shrink-0 transition ${
                 preferences[option.key] ? "bg-blue-600" : "bg-slate-300"
               }`}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
   TrendingUp,
@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
+import managerService from "../managerService.js";
 
 // ==========================================
 // DATASETS & BENCHMARKS
@@ -503,22 +504,43 @@ const priorityStyles = {
   High: "bg-rose-50 text-rose-700 border-rose-200",
   Medium: "bg-amber-50 text-amber-700 border-amber-200",
   Low: "bg-slate-100 text-slate-700 border-slate-200",
+  Urgent: "bg-rose-50 text-rose-700 border-rose-200",
 };
 
 const statusStyles = {
+  "To Do": "bg-slate-100 text-slate-700 border-slate-200",
   Completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
   "In Progress": "bg-blue-50 text-blue-700 border-blue-200",
   "In Review": "bg-purple-50 text-purple-700 border-purple-200",
   "At Risk": "bg-rose-50 text-rose-700 border-rose-200",
 };
 
-const healthStyles = {
-  "On Time": "bg-emerald-50 text-emerald-700 border-emerald-200",
-  Ahead: "bg-blue-50 text-blue-700 border-blue-200",
-  "On Track": "bg-emerald-50 text-emerald-700 border-emerald-200",
-  Completed: "bg-slate-100 text-slate-700 border-slate-200",
-  "At Risk": "bg-rose-50 text-rose-700 border-rose-200",
-  "1d Delayed": "bg-amber-50 text-amber-700 border-amber-200",
+const getTaskStatusLabel = (status) => ({
+  todo: "To Do",
+  in_progress: "In Progress",
+  review: "In Review",
+  done: "Completed",
+}[String(status || "").toLowerCase()] || "To Do");
+
+const getInitials = (name) =>
+  String(name || "?").trim().split(/\s+/).slice(0, 2)
+    .map((part) => part.charAt(0)).join("").toUpperCase() || "?";
+
+const formatReportDate = (date) => {
+  if (!date) return "No due date";
+  const parsedDate = new Date(date);
+  return Number.isNaN(parsedDate.getTime())
+    ? "No due date"
+    : parsedDate.toLocaleDateString();
+};
+
+const getProjectStatusBadge = (status) => {
+  const normalizedStatus = String(status || "").toLowerCase();
+  if (normalizedStatus === "completed") return "bg-slate-100 text-slate-700 border-slate-200";
+  if (normalizedStatus === "active") return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (normalizedStatus === "planning") return "bg-blue-50 text-blue-700 border-blue-200";
+  if (normalizedStatus === "on_hold") return "bg-amber-50 text-amber-700 border-amber-200";
+  return "bg-slate-100 text-slate-700 border-slate-200";
 };
 
 // ==========================================
@@ -527,18 +549,156 @@ const healthStyles = {
 
 const ReportsPage = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [timeframe, setTimeframe] = useState("Sprint 4 (Active: Oct 14 - Oct 28)");
+  const [timeframe, setTimeframe] = useState("Workspace overview");
   const [selectedProject, setSelectedProject] = useState("All Projects");
-  const [selectedDepartment, setSelectedDepartment] = useState("All Departments");
   const [activeTab, setActiveTab] = useState("overview"); // 'overview', 'velocity', 'team', 'deliverables'
   const [tableSearch, setTableSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [reportLoading, setReportLoading] = useState(true);
+  const [reportError, setReportError] = useState("");
+  const [reportsOverview, setReportsOverview] = useState(null);
+  const [projectsReport, setProjectsReport] = useState([]);
+  const [teamPerformanceReport, setTeamPerformanceReport] = useState([]);
+  const [deliverablesList, setDeliverablesList] = useState([]);
+  const [sprintVelocityData, setSprintVelocityData] = useState([]);
+  const [burndownDays, setBurndownDays] = useState([]);
+  const [workloadSummary, setWorkloadSummary] = useState(null);
+  const [taskReports, setTaskReports] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
   const [hoveredVelocitySprint, setHoveredVelocitySprint] = useState(null);
   const [hoveredBurndownDay, setHoveredBurndownDay] = useState(null);
   const [selectedTaskModal, setSelectedTaskModal] = useState(null);
+
+  const loadReports = useCallback(async () => {
+    setReportLoading(true);
+    setReportError("");
+    try {
+      const [
+        overviewResponse,
+        projectResponse,
+        taskResponse,
+        performanceResponse,
+        workloadResponse,
+        productivityResponse,
+        burndownResponse,
+        tasksResponse,
+      ] = await Promise.all([
+        managerService.getReportsOverview(),
+        managerService.getProjectReports(),
+        managerService.getTaskReports(),
+        managerService.getTeamPerformanceReports(),
+        managerService.getWorkloadReports(),
+        managerService.getProductivityReports(),
+        managerService.getBurndownReports(),
+        managerService.getTasks(),
+      ]);
+
+      const overview = overviewResponse?.overview || {};
+      const reportWorkloads = Array.isArray(workloadResponse?.distribution)
+        ? workloadResponse.distribution
+        : [];
+      const averageLoadPercentage = reportWorkloads.length
+        ? Math.round(reportWorkloads.reduce(
+          (sum, member) => sum + (Number(member.loadPercentage) || 0),
+          0
+        ) / reportWorkloads.length)
+        : 0;
+      const workloadByMember = new Map(
+        reportWorkloads.map((member) => [member.memberId, member])
+      );
+
+      setReportsOverview(overview);
+      setTaskReports(taskResponse);
+      setWorkloadSummary({
+        teamSize: reportWorkloads.length,
+        averageLoadPercentage,
+        overloadedMembers: Number(workloadResponse?.summary?.overloadedMembers) || 0,
+      });
+      setProjectsReport(projectResponse.map((project) => ({
+        id: project.id,
+        name: project.name || project.title || "Untitled project",
+        category: project.key || "Project",
+        lead: project.owner?.name || "Not assigned",
+        status: String(project.status || "unknown")
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (letter) => letter.toUpperCase()),
+        statusBadge: getProjectStatusBadge(project.status),
+        progress: Number(project.progress) || 0,
+        completedTasks: Number(project.completedTasks) || 0,
+        totalTasks: Number(project.totalTasks) || 0,
+        overdueTasks: Number(project.overdueTasks) || 0,
+      })));
+      setTeamPerformanceReport(performanceResponse.map((member) => {
+        const workload = workloadByMember.get(member.memberId);
+        const capacityStatus = workload?.status || "available";
+        return {
+          id: member.memberId,
+          name: member.name || "Unknown member",
+          role: member.workspaceRole || "Member",
+          avatar: getInitials(member.name),
+          color: "from-blue-600 to-indigo-600",
+          completed: Number(member.completedTasks) || 0,
+          totalTasks: Number(member.totalTasks) || 0,
+          efficiency: Number(member.efficiencyScore) || 0,
+          capacity: Number(workload?.loadPercentage) || 0,
+          status: capacityStatus === "overloaded"
+            ? "Overloaded"
+            : capacityStatus === "busy"
+              ? "Busy"
+              : capacityStatus === "moderate"
+                ? "Moderate"
+                : "Available",
+        };
+      }));
+      setDeliverablesList(tasksResponse.map((task) => {
+        const isOverdue = task.dueDate &&
+          new Date(task.dueDate).getTime() < Date.now() &&
+          task.status !== "done";
+        return {
+          id: task.id,
+          title: task.title || "Untitled task",
+          project: task.project?.name || "No project",
+          projectId: task.project?.id || "",
+          assignee: task.assignee?.name || "Unassigned",
+          role: "Not provided",
+          avatar: getInitials(task.assignee?.name || "Unassigned"),
+          priority: String(task.priority || "medium")
+            .replace(/\b\w/g, (letter) => letter.toUpperCase()),
+          status: getTaskStatusLabel(task.status),
+          dueDate: formatReportDate(task.dueDate),
+          health: isOverdue ? "Overdue" : "On Track",
+          category: task.project?.key || "Task",
+        };
+      }));
+      setSprintVelocityData(productivityResponse.map((week) => ({
+        sprint: week.weekLabel,
+        dates: `${week.startDate} - ${week.endDate}`,
+        planned: Number(week.tasksCreated) || 0,
+        completed: Number(week.tasksCompleted) || 0,
+        rate: Math.round((Number(week.throughputRatio) || 0) * 100),
+        current: week.weekLabel === "Week -0",
+      })));
+      setBurndownDays((Array.isArray(burndownResponse?.burndownPoints)
+        ? burndownResponse.burndownPoints
+        : []).map((point) => ({
+        day: point.day,
+        ideal: Number(point.idealRemaining) || 0,
+        actual: Number(point.actualRemaining) || 0,
+      })));
+      return true;
+    } catch (error) {
+      setReportError(error.message || "Unable to load manager reports.");
+      return false;
+    } finally {
+      setReportLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadReports();
+  }, [loadReports]);
 
   // Show auto-dismissing toast
   const triggerToast = (msg) => {
@@ -548,62 +708,31 @@ const ReportsPage = () => {
     }, 3200);
   };
 
-  // Simulate data refresh
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-      triggerToast("Sprint analytics and project metrics updated successfully!");
-    }, 600);
+    const refreshed = await loadReports();
+    setIsRefreshing(false);
+    triggerToast(refreshed
+      ? "Workspace reports refreshed successfully."
+      : "Unable to refresh reports. Check the error message on this page.");
   };
 
-  // Export CSV generator
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     setExportMenuOpen(false);
-
-    const headers = [
-      "Task ID",
-      "Title",
-      "Project",
-      "Assignee",
-      "Role",
-      "Priority",
-      "Status",
-      "Cycle Time",
-      "Est Hours",
-      "Actual Hours",
-      "Due Date",
-      "Health",
-    ];
-
-    const rows = filteredDeliverables.map((item) => [
-      item.id,
-      `"${item.title.replace(/"/g, '""')}"`,
-      `"${item.project}"`,
-      `"${item.assignee}"`,
-      `"${item.role}"`,
-      item.priority,
-      item.status,
-      item.cycleTime,
-      item.estHours,
-      item.actualHours,
-      item.dueDate,
-      item.health,
-    ]);
-
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `worksync_manager_report_${timeframe.replace(/[^a-zA-Z0-9]/g, "_")}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    triggerToast("CSV Report downloaded successfully!");
+    try {
+      const report = await managerService.getReportsExport();
+      const url = URL.createObjectURL(new Blob([report.content], { type: report.contentType || "text/csv" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = report.filename || "worksync-report.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      triggerToast("CSV report downloaded successfully.");
+    } catch (error) {
+      triggerToast(error.message || "Unable to export the reports.");
+    }
   };
 
   // Print view
@@ -636,16 +765,25 @@ const ReportsPage = () => {
 
       return matchesSearch && matchesStatus && matchesProject;
     });
-  }, [tableSearch, statusFilter, selectedProject]);
+  }, [deliverablesList, tableSearch, statusFilter, selectedProject]);
 
   // Aggregate metrics
-  const totalTasksCount = deliverablesList.length;
-  const completedTasksCount = deliverablesList.filter((t) => t.status === "Completed").length;
-  const inProgressTasksCount = deliverablesList.filter((t) => t.status === "In Progress").length;
-  const inReviewTasksCount = deliverablesList.filter((t) => t.status === "In Review").length;
-  const atRiskTasksCount = deliverablesList.filter((t) => t.health === "At Risk" || t.health === "1d Delayed").length;
+  const taskStatusBreakdown = taskReports?.statusBreakdown || {};
+  const totalTasksCount = Number(taskReports?.totalTasks ?? deliverablesList.length);
+  const completedTasksCount = Number(taskStatusBreakdown.done ?? deliverablesList.filter((t) => t.status === "Completed").length);
+  const inProgressTasksCount = Number(taskStatusBreakdown.in_progress ?? deliverablesList.filter((t) => t.status === "In Progress").length);
+  const inReviewTasksCount = Number(taskStatusBreakdown.review ?? deliverablesList.filter((t) => t.status === "In Review").length);
+  const todoTasksCount = Number(taskStatusBreakdown.todo ?? deliverablesList.filter((t) => t.status === "To Do").length);
+  const atRiskTasksCount = deliverablesList.filter((t) => t.health === "Overdue").length;
+  const completedPercent = totalTasksCount ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
+  const inProgressPercent = totalTasksCount ? Math.round((inProgressTasksCount / totalTasksCount) * 100) : 0;
+  const inReviewPercent = totalTasksCount ? Math.round((inReviewTasksCount / totalTasksCount) * 100) : 0;
+  const todoPercent = totalTasksCount ? Math.round((todoTasksCount / totalTasksCount) * 100) : 0;
+  const reportTaskStats = reportsOverview?.tasks || {};
 
-  const completionPercentage = Math.round((completedTasksCount / totalTasksCount) * 100);
+  const completionPercentage = totalTasksCount
+    ? Math.round((completedTasksCount / totalTasksCount) * 100)
+    : 0;
 
   // SVG dimensions for Burndown Chart
   const burndownWidth = 540;
@@ -655,7 +793,9 @@ const ReportsPage = () => {
   const burndownPlotWidth = burndownWidth - burndownPadding.left - burndownPadding.right;
   const burndownPlotHeight = burndownHeight - burndownPadding.top - burndownPadding.bottom;
 
-  const maxPoints = 42;
+  const maxPoints = Math.max(1, ...burndownDays.map((day) => day.ideal));
+  const burndownGridValues = [...new Set([0, 0.25, 0.5, 0.75, 1]
+    .map((fraction) => Math.round(maxPoints * fraction)))];
   const getX = (idx, total) => burndownPadding.left + (idx / (total - 1)) * burndownPlotWidth;
   const getY = (val) => burndownPadding.top + (1 - val / maxPoints) * burndownPlotHeight;
 
@@ -671,9 +811,9 @@ const ReportsPage = () => {
     .join(" ");
 
   // Area path for actual line gradient
-  const actualAreaPath =
-    actualPath +
-    ` L ${getX(actualDaysWithData.length - 1, burndownDays.length)} ${getY(0)} L ${getX(0, burndownDays.length)} ${getY(0)} Z`;
+  const actualAreaPath = actualDaysWithData.length > 0
+    ? `${actualPath} L ${getX(actualDaysWithData.length - 1, burndownDays.length)} ${getY(0)} L ${getX(0, burndownDays.length)} ${getY(0)} Z`
+    : "";
 
   return (
     <div className="flex min-h-screen bg-slate-50/60 font-sans text-slate-800 antialiased">
@@ -732,41 +872,34 @@ const ReportsPage = () => {
               </div>
 
               <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
-                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Status & Health</p>
+                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Status & Priority</p>
                 <div className="mt-1.5 flex items-center gap-2">
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold border ${statusStyles[selectedTaskModal.status] || "bg-slate-100"}`}>
                     {selectedTaskModal.status}
                   </span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold border ${healthStyles[selectedTaskModal.health] || "bg-slate-100"}`}>
-                    {selectedTaskModal.health}
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold border ${priorityStyles[selectedTaskModal.priority] || "bg-slate-100"}`}>
+                    {selectedTaskModal.priority}
                   </span>
                 </div>
               </div>
 
               <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
-                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Effort Variance</p>
-                <p className="mt-1 text-sm font-extrabold text-slate-800">
-                  {selectedTaskModal.actualHours} hrs{" "}
-                  <span className="text-[11px] font-normal text-slate-500">
-                    / {selectedTaskModal.estHours} hrs est.
-                  </span>
-                </p>
-                <p className="mt-0.5 text-[10px] text-emerald-600 font-medium">
-                  {selectedTaskModal.actualHours <= selectedTaskModal.estHours ? "Within estimate" : "Over estimate"}
-                </p>
+                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Project</p>
+                <p className="mt-1 text-sm font-semibold text-slate-800">{selectedTaskModal.project}</p>
               </div>
 
               <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
-                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Cycle Turnaround</p>
-                <p className="mt-1 text-sm font-extrabold text-slate-800">{selectedTaskModal.cycleTime}</p>
-                <p className="mt-0.5 text-[10px] text-slate-500 font-medium">Due {selectedTaskModal.dueDate}</p>
+                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Due Date</p>
+                <p className="mt-1 text-sm font-semibold text-slate-800">{selectedTaskModal.dueDate}</p>
               </div>
             </div>
 
             <div className="mt-4 rounded-xl border border-slate-200/80 bg-slate-50/60 p-3.5">
-              <p className="text-xs font-semibold text-slate-800">Manager Sprint Audit Note</p>
+              <p className="text-xs font-semibold text-slate-800">Task details</p>
               <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
-                This item is part of Sprint 4 priority goals. Velocity was benchmarked across the team's standard cycle time. Verification tests passed in staging environment.
+                {selectedTaskModal.health === "Overdue"
+                  ? "This task is past its due date and is not marked complete."
+                  : "Task information is based on the current workspace task record."}
               </p>
             </div>
 
@@ -800,12 +933,20 @@ const ReportsPage = () => {
 
         {/* Main Body Container */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
+          {reportError && (
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {reportError}
+            </div>
+          )}
+          {reportLoading && (
+            <p className="text-sm text-slate-500" role="status">Loading workspace reports...</p>
+          )}
           {/* Top Title & Executive Action Bar */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="flex items-center gap-2">
                 <span className="rounded-lg bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 border border-blue-200">
-                  Sprint 4 Metrics
+                  Workspace Metrics
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -816,28 +957,20 @@ const ReportsPage = () => {
                 Reports & Performance Analytics
               </h1>
               <p className="mt-0.5 text-xs sm:text-sm text-slate-500">
-                Sprint velocity, team capacity, project health benchmarks, and milestone throughput.
+                Project progress, task status, workload, and weekly productivity from your workspace.
               </p>
             </div>
 
             {/* Filter Dropdowns and Actions */}
             <div className="flex flex-wrap items-center gap-2.5">
-              {/* Sprint / Timeframe Selector */}
+              {/* Reporting scope */}
               <div className="relative">
                 <select
                   value={timeframe}
-                  onChange={(e) => {
-                    setTimeframe(e.target.value);
-                    triggerToast(`Switched view to ${e.target.value}`);
-                  }}
+                  onChange={(e) => setTimeframe(e.target.value)}
                   className="appearance-none rounded-xl border border-slate-200 bg-white py-2 pl-3.5 pr-8 text-xs font-semibold text-slate-700 shadow-xs hover:border-slate-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
                 >
-                  <option value="Sprint 4 (Active: Oct 14 - Oct 28)">Sprint 4 (Current Cycle)</option>
-                  <option value="Sprint 3 (Sep 30 - Oct 14)">Sprint 3 (Completed)</option>
-                  <option value="Sprint 2 (Sep 16 - Sep 30)">Sprint 2 (Completed)</option>
-                  <option value="Sprint 1 (Sep 02 - Sep 16)">Sprint 1 (Completed)</option>
-                  <option value="Last 30 Days">Last 30 Days</option>
-                  <option value="Q4 2026 Overview">Q4 2026 Full Quarter</option>
+                  <option value="Workspace overview">All workspace data</option>
                 </select>
                 <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               </div>
@@ -896,7 +1029,7 @@ const ReportsPage = () => {
             </div>
           </div>
 
-          {/* AI Executive Sprint Briefing Banner */}
+          {/* Workspace summary */}
           <div className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50/90 via-indigo-50/50 to-white p-4 sm:p-5 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-start gap-3">
@@ -905,25 +1038,16 @@ const ReportsPage = () => {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-900">WorkSync AI Sprint Summary</span>
-                    <span className="rounded-full bg-blue-100 px-2 py-0.2 text-[10px] font-semibold text-blue-700">
-                      Generated 5m ago
-                    </span>
+                    <span className="text-xs font-bold text-slate-900">Workspace report summary</span>
                   </div>
                   <p className="mt-1 text-xs text-slate-600 leading-relaxed max-w-3xl">
-                    Sprint 4 is currently <strong>81.0% complete</strong> with 34 of 42 story points delivered. Team velocity increased by <strong>+18%</strong> over Sprint 3.{" "}
-                    <span className="text-amber-800 font-medium">Risk Alert:</span> Mobile Companion App is pacing 2 days behind schedule due to SQLite sync refactor. Recommended action: Pair Rouhan Siddiqui with Vikram Malhotra on Thursday to ensure deadline clearance.
+                    The workspace has <strong>{reportTaskStats.total ?? 0} tasks</strong>, with{" "}
+                    <strong>{reportTaskStats.completed ?? 0} completed</strong> and{" "}
+                    <strong>{reportTaskStats.overdue ?? 0} overdue</strong>. There are{" "}
+                    <strong>{reportsOverview?.projects?.active ?? 0} active projects</strong> across{" "}
+                    <strong>{reportsOverview?.team?.totalMembers ?? 0} members</strong>.
                   </p>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                <button
-                  type="button"
-                  onClick={() => triggerToast("AI recommendation noted for sprint backlog review")}
-                  className="rounded-xl border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 transition shadow-xs"
-                >
-                  Accept Suggestion
-                </button>
               </div>
             </div>
           </div>
@@ -935,10 +1059,10 @@ const ReportsPage = () => {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Sprint Completion
+                    Task Completion
                   </p>
                   <p className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                    81.0%
+                    {reportTaskStats.completionRate ?? completionPercentage}%
                   </p>
                 </div>
                 <div className="rounded-xl p-2.5 bg-blue-50 text-blue-600 border border-blue-100">
@@ -947,13 +1071,13 @@ const ReportsPage = () => {
               </div>
               <div className="mt-3.5 space-y-1.5">
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-500">34 of 42 Story Pts</span>
-                  <span className="font-bold text-emerald-600 flex items-center gap-0.5">
-                    <ArrowUpRight size={12} /> +18.4%
+                  <span className="text-slate-500">{reportTaskStats.completed ?? completedTasksCount} of {reportTaskStats.total ?? totalTasksCount} tasks</span>
+                  <span className="font-bold text-slate-500">
+                    {reportTaskStats.overdue ?? atRiskTasksCount} overdue
                   </span>
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full rounded-full bg-blue-600" style={{ width: "81%" }}></div>
+                  <div className="h-full rounded-full bg-blue-600" style={{ width: `${reportTaskStats.completionRate ?? completionPercentage}%` }}></div>
                 </div>
               </div>
             </div>
@@ -963,10 +1087,10 @@ const ReportsPage = () => {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Avg Cycle Time
+                    Overdue Tasks
                   </p>
                   <p className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                    2.8 <span className="text-base font-semibold text-slate-500">days</span>
+                    {reportTaskStats.overdue ?? atRiskTasksCount}
                   </p>
                 </div>
                 <div className="rounded-xl p-2.5 bg-emerald-50 text-emerald-600 border border-emerald-100">
@@ -974,10 +1098,8 @@ const ReportsPage = () => {
                 </div>
               </div>
               <div className="mt-3.5 flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-500">
-                <span>Turnaround to Done</span>
-                <span className="font-bold text-emerald-600 flex items-center gap-0.5">
-                  <ArrowDownRight size={12} /> -0.8d faster
-                </span>
+                <span>Tasks past their due date</span>
+                <span className="font-semibold text-slate-600">{reportTaskStats.overdueRate ?? 0}% of tasks</span>
               </div>
             </div>
 
@@ -986,10 +1108,10 @@ const ReportsPage = () => {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    On-Time Delivery
+                    Completed Projects
                   </p>
                   <p className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                    94.2%
+                    {reportsOverview?.projects?.completed ?? 0}
                   </p>
                 </div>
                 <div className="rounded-xl p-2.5 bg-purple-50 text-purple-600 border border-purple-100">
@@ -997,8 +1119,8 @@ const ReportsPage = () => {
                 </div>
               </div>
               <div className="mt-3.5 flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-500">
-                <span>48 of 51 On Schedule</span>
-                <span className="font-semibold text-purple-700">Target 90%</span>
+                <span>of {reportsOverview?.projects?.total ?? 0} projects</span>
+                <span className="font-semibold text-purple-700">{reportsOverview?.projects?.active ?? 0} active</span>
               </div>
             </div>
 
@@ -1010,7 +1132,7 @@ const ReportsPage = () => {
                     Team Utilization
                   </p>
                   <p className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                    78%
+                    {workloadSummary?.averageLoadPercentage ?? 0}%
                   </p>
                 </div>
                 <div className="rounded-xl p-2.5 bg-amber-50 text-amber-600 border border-amber-100">
@@ -1018,8 +1140,8 @@ const ReportsPage = () => {
                 </div>
               </div>
               <div className="mt-3.5 flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-500">
-                <span>8 Active Engineers</span>
-                <span className="font-semibold text-amber-700">2 At Risk</span>
+                <span>{workloadSummary?.teamSize ?? 0} team members</span>
+                <span className="font-semibold text-amber-700">{workloadSummary?.overloadedMembers ?? 0} overloaded</span>
               </div>
             </div>
           </section>
@@ -1049,7 +1171,7 @@ const ReportsPage = () => {
               }`}
             >
               <Zap size={15} />
-              <span>Sprint Velocity & Burndown</span>
+              <span>Weekly Productivity & Burndown</span>
             </button>
 
             <button
@@ -1089,13 +1211,13 @@ const ReportsPage = () => {
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-4 border-b border-slate-100">
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-slate-900">Sprint 4 Burndown Trajectory</h3>
+                        <h3 className="text-sm font-bold text-slate-900">Workspace Task Burndown</h3>
                         <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
-                          Day 9 of 11
+                          {burndownDays.length} days
                         </span>
                       </div>
                       <p className="mt-0.5 text-xs text-slate-500">
-                        Remaining story points vs ideal trajectory curve.
+                        Remaining tasks compared with the ideal workspace trend.
                       </p>
                     </div>
 
@@ -1122,7 +1244,7 @@ const ReportsPage = () => {
                       </defs>
 
                       {/* Horizontal Grid lines */}
-                      {[0, 10, 20, 30, 40].map((val) => (
+                      {burndownGridValues.map((val) => (
                         <g key={val}>
                           <line
                             x1={burndownPadding.left}
@@ -1140,7 +1262,7 @@ const ReportsPage = () => {
                             fill="#94a3b8"
                             fontWeight="600"
                           >
-                            {val}pt
+                            {val} tasks
                           </text>
                         </g>
                       ))}
@@ -1212,10 +1334,10 @@ const ReportsPage = () => {
                           {burndownDays[hoveredBurndownDay].day}:
                         </span>{" "}
                         <span className="text-blue-600 font-extrabold">
-                          {burndownDays[hoveredBurndownDay].actual} pts remaining
+                          {burndownDays[hoveredBurndownDay].actual} tasks remaining
                         </span>{" "}
                         <span className="text-slate-400 text-[10px]">
-                          (Ideal: {burndownDays[hoveredBurndownDay].ideal.toFixed(1)} pts)
+                          (Ideal: {burndownDays[hoveredBurndownDay].ideal.toFixed(1)} tasks)
                         </span>
                       </div>
                     )}
@@ -1224,9 +1346,9 @@ const ReportsPage = () => {
                   <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-500">
                     <span className="flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-                      Projected Completion: <strong>Oct 27 (1 day ahead)</strong>
+                      Total task scope: <strong>{Math.max(0, ...burndownDays.map((day) => day.ideal))}</strong>
                     </span>
-                    <span>Remaining to burn: <strong>8 Story Points</strong></span>
+                    <span>Remaining tasks: <strong>{burndownDays[burndownDays.length - 1]?.actual ?? 0}</strong></span>
                   </div>
                 </div>
 
@@ -1251,7 +1373,7 @@ const ReportsPage = () => {
                             stroke="#f1f5f9"
                             strokeWidth="18"
                           />
-                          {/* Completed: 52% */}
+                          {/* Completed tasks */}
                           <circle
                             cx="80"
                             cy="80"
@@ -1259,11 +1381,11 @@ const ReportsPage = () => {
                             fill="transparent"
                             stroke="#10b981"
                             strokeWidth="18"
-                            strokeDasharray={`${(52 / 100) * 390} 390`}
+                            strokeDasharray={`${(completedPercent / 100) * 390} 390`}
                             strokeDashoffset="0"
                             className="transition-all duration-500"
                           />
-                          {/* In Progress: 26% */}
+                          {/* In-progress tasks */}
                           <circle
                             cx="80"
                             cy="80"
@@ -1271,11 +1393,11 @@ const ReportsPage = () => {
                             fill="transparent"
                             stroke="#3b82f6"
                             strokeWidth="18"
-                            strokeDasharray={`${(26 / 100) * 390} 390`}
-                            strokeDashoffset={`-${(52 / 100) * 390}`}
+                            strokeDasharray={`${(inProgressPercent / 100) * 390} 390`}
+                            strokeDashoffset={`-${(completedPercent / 100) * 390}`}
                             className="transition-all duration-500"
                           />
-                          {/* In Review: 14% */}
+                          {/* Review tasks */}
                           <circle
                             cx="80"
                             cy="80"
@@ -1283,20 +1405,20 @@ const ReportsPage = () => {
                             fill="transparent"
                             stroke="#a855f7"
                             strokeWidth="18"
-                            strokeDasharray={`${(14 / 100) * 390} 390`}
-                            strokeDashoffset={`-${((52 + 26) / 100) * 390}`}
+                            strokeDasharray={`${(inReviewPercent / 100) * 390} 390`}
+                            strokeDashoffset={`-${((completedPercent + inProgressPercent) / 100) * 390}`}
                             className="transition-all duration-500"
                           />
-                          {/* Blocked/At Risk: 8% */}
+                          {/* To-do tasks */}
                           <circle
                             cx="80"
                             cy="80"
                             r="62"
                             fill="transparent"
-                            stroke="#f43f5e"
+                            stroke="#94a3b8"
                             strokeWidth="18"
-                            strokeDasharray={`${(8 / 100) * 390} 390`}
-                            strokeDashoffset={`-${((52 + 26 + 14) / 100) * 390}`}
+                            strokeDasharray={`${(todoPercent / 100) * 390} 390`}
+                            strokeDashoffset={`-${((completedPercent + inProgressPercent + inReviewPercent) / 100) * 390}`}
                             className="transition-all duration-500"
                           />
                         </svg>
@@ -1318,7 +1440,7 @@ const ReportsPage = () => {
                           <span className="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
                           <span className="text-slate-600 font-medium">Completed</span>
                         </div>
-                        <span className="font-bold text-slate-800">{completedTasksCount} (52%)</span>
+                        <span className="font-bold text-slate-800">{completedTasksCount} ({completedPercent}%)</span>
                       </div>
 
                       <div className="flex items-center justify-between">
@@ -1326,7 +1448,7 @@ const ReportsPage = () => {
                           <span className="h-2.5 w-2.5 rounded-full bg-blue-500"></span>
                           <span className="text-slate-600 font-medium">In Progress</span>
                         </div>
-                        <span className="font-bold text-slate-800">{inProgressTasksCount} (26%)</span>
+                        <span className="font-bold text-slate-800">{inProgressTasksCount} ({inProgressPercent}%)</span>
                       </div>
 
                       <div className="flex items-center justify-between">
@@ -1334,15 +1456,15 @@ const ReportsPage = () => {
                           <span className="h-2.5 w-2.5 rounded-full bg-purple-500"></span>
                           <span className="text-slate-600 font-medium">In Review / QA</span>
                         </div>
-                        <span className="font-bold text-slate-800">{inReviewTasksCount} (14%)</span>
+                        <span className="font-bold text-slate-800">{inReviewTasksCount} ({inReviewPercent}%)</span>
                       </div>
 
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="h-2.5 w-2.5 rounded-full bg-rose-500"></span>
-                          <span className="text-slate-600 font-medium">At Risk / Delayed</span>
+                          <span className="text-slate-600 font-medium">To Do</span>
                         </div>
-                        <span className="font-bold text-rose-600">{atRiskTasksCount} (8%)</span>
+                        <span className="font-bold text-slate-600">{todoTasksCount} ({todoPercent}%)</span>
                       </div>
                     </div>
                   </div>
@@ -1355,7 +1477,7 @@ const ReportsPage = () => {
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Project Delivery Health & Milestones</h3>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      Cross-project progress, hour consumption, and velocity contribution.
+                      Current task progress and overdue counts for each project.
                     </p>
                   </div>
                   <Link
@@ -1397,9 +1519,9 @@ const ReportsPage = () => {
                         <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                           <div
                             className={`h-full rounded-full transition-all duration-300 ${
-                              proj.status === "At Risk"
+                              proj.overdueTasks > 0
                                 ? "bg-rose-500"
-                                : proj.status === "Ahead"
+                                : proj.status === "Completed"
                                 ? "bg-blue-600"
                                 : "bg-emerald-600"
                             }`}
@@ -1411,10 +1533,7 @@ const ReportsPage = () => {
                       {/* Metric pills */}
                       <div className="mt-3.5 pt-3 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-500">
                         <span>
-                          Hours: <strong>{proj.loggedHours}h</strong> / {proj.budgetHours}h
-                        </span>
-                        <span>
-                          Velocity: <strong>{proj.velocity} pts</strong>
+                          Overdue tasks: <strong>{proj.overdueTasks}</strong>
                         </span>
                       </div>
                     </div>
@@ -1431,20 +1550,20 @@ const ReportsPage = () => {
               <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-4 border-b border-slate-100">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">Sprint Story Points Velocity Trend</h3>
+                    <h3 className="text-sm font-bold text-slate-900">Weekly Task Productivity</h3>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      Comparison of planned story points vs delivered points across recent sprint iterations.
+                      Tasks created compared with tasks completed in each backend reporting window.
                     </p>
                   </div>
 
                   <div className="flex items-center gap-4 text-xs">
                     <div className="flex items-center gap-1.5">
                       <span className="h-3 w-3 rounded-md bg-slate-200"></span>
-                      <span className="text-slate-500 text-[11px]">Planned Points</span>
+                      <span className="text-slate-500 text-[11px]">Tasks Created</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="h-3 w-3 rounded-md bg-blue-600"></span>
-                      <span className="font-semibold text-slate-700 text-[11px]">Completed Points</span>
+                      <span className="font-semibold text-slate-700 text-[11px]">Tasks Completed</span>
                     </div>
                   </div>
                 </div>
@@ -1484,9 +1603,9 @@ const ReportsPage = () => {
                             <span className="text-[10px] font-semibold text-slate-400">{sprint.planned}</span>
                             <div
                               className="w-7 rounded-t-lg bg-slate-200 transition-all duration-300"
-                              style={{ height: `${(sprint.planned / 45) * 110}px` }}
+                              style={{ height: `${(sprint.planned / Math.max(1, ...sprintVelocityData.map((item) => item.planned), ...sprintVelocityData.map((item) => item.completed))) * 110}px` }}
                             ></div>
-                            <span className="text-[9px] text-slate-400">Plan</span>
+                            <span className="text-[9px] text-slate-400">Created</span>
                           </div>
 
                           {/* Completed Bar */}
@@ -1496,7 +1615,7 @@ const ReportsPage = () => {
                               className={`w-7 rounded-t-lg transition-all duration-300 ${
                                 sprint.current ? "bg-gradient-to-t from-blue-600 to-indigo-500" : "bg-blue-600"
                               }`}
-                              style={{ height: `${(sprint.completed / 45) * 110}px` }}
+                              style={{ height: `${(sprint.completed / Math.max(1, ...sprintVelocityData.map((item) => item.planned), ...sprintVelocityData.map((item) => item.completed))) * 110}px` }}
                             ></div>
                             <span className="text-[9px] font-semibold text-blue-700">Done</span>
                           </div>
@@ -1504,7 +1623,7 @@ const ReportsPage = () => {
 
                         {/* Efficiency Stat */}
                         <div className="mt-3 flex items-center justify-between text-xs">
-                          <span className="text-slate-500 text-[11px]">Sprint Yield</span>
+                          <span className="text-slate-500 text-[11px]">Completion ratio</span>
                           <span className="font-extrabold text-slate-900">{sprint.rate}%</span>
                         </div>
                       </div>
@@ -1518,14 +1637,14 @@ const ReportsPage = () => {
                       <Target size={16} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-900">Sprint 5 Target Forecast</p>
+                      <p className="text-xs font-bold text-slate-900">Productivity reporting windows</p>
                       <p className="text-[11px] text-slate-500">
-                        Based on the rolling 3-sprint velocity average of 31 points, target 38 - 42 story points for next cycle.
+                          These periods show the task creation and completion counts returned by the reports API.
                       </p>
                     </div>
                   </div>
                   <span className="rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 border border-slate-200 shadow-xs self-start sm:self-auto">
-                    Forecast: 40 Story Points
+                    {sprintVelocityData.length} periods
                   </span>
                 </div>
               </div>
@@ -1539,9 +1658,9 @@ const ReportsPage = () => {
               <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-100">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">Team Workload, Allocation & Efficiency</h3>
+                    <h3 className="text-sm font-bold text-slate-900">Team Workload & Performance</h3>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      Deliverable allocation, hours logged, and capacity load for engineering team members.
+                      Task completion and capacity load for workspace members.
                     </p>
                   </div>
                   <Link
@@ -1575,11 +1694,11 @@ const ReportsPage = () => {
 
                         <span
                           className={`rounded-full px-2 py-0.5 text-[9px] font-bold border ${
-                            member.status === "Heavy Load"
+                            member.status === "Overloaded"
                               ? "bg-rose-50 text-rose-700 border-rose-200"
                               : member.status === "Available"
                               ? "bg-blue-50 text-blue-700 border-blue-200"
-                              : member.status === "Attention"
+                              : member.status === "Busy" || member.status === "Moderate"
                               ? "bg-amber-50 text-amber-700 border-amber-200"
                               : "bg-emerald-50 text-emerald-700 border-emerald-200"
                           }`}
@@ -1611,8 +1730,8 @@ const ReportsPage = () => {
                           <p className="text-xs font-extrabold text-slate-800">{member.completed}</p>
                         </div>
                         <div className="rounded-lg bg-slate-50 p-1.5">
-                          <p className="text-[9px] uppercase font-bold text-slate-400">Story Pts</p>
-                          <p className="text-xs font-extrabold text-blue-600">{member.storyPoints}</p>
+                          <p className="text-[9px] uppercase font-bold text-slate-400">Tasks</p>
+                          <p className="text-xs font-extrabold text-blue-600">{member.totalTasks}</p>
                         </div>
                         <div className="rounded-lg bg-slate-50 p-1.5">
                           <p className="text-[9px] uppercase font-bold text-slate-400">Score</p>
@@ -1631,16 +1750,16 @@ const ReportsPage = () => {
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-100">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Sprint Deliverables & Quality Audit</h3>
+                  <h3 className="text-sm font-bold text-slate-900">Workspace Tasks</h3>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    Granular breakdown of task turnaround times, hour estimates, and health status.
+                    Task ownership, priority, status, and due dates from the workspace.
                   </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
                   {/* Status Filter Buttons */}
                   <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
-                    {["All", "Completed", "In Progress", "In Review"].map((st) => (
+                    {["All", "To Do", "In Progress", "In Review", "Completed"].map((st) => (
                       <button
                         key={st}
                         type="button"
@@ -1689,9 +1808,7 @@ const ReportsPage = () => {
                       <th className="pb-3">Assignee</th>
                       <th className="pb-3">Priority</th>
                       <th className="pb-3">Status</th>
-                      <th className="pb-3">Cycle Time</th>
-                      <th className="pb-3">Hours (Act / Est)</th>
-                      <th className="pb-3">Health</th>
+                      <th className="pb-3">Due Date</th>
                       <th className="pb-3 pr-2 text-right">Action</th>
                     </tr>
                   </thead>
@@ -1723,24 +1840,18 @@ const ReportsPage = () => {
                             </div>
                           </td>
                           <td className="py-3">
-                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold border ${priorityStyles[item.priority]}`}>
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold border ${priorityStyles[item.priority] || "bg-slate-100 text-slate-700 border-slate-200"}`}>
                               {item.priority}
                             </span>
                           </td>
                           <td className="py-3">
-                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold border ${statusStyles[item.status]}`}>
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold border ${statusStyles[item.status] || "bg-slate-100 text-slate-700 border-slate-200"}`}>
                               {item.status}
                             </span>
                           </td>
-                          <td className="py-3 text-slate-600 font-semibold">{item.cycleTime}</td>
                           <td className="py-3">
-                            <span className="font-bold text-slate-800">{item.actualHours}h</span>
-                            <span className="text-[11px] text-slate-400"> / {item.estHours}h</span>
-                          </td>
-                          <td className="py-3">
-                            <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${healthStyles[item.health]}`}>
-                              <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
-                              {item.health}
+                            <span className={item.health === "Overdue" ? "font-semibold text-rose-600" : "text-slate-600"}>
+                              {item.dueDate}
                             </span>
                           </td>
                           <td className="py-3 pr-2 text-right">
@@ -1760,7 +1871,7 @@ const ReportsPage = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="9" className="py-8 text-center text-xs text-slate-500">
+                        <td colSpan="7" className="py-8 text-center text-xs text-slate-500">
                           No deliverables found matching your filter criteria.
                         </td>
                       </tr>
@@ -1775,7 +1886,7 @@ const ReportsPage = () => {
                   Showing <strong>{filteredDeliverables.length}</strong> of {deliverablesList.length} total deliverables
                 </span>
                 <span className="text-[11px]">
-                  Click on any row to inspect audit trail and effort breakdown.
+                  Click on any row to inspect the task record.
                 </span>
               </div>
             </div>

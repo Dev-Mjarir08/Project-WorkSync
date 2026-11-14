@@ -10,6 +10,7 @@ import {
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
 import managerService from "../managerService.js";
+import { getCurrentUser } from "../../../utils/userStorage.js";
 
 const statusLabels = {
   todo: "To Do",
@@ -71,8 +72,19 @@ const TaskDetailsPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [task, setTask] = useState(null);
   const [activities, setActivities] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [commentText, setCommentText] = useState("");
+  const [replyingTo, setReplyingTo] = useState("");
+  const [replyText, setReplyText] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState("");
+  const [editingCommentText, setEditingCommentText] = useState("");
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [commentSaving, setCommentSaving] = useState(false);
+  const [commentError, setCommentError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const currentUser = getCurrentUser();
+  const currentUserId = currentUser?.id || currentUser?._id;
 
   useEffect(() => {
     let active = true;
@@ -80,6 +92,7 @@ const TaskDetailsPage = () => {
     setError("");
     setTask(null);
     setActivities([]);
+    setComments([]);
     if (!taskId) {
       setError("A task ID is required.");
       setLoading(false);
@@ -91,11 +104,16 @@ const TaskDetailsPage = () => {
     Promise.all([
       managerService.getTask(taskId),
       managerService.getTaskActivities(taskId),
+      managerService.getTaskComments(taskId),
     ])
-      .then(([taskData, activityData]) => {
+      .then(([taskData, activityData, commentData]) => {
         if (!active) return;
         setTask(toTaskView(taskData));
         setActivities(activityData.map(toActivityView));
+        if (!Array.isArray(commentData?.comments)) {
+          throw new Error("The Manager API returned an invalid task comments response.");
+        }
+        setComments(commentData.comments);
       })
       .catch((requestError) => {
         if (active) setError(requestError.message || "Unable to load task details.");
@@ -108,6 +126,86 @@ const TaskDetailsPage = () => {
       active = false;
     };
   }, [taskId]);
+
+  const refreshComments = async () => {
+    setCommentLoading(true);
+    setCommentError("");
+    try {
+      const result = await managerService.getTaskComments(taskId);
+      if (!Array.isArray(result?.comments)) {
+        throw new Error("The Manager API returned an invalid task comments response.");
+      }
+      setComments(result.comments);
+    } catch (requestError) {
+      setCommentError(requestError.message || "Unable to load task comments.");
+    } finally {
+      setCommentLoading(false);
+    }
+  };
+
+  const submitComment = async (event) => {
+    event.preventDefault();
+    if (!commentText.trim()) return;
+    setCommentSaving(true);
+    setCommentError("");
+    try {
+      await managerService.addTaskComment(task.id, commentText.trim());
+      setCommentText("");
+      await refreshComments();
+      const activities = await managerService.getTaskActivities(task.id);
+      setActivities(activities.map(toActivityView));
+    } catch (requestError) {
+      setCommentError(requestError.message || "Unable to post the comment.");
+    } finally {
+      setCommentSaving(false);
+    }
+  };
+
+  const submitReply = async (event, commentId) => {
+    event.preventDefault();
+    if (!replyText.trim()) return;
+    setCommentSaving(true);
+    setCommentError("");
+    try {
+      await managerService.addTaskCommentReply(task.id, commentId, replyText.trim());
+      setReplyText("");
+      setReplyingTo("");
+      await refreshComments();
+    } catch (requestError) {
+      setCommentError(requestError.message || "Unable to post the reply.");
+    } finally {
+      setCommentSaving(false);
+    }
+  };
+
+  const saveCommentEdit = async (commentId) => {
+    if (!editingCommentText.trim()) return;
+    setCommentSaving(true);
+    setCommentError("");
+    try {
+      await managerService.updateComment(commentId, editingCommentText.trim());
+      setEditingCommentId("");
+      setEditingCommentText("");
+      await refreshComments();
+    } catch (requestError) {
+      setCommentError(requestError.message || "Unable to update the comment.");
+    } finally {
+      setCommentSaving(false);
+    }
+  };
+
+  const removeComment = async (commentId) => {
+    setCommentSaving(true);
+    setCommentError("");
+    try {
+      await managerService.deleteComment(commentId);
+      await refreshComments();
+    } catch (requestError) {
+      setCommentError(requestError.message || "Unable to delete the comment.");
+    } finally {
+      setCommentSaving(false);
+    }
+  };
 
   const breadcrumbs = [
     { label: "Tasks", href: "/manager/tasks" },
@@ -223,6 +321,154 @@ const TaskDetailsPage = () => {
                 </div>
                 {activities.length === 0 && (
                   <p className="py-4 text-center text-xs text-slate-400">No activity recorded for this task.</p>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xs space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h2 className="text-sm font-bold text-slate-900">Comments</h2>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                    {comments.length}
+                  </span>
+                </div>
+                {commentError && (
+                  <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                    {commentError}
+                  </div>
+                )}
+                <form onSubmit={submitComment} className="space-y-3">
+                  <textarea
+                    value={commentText}
+                    onChange={(event) => setCommentText(event.target.value)}
+                    rows={3}
+                    placeholder="Write a comment on this task..."
+                    className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-blue-500"
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={commentSaving || !commentText.trim()}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {commentSaving ? "Saving..." : "Add comment"}
+                    </button>
+                  </div>
+                </form>
+                {commentLoading ? (
+                  <p role="status" className="py-4 text-center text-xs text-slate-500">Refreshing comments...</p>
+                ) : comments.length === 0 ? (
+                  <p className="py-4 text-center text-xs text-slate-500">No comments on this task yet.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {comments.map((comment) => {
+                      const commentId = comment.id || comment._id;
+                      const authorId = comment.author?.id || comment.author?._id;
+                      const canEdit = currentUserId && String(authorId) === String(currentUserId);
+                      return (
+                        <article key={commentId} className="rounded-xl border border-slate-200 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold text-slate-800">
+                                {comment.author?.name || "Workspace member"}
+                              </p>
+                              <p className="mt-1 text-[10px] text-slate-400">
+                                {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : "Time unavailable"}
+                                {comment.isEdited ? " · Edited" : ""}
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingCommentId(commentId);
+                                    setEditingCommentText(comment.content || "");
+                                  }}
+                                  className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                                >
+                                  Edit
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => removeComment(commentId)}
+                                disabled={commentSaving}
+                                className="text-xs font-semibold text-rose-600 hover:text-rose-800 disabled:opacity-50"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                          {editingCommentId === commentId ? (
+                            <div className="mt-3 space-y-2">
+                              <textarea
+                                value={editingCommentText}
+                                onChange={(event) => setEditingCommentText(event.target.value)}
+                                rows={3}
+                                className="w-full rounded-lg border border-slate-200 p-2 text-sm"
+                              />
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingCommentId("")}
+                                  className="rounded-md border border-slate-200 px-3 py-1.5 text-xs"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => saveCommentEdit(commentId)}
+                                  disabled={commentSaving || !editingCommentText.trim()}
+                                  className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                                >
+                                  Save
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="mt-3 whitespace-pre-line text-sm text-slate-700">{comment.content}</p>
+                          )}
+                          {comment.replies?.length > 0 && (
+                            <div className="mt-4 space-y-2 border-l-2 border-slate-100 pl-4">
+                              {comment.replies.map((reply) => (
+                                <div key={reply.id || reply._id} className="rounded-lg bg-slate-50 p-3">
+                                  <div className="flex justify-between gap-2 text-xs">
+                                    <span className="font-semibold text-slate-800">{reply.author?.name || "Workspace member"}</span>
+                                    <span className="text-slate-400">{reply.createdAt ? new Date(reply.createdAt).toLocaleString() : ""}</span>
+                                  </div>
+                                  <p className="mt-1 text-sm text-slate-600">{reply.content}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setReplyingTo(replyingTo === commentId ? "" : commentId)}
+                            className="mt-3 text-xs font-semibold text-blue-600 hover:text-blue-800"
+                          >
+                            {replyingTo === commentId ? "Cancel reply" : "Reply"}
+                          </button>
+                          {replyingTo === commentId && (
+                            <form onSubmit={(event) => submitReply(event, commentId)} className="mt-3 flex gap-2">
+                              <input
+                                value={replyText}
+                                onChange={(event) => setReplyText(event.target.value)}
+                                placeholder="Write a reply..."
+                                className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                              />
+                              <button
+                                type="submit"
+                                disabled={commentSaving || !replyText.trim()}
+                                className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                              >
+                                Send
+                              </button>
+                            </form>
+                          )}
+                        </article>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Users,
   UserCheck,
@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
-import { getUserItem } from "../../../utils/userStorage.js";
+import managerService from "../managerService.js";
 
 // Initial realistic team members dataset with detailed assigned tasks
 export const initialTeamMembers = [
@@ -348,13 +348,62 @@ const memberStatusStyles = {
   },
 };
 
+const initials = (name = "") => name.split(/\s+/).filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+
+const taskStatusLabel = (status) => ({
+  todo: "To Do",
+  in_progress: "In Progress",
+  review: "In Review",
+  done: "Completed",
+}[String(status || "").toLowerCase()] || "To Do");
+
+const taskPriorityLabel = (priority) =>
+  String(priority || "low").replace(/\b\w/g, (letter) => letter.toUpperCase());
+
 const TeamPage = () => {
-  const [members] = useState(getScopedTeamMembers);
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [selectedRole, setSelectedRole] = useState("All");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
+
+  const loadMembers = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [activeData, inactiveData] = await Promise.all([
+        managerService.getTeamMembers({ status: "active" }),
+        managerService.getTeamMembers({ status: "inactive" }),
+      ]);
+      const apiMembers = [
+        ...(activeData?.members || []),
+        ...(inactiveData?.members || []),
+      ];
+      setMembers(apiMembers.map((member) => ({
+        ...member,
+        status: String(member.status).toLowerCase() === "inactive" ? "Inactive" : "Active",
+        role: member.workspaceRole || "Team member",
+        department: "—",
+        avatar: initials(member.name),
+        color: "from-blue-500 to-indigo-600",
+        tasks: [],
+        tasksCount: Number(member.tasksCount) || 0,
+        completedTasksCount: Number(member.completedTasksCount) || 0,
+      })));
+    } catch (loadError) {
+      setError(loadError.message || "Unable to load team members.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadMembers();
+  }, [loadMembers]);
 
   // Close modal on Escape key
   useEffect(() => {
@@ -380,12 +429,11 @@ const TeamPage = () => {
     const totalMembers = members.length;
     const activeMembers = members.filter((m) => m.status === "Active").length;
     const totalAssignedTasks = members.reduce(
-      (sum, m) => sum + m.tasks.length,
+      (sum, m) => sum + m.tasksCount,
       0
     );
     const completedTasks = members.reduce(
-      (sum, m) =>
-        sum + m.tasks.filter((t) => t.status === "Completed").length,
+      (sum, m) => sum + m.completedTasksCount,
       0
     );
 
@@ -433,6 +481,45 @@ const TeamPage = () => {
     setSelectedRole("All");
   };
 
+  const openMemberTasks = async (member) => {
+    setSelectedMember({ ...member, tasks: [] });
+    setTasksLoading(true);
+    setError("");
+    try {
+      const [details, result] = await Promise.all([
+        managerService.getTeamMember(member.id),
+        managerService.getTeamMemberTasks(member.id),
+      ]);
+      if (!Array.isArray(result?.tasks)) {
+        throw new Error("The Manager API returned an invalid member tasks response.");
+      }
+      const tasks = result.tasks.map((task) => ({
+        id: task._id || task.id,
+        title: task.title || "Untitled task",
+        project: task.project?.name || task.project?.title || "No project",
+        priority: taskPriorityLabel(task.priority),
+        dueDate: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "No due date",
+        status: taskStatusLabel(task.status),
+      }));
+      setSelectedMember((current) => current && current.id === member.id
+        ? {
+          ...current,
+          ...details,
+          tasks,
+          tasksCount: details.stats?.totalTasks ?? current.tasksCount,
+          completedTasksCount: details.stats?.completedTasks ?? current.completedTasksCount,
+          role: details.workspaceRole || current.role,
+          status: String(details.status).toLowerCase() === "inactive" ? "Inactive" : "Active",
+          department: "—",
+        }
+        : current);
+    } catch (loadError) {
+      setError(loadError.message || "Unable to load member tasks.");
+    } finally {
+      setTasksLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex antialiased selection:bg-blue-600 selection:text-white">
       {/* Scroll-Fixed Sidebar Component */}
@@ -454,6 +541,11 @@ const TeamPage = () => {
 
         {/* Page Main Body */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
+          {error && (
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {error}
+            </div>
+          )}
           {/* Header Title & Intro */}
           <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
             <div>
@@ -609,11 +701,11 @@ const TeamPage = () => {
                 </thead>
 
                 <tbody className="divide-y divide-slate-100">
-                  {filteredMembers.map((member) => {
-                    const assignedCount = member.tasks.length;
-                    const completedCount = member.tasks.filter(
-                      (t) => t.status === "Completed"
-                    ).length;
+                  {loading ? (
+                    <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-500">Loading team members...</td></tr>
+                  ) : filteredMembers.map((member) => {
+                    const assignedCount = member.tasksCount;
+                    const completedCount = member.completedTasksCount;
                     const pendingCount = assignedCount - completedCount;
                     const statusConfig =
                       memberStatusStyles[member.status] || memberStatusStyles.Active;
@@ -621,7 +713,7 @@ const TeamPage = () => {
                     return (
                       <tr
                         key={member.id}
-                        onClick={() => setSelectedMember(member)}
+                        onClick={() => openMemberTasks(member)}
                         className="group hover:bg-slate-50/80 transition-colors cursor-pointer"
                       >
                         {/* Member Avatar, Name, and Email */}
@@ -691,7 +783,7 @@ const TeamPage = () => {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedMember(member);
+                              openMemberTasks(member);
                             }}
                             className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200/70 bg-blue-50/70 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-100/70 hover:text-blue-800 transition shadow-2xs"
                           >
@@ -704,7 +796,7 @@ const TeamPage = () => {
                   })}
 
                   {/* Empty state when no members match search or filters */}
-                  {filteredMembers.length === 0 && (
+                  {!loading && filteredMembers.length === 0 && (
                     <tr>
                       <td colSpan={7} className="px-5 py-12 text-center">
                         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 mb-3">
@@ -812,7 +904,7 @@ const TeamPage = () => {
                     Assigned Tasks
                   </p>
                   <p className="text-lg font-bold text-slate-900 mt-0.5">
-                    {selectedMember.tasks.length}
+                    {selectedMember.tasksCount}
                   </p>
                 </div>
                 <div className="rounded-xl bg-emerald-50/60 p-2.5 border border-emerald-100/60">
@@ -821,8 +913,7 @@ const TeamPage = () => {
                   </p>
                   <p className="text-lg font-bold text-emerald-700 mt-0.5">
                     {
-                      selectedMember.tasks.filter((t) => t.status === "Completed")
-                        .length
+                      selectedMember.completedTasksCount
                     }
                   </p>
                 </div>
@@ -831,10 +922,7 @@ const TeamPage = () => {
                     Pending
                   </p>
                   <p className="text-lg font-bold text-amber-700 mt-0.5">
-                    {
-                      selectedMember.tasks.filter((t) => t.status !== "Completed")
-                        .length
-                    }
+                    {Math.max(0, selectedMember.tasksCount - selectedMember.completedTasksCount)}
                   </p>
                 </div>
               </div>
@@ -844,14 +932,16 @@ const TeamPage = () => {
             <div className="p-5 overflow-y-auto space-y-3 max-h-[50vh] [scrollbar-width:thin]">
               <div className="flex items-center justify-between pb-1">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                  Assigned Tasks ({selectedMember.tasks.length})
+                  Assigned Tasks ({selectedMember.tasksCount})
                 </h4>
                 <span className="text-[11px] text-slate-400 font-medium">
                   Priority & Deadlines
                 </span>
               </div>
 
-              {selectedMember.tasks.length > 0 ? (
+              {tasksLoading ? (
+                <p className="py-8 text-center text-sm text-slate-500">Loading assigned tasks...</p>
+              ) : selectedMember.tasks.length > 0 ? (
                 <div className="space-y-2.5">
                   {selectedMember.tasks.map((task) => (
                     <div
