@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   User,
   Mail,
@@ -14,12 +14,21 @@ import {
   Bell,
   ChevronRight,
   CheckCircle2,
+  Laptop,
+  Smartphone,
+  Monitor,
+  Trash2,
+  LogOut,
+  RefreshCw,
+  Globe,
+  AlertCircle,
 } from "lucide-react";
 
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
 import { getCurrentUser, getUserItem, setUserItem } from "../../../utils/userStorage.js";
 import { authService } from "../../auth/authService.js";
+import managerService from "../managerService.js";
 
 const getInitialProfile = () => {
   const saved = getUserItem("manager_profile", null);
@@ -57,6 +66,50 @@ const ProfilePage = () => {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
   const [updatingPassword, setUpdatingPassword] = useState(false);
+
+  // Active Sessions & Devices State (GET /api/v1/manager/profile/sessions)
+  const [sessions, setSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [sessionMessage, setSessionMessage] = useState(null);
+  const [revokingId, setRevokingId] = useState(null);
+
+  const loadSessions = () => {
+    setSessionsLoading(true);
+    managerService
+      .getSessions()
+      .then((data) => {
+        setSessions(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        console.error("Failed to load sessions:", err);
+      })
+      .finally(() => {
+        setSessionsLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    loadSessions();
+  }, []);
+
+  // Remote Session Revocation (DELETE /api/v1/manager/profile/sessions/:sessionId)
+  const handleRevokeSession = async (sessionId, deviceName) => {
+    if (!window.confirm(`Revoke session for ${deviceName || "this device"}? You will be signed out on that device.`)) {
+      return;
+    }
+
+    setRevokingId(sessionId);
+    try {
+      await managerService.revokeSession(sessionId);
+      setSessions((prev) => prev.filter((s) => (s.id || s._id) !== sessionId));
+      setSessionMessage({ type: "success", text: "Session revoked successfully." });
+    } catch (err) {
+      setSessionMessage({ type: "error", text: err.message || "Failed to revoke session." });
+    } finally {
+      setRevokingId(null);
+      setTimeout(() => setSessionMessage(null), 3500);
+    }
+  };
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
@@ -518,6 +571,124 @@ const ProfilePage = () => {
                       </div>
                     </form>
                   )}
+                </div>
+
+                {/* Active Sessions & Devices (GET /api/v1/manager/profile/sessions & DELETE /api/v1/manager/profile/sessions/:sessionId) */}
+                <div className="pt-6 border-t border-slate-100">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                        <Monitor size={19} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-slate-800">
+                            Active Devices &amp; Browser Sessions
+                          </p>
+                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
+                            {sessions.length}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Devices and browsers currently logged into your manager account. Revoke any unrecognized sessions.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={loadSessions}
+                      disabled={sessionsLoading}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition self-start sm:self-auto cursor-pointer"
+                    >
+                      <RefreshCw size={13} className={sessionsLoading ? "animate-spin text-blue-600" : "text-slate-400"} />
+                      <span>Refresh</span>
+                    </button>
+                  </div>
+
+                  {sessionMessage && (
+                    <div
+                      className={`p-3 rounded-xl text-xs font-medium mb-3 flex items-center gap-2 border ${
+                        sessionMessage.type === "success"
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                          : "bg-rose-50 text-rose-800 border-rose-200"
+                      }`}
+                    >
+                      {sessionMessage.type === "success" ? (
+                        <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                      ) : (
+                        <AlertCircle size={14} className="text-rose-600 shrink-0" />
+                      )}
+                      <span>{sessionMessage.text}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-2.5">
+                    {sessionsLoading && sessions.length === 0 ? (
+                      <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 text-center text-xs text-slate-400 animate-pulse">
+                        Loading active device sessions...
+                      </div>
+                    ) : sessions.length > 0 ? (
+                      sessions.map((sess) => {
+                        const sessId = sess.id || sess._id;
+                        const isCurrent = sess.isCurrent || sess.id === "sess_current" || sess.userAgent?.includes("Current Browser");
+                        const deviceName = sess.device || sess.userAgent || "Desktop Browser";
+                        const ipAddress = sess.ip || "127.0.0.1";
+                        const isMobile = /mobile|phone|android|iphone/i.test(deviceName);
+
+                        return (
+                          <div
+                            key={sessId}
+                            className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition ${
+                              isCurrent ? "border-blue-200 bg-blue-50/20" : "border-slate-100 bg-slate-50/50 hover:bg-white"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                  isCurrent ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"
+                                }`}
+                              >
+                                {isMobile ? <Smartphone size={16} /> : <Laptop size={16} />}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-xs font-bold text-slate-800 truncate">{deviceName}</p>
+                                  {isCurrent && (
+                                    <span className="rounded-full bg-emerald-100 px-2 py-0.2 text-[9px] font-bold text-emerald-800">
+                                      This Device
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-[11px] text-slate-400 font-mono">
+                                  <span>IP: {ipAddress}</span>
+                                  <span>•</span>
+                                  <span>
+                                    Last Active: {sess.lastActive ? new Date(sess.lastActive).toLocaleDateString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Just now"}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {!isCurrent && (
+                              <button
+                                type="button"
+                                disabled={revokingId === sessId}
+                                onClick={() => handleRevokeSession(sessId, deviceName)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 border border-rose-200/60 transition self-start sm:self-auto cursor-pointer disabled:opacity-50"
+                                title="Revoke session on this device"
+                              >
+                                <LogOut size={12} />
+                                <span>{revokingId === sessId ? "Revoking..." : "Revoke Access"}</span>
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-xs text-slate-400 italic py-3 text-center">No other active sessions detected.</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </section>

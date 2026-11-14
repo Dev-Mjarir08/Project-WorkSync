@@ -546,6 +546,42 @@ export const managerService = {
       }
       return updated;
     }
+  },
+
+  // 11. Profile Sessions Management
+  getSessions: async () => {
+    try {
+      const data = await request("/profile/sessions");
+      return Array.isArray(data?.sessions) ? data.sessions : (Array.isArray(data) ? data : []);
+    } catch {
+      return getUserItem("manager_sessions", [
+        {
+          id: "sess_current",
+          device: "Desktop - Chrome Browser",
+          userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0",
+          ip: "127.0.0.1 (Local)",
+          isCurrent: true,
+          isValid: true,
+          lastActive: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        }
+      ]);
+    }
+  },
+
+  revokeSession: async (sessionId) => {
+    try {
+      const data = await request(`/profile/sessions/${sessionId}`, { method: "DELETE" });
+      const sessions = getUserItem("manager_sessions", []);
+      const updated = sessions.filter((s) => (s.id || s._id) !== sessionId);
+      setUserItem("manager_sessions", updated);
+      return data;
+    } catch {
+      const sessions = getUserItem("manager_sessions", []);
+      const updated = sessions.filter((s) => (s.id || s._id) !== sessionId);
+      setUserItem("manager_sessions", updated);
+      return { sessionId, revoked: true };
+    }
   }
 };
 
