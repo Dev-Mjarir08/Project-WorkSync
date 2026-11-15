@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import adminService from '../adminService';
+import { useConfirm } from '../../../context/ConfirmContext.jsx';
 
 const getInitials = (name = 'Member') =>
   name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toLocaleUpperCase();
@@ -28,6 +29,7 @@ const roleColors = {
 };
 
 const MembersPage = () => {
+  const confirm = useConfirm();
   const [members, setMembers] = useState([]);
   const [pendingInvitationsCount, setPendingInvitationsCount] = useState(0);
   const [search, setSearch] = useState('');
@@ -83,9 +85,15 @@ const MembersPage = () => {
   };
 
   const handleRemoveMember = async (memberId, memberName) => {
-    if (!window.confirm(`Are you sure you want to remove ${memberName || 'this member'} from the workspace?`)) {
-      return;
-    }
+    const isConfirmed = await confirm({
+      title: "Remove Member",
+      message: `Are you sure you want to remove ${memberName || 'this member'} from the workspace? They will lose access to all workspace projects and resources.`,
+      confirmText: "Remove Member",
+      cancelText: "Cancel",
+      type: "danger",
+    });
+    if (!isConfirmed) return;
+
     setActionLoading(true);
     try {
       await adminService.removeMember(memberId);

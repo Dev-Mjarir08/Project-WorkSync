@@ -17,10 +17,12 @@ import {
   Plus,
   Eye
 } from 'lucide-react';
+import { useConfirm } from '../../../context/ConfirmContext.jsx';
 import superAdminService from '../superAdminService.js';
 
 export const BoardsPage = () => {
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [boards, setBoards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -68,7 +70,13 @@ export const BoardsPage = () => {
   };
 
   const handleDelete = async (boardId) => {
-    if (!window.confirm('Are you sure you want to permanently delete this board? This cannot be undone.')) return;
+    const isConfirmed = await confirm({
+      title: 'Delete Kanban Board',
+      message: 'Are you sure you want to permanently delete this board? All lists and tasks within it will be removed. This cannot be undone.',
+      confirmText: 'Delete Board',
+      type: 'danger'
+    });
+    if (!isConfirmed) return;
     try {
       await superAdminService.deleteBoard(boardId);
       showToast('Board deleted successfully');

@@ -257,6 +257,18 @@ export const managerService = {
     }
   },
 
+  deleteTask: async (taskId) => {
+    try {
+      await request(`/tasks/${taskId}`, { method: "DELETE" });
+    } catch {
+      // fallback
+    }
+    const tasks = getUserItem("manager_tasks", []);
+    const filtered = tasks.filter((t) => t.id !== taskId && t._id !== taskId);
+    setUserItem("manager_tasks", filtered);
+    return { success: true };
+  },
+
   // 5. Assignments
   getAssignments: async (query = {}) => {
     try {

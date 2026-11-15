@@ -36,7 +36,9 @@ const getScopedFilters = async (actorUser) => {
   const userFilter = {
     $or: [
       { _id: { $in: userIds } },
-      { createdBy: actorUser._id }
+      { createdBy: actorUser._id },
+      { createdBy: null },
+      { createdBy: { $exists: false } }
     ]
   };
 

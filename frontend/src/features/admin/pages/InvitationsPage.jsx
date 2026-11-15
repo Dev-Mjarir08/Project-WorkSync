@@ -12,6 +12,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import adminService from '../adminService';
+import { useConfirm } from '../../../context/ConfirmContext.jsx';
 
 const statusStyles = {
   Pending: 'bg-amber-50 text-amber-700 ring-amber-600/10',
@@ -46,6 +47,7 @@ const getInitials = (name = 'Invitee') => (
 );
 
 const InvitationsPage = () => {
+  const confirm = useConfirm();
   const [invitations, setInvitations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -154,7 +156,14 @@ const InvitationsPage = () => {
   };
 
   const handleRevokeInvitation = async (invitationId, invEmail) => {
-    if (!window.confirm(`Revoke invitation for ${invEmail}?`)) return;
+    const isConfirmed = await confirm({
+      title: "Revoke Invitation",
+      message: `Are you sure you want to revoke the invitation link for ${invEmail}? Once revoked, the recipient will not be able to use this join link.`,
+      confirmText: "Revoke Link",
+      cancelText: "Cancel",
+      type: "danger",
+    });
+    if (!isConfirmed) return;
 
     try {
       await adminService.revokeInvitation(invitationId);

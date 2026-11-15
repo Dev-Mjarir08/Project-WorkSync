@@ -234,20 +234,6 @@ export const RolesPermissionsPage = () => {
           </table>
         </div>
       </div>
-
-      {/* Policy Guardrails Notice Box */}
-      <div className="p-5 rounded-2xl bg-indigo-950/30 border border-indigo-900/40 flex items-start gap-4">
-        <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
-          <Info className="h-5 w-5" />
-        </div>
-        <div className="space-y-1">
-          <h4 className="text-sm font-bold text-white">Hierarchical RBAC Enforcement</h4>
-          <p className="text-xs text-slate-300 leading-relaxed">
-            All Super Admin actions are cryptographically validated by JWT Bearer claims and verified against the backend MongoDB platform role schema.
-            Self-demotion, self-deactivation, and deletion of the sole active Super Admin are strictly blocked at the API layer.
-          </p>
-        </div>
-      </div>
     </div>
   );
 };

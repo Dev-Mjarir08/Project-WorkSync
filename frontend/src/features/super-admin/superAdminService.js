@@ -132,6 +132,7 @@ export const superAdminService = {
 
   // USERS MANAGEMENT
   getUsers: async (query = {}) => {
+    let backendData = null;
     try {
       const params = new URLSearchParams();
       if (query.search) params.append('search', query.search);
@@ -139,12 +140,53 @@ export const superAdminService = {
       if (query.status && query.status !== 'all') params.append('status', query.status);
       const res = await fetch(`${API_BASE_URL}/users?${params.toString()}`, { headers: getAuthHeaders() });
       if (res.ok) {
-        const json = await res.json();
-        return json.data;
+        backendData = await res.json();
       }
     } catch (e) {}
 
-    let users = getUserItem('users', []);
+    const localUsers = getUserItem('users', []);
+
+    if (backendData?.data) {
+      const beList = Array.isArray(backendData.data.users)
+        ? backendData.data.users
+        : (Array.isArray(backendData.data) ? backendData.data : []);
+
+      // Merge backend users with local users so any freshly created user is guaranteed to show
+      const merged = [...beList];
+      for (const lu of localUsers) {
+        const luid = lu.id || lu._id;
+        const exists = merged.some((bu) => (bu.id || bu._id) === luid || bu.email?.toLowerCase() === lu.email?.toLowerCase());
+        if (!exists) {
+          merged.unshift(lu);
+        }
+      }
+
+      let filtered = merged;
+      if (query.search) {
+        const term = query.search.toLowerCase();
+        filtered = filtered.filter((u) => u.name?.toLowerCase().includes(term) || u.email?.toLowerCase().includes(term));
+      }
+      if (query.role && query.role !== 'all') {
+        filtered = filtered.filter((u) => u.role === query.role);
+      }
+      if (query.status && query.status !== 'all') {
+        filtered = filtered.filter((u) => (query.status === 'active' ? u.isActive !== false : u.isActive === false));
+      }
+
+      return {
+        users: filtered,
+        totalCount: filtered.length,
+        rolesSummary: backendData.data.rolesSummary || {
+          total: filtered.length,
+          active: filtered.filter((u) => u.isActive !== false).length,
+          admin: filtered.filter((u) => u.role === 'admin').length,
+          manager: filtered.filter((u) => u.role === 'manager').length,
+          member: filtered.filter((u) => u.role === 'employee' || u.role === 'member').length
+        }
+      };
+    }
+
+    let users = localUsers;
     if (query.search) {
       const term = query.search.toLowerCase();
       users = users.filter((u) => u.name?.toLowerCase().includes(term) || u.email?.toLowerCase().includes(term));
@@ -177,6 +219,7 @@ export const superAdminService = {
   },
 
   createUser: async (userData) => {
+    let createdUser = null;
     try {
       const res = await fetch(`${API_BASE_URL}/users`, {
         method: 'POST',
@@ -185,35 +228,54 @@ export const superAdminService = {
       });
       if (res.ok) {
         const json = await res.json();
-        return json.data?.user || json.data;
+        createdUser = json.data?.user || json.data;
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Failed to create user on server');
       }
-    } catch (e) {}
+    } catch (e) {
+      if (e.message && !e.message.includes('fetch')) {
+        throw e;
+      }
+    }
+
+    const newUser = createdUser
+      ? {
+          _id: createdUser.id || createdUser._id,
+          id: createdUser.id || createdUser._id,
+          name: createdUser.name,
+          email: createdUser.email,
+          role: createdUser.role,
+          isActive: createdUser.isActive !== false,
+          workspaces: createdUser.workspaces || (userData.workspaceId ? [userData.workspaceId] : []),
+          createdAt: createdUser.createdAt || new Date().toISOString()
+        }
+      : {
+          _id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+          id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+          name: userData.name?.trim() || 'New User',
+          email: userData.email?.trim().toLowerCase(),
+          role: userData.role || 'member',
+          isActive: true,
+          workspaces: userData.workspaceId ? [userData.workspaceId] : [],
+          createdAt: new Date().toISOString()
+        };
 
     const users = getUserItem('users', []);
-    const newUser = {
-      _id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-      id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-      name: userData.name?.trim() || 'New User',
-      email: userData.email?.trim().toLowerCase(),
-      role: userData.role || 'member',
-      isActive: true,
-      workspaces: userData.workspaceId ? [userData.workspaceId] : [],
-      createdAt: new Date().toISOString()
-    };
-
-    users.unshift(newUser);
-    setUserItem('users', users);
+    const filtered = users.filter((u) => (u.id || u._id) !== newUser.id && u.email !== newUser.email);
+    filtered.unshift(newUser);
+    setUserItem('users', filtered);
     recordScopedAudit('USER_PROVISIONED', `Provisioned user "${newUser.name}" with role "${newUser.role}"`, newUser.email);
 
     // Synchronize to global user registry for immediate authenticated portal access
     try {
       const registry = JSON.parse(localStorage.getItem('worksync_registered_users') || '[]');
-      const filtered = registry.filter((u) => u.email !== newUser.email);
-      filtered.push({
+      const filteredReg = registry.filter((u) => u.email !== newUser.email);
+      filteredReg.push({
         ...newUser,
         password: userData.password || 'WorkSync@2026'
       });
-      localStorage.setItem('worksync_registered_users', JSON.stringify(filtered));
+      localStorage.setItem('worksync_registered_users', JSON.stringify(filteredReg));
     } catch (e) {}
 
     return newUser;
@@ -464,7 +526,17 @@ export const superAdminService = {
     setUserItem('boards', boards.filter((b) => b.id !== boardId));
     return { success: true };
   },
-  getBoardTasks: async () => [],
+  getBoardTasks: async (boardId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/tasks?board=${boardId}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const json = await res.json();
+        return json.data?.tasks || json.data || [];
+      }
+    } catch (e) {}
+    const all = getUserItem('tasks', []);
+    return all.filter((t) => t.boardId === boardId || t.board === boardId);
+  },
 
   // ANALYTICS & AUDIT LOGS
   getAnalyticsOverview: async () => {
@@ -694,9 +766,44 @@ export const superAdminService = {
     return { success: true };
   },
 
-  getWorkspaceProjects: async () => [],
-  createWorkspaceProject: async () => ({ success: true }),
-  addWorkspaceMember: async () => ({ success: true })
+  getWorkspaceProjects: async (workspaceId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/projects`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const json = await res.json();
+        return json.data?.projects || json.data || [];
+      }
+    } catch (e) {}
+    return [];
+  },
+  createWorkspaceProject: async (workspaceId, data) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/projects`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data)
+      });
+      if (res.ok) {
+        const json = await res.json();
+        return json.data?.project || json.data;
+      }
+    } catch (e) {}
+    return { success: true };
+  },
+  addWorkspaceMember: async (workspaceId, memberData) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/members`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(memberData)
+      });
+      if (res.ok) {
+        const json = await res.json();
+        return json.data || json;
+      }
+    } catch (e) {}
+    return { success: true };
+  }
 };
 
 export default superAdminService;

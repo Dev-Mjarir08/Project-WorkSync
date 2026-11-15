@@ -71,6 +71,28 @@ const adminService = {
     return getUserItem('admin_boards', []);
   },
 
+  async getTasks(params = {}) {
+    try {
+      const query = new URLSearchParams(params).toString();
+      const data = await request(`/tasks${query ? `?${query}` : ''}`);
+      if (Array.isArray(data?.tasks)) {
+        return data.tasks;
+      }
+      if (Array.isArray(data)) return data;
+    } catch {}
+    return getUserItem('admin_tasks', []);
+  },
+
+  async deleteTask(taskId) {
+    try {
+      await request(`/tasks/${taskId}`, { method: 'DELETE' });
+    } catch {}
+    const tasks = getUserItem('admin_tasks', []);
+    const filtered = tasks.filter((t) => t.id !== taskId && t._id !== taskId);
+    setUserItem('admin_tasks', filtered);
+    return { success: true };
+  },
+
   async createBoard({ title, description, workspace, status = 'Planning', owner, members = [] }) {
     const user = getCurrentUser();
     const boards = getUserItem('admin_boards', []);

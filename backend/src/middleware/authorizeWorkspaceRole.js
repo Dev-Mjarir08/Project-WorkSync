@@ -13,7 +13,7 @@ export const authorizeWorkspaceRole = (...allowedRoles) => {
     }
 
     const isOwner = req.workspace?.owner?.toString() === req.user?._id?.toString();
-    const userRole = isOwner ? WORKSPACE_ROLES.OWNER : req.workspaceMember?.role;
+    const userRole = isOwner ? WORKSPACE_ROLES.OWNER : (req.workspaceMember?.role || req.user?.role);
 
     if (!userRole) {
       throw new ApiError(403, 'Forbidden: You do not have an active role in this workspace');

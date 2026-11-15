@@ -34,6 +34,28 @@ const resolveMemberUserId = async (workspaceId, memberId) => {
 export const getTeamMembers = async (workspaceId, query = {}) => {
   if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
 
+  try {
+    const { Workspace } = await import('../../../models/Workspace.js');
+    const ws = await Workspace.findById(workspaceId);
+    if (ws && ws.owner) {
+      const creatorUsers = await User.find({
+        $or: [{ createdBy: ws.owner }, { _id: ws.owner }]
+      }).select('_id role');
+      for (const u of creatorUsers) {
+        await WorkspaceMember.findOneAndUpdate(
+          { workspace: ws._id, user: u._id },
+          {
+            workspace: ws._id,
+            user: u._id,
+            role: u.role === 'admin' ? 'admin' : (u.role === 'manager' ? 'manager' : (u.role === 'employee' ? 'employee' : 'member')),
+            status: 'active'
+          },
+          { upsert: true, new: true }
+        ).catch(() => {});
+      }
+    }
+  } catch (syncErr) {}
+
   const filter = {
     workspace: new mongoose.Types.ObjectId(workspaceId),
     status: query.status || 'active'

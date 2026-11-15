@@ -22,6 +22,7 @@ import Header from "../../../components/layout/Header.jsx";
 import { initialManagerTasks } from "./TasksPage.jsx";
 import managerService from "../managerService.js";
 import { getCurrentUser } from "../../../utils/userStorage.js";
+import { useConfirm } from "../../../context/ConfirmContext.jsx";
 
 const priorityStyles = {
   High: "bg-rose-50 text-rose-700 border-rose-200",
@@ -39,6 +40,7 @@ const statusStyles = {
 
 const TaskDetailsPage = () => {
   const { taskId } = useParams();
+  const confirm = useConfirm();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const currentUser = getCurrentUser();
 
@@ -156,7 +158,13 @@ const TaskDetailsPage = () => {
 
   // 4. Delete Comment (DELETE /api/v1/manager/comments/:commentId)
   const handleDeleteComment = async (commentId) => {
-    if (!window.confirm("Are you sure you want to delete this comment?")) return;
+    const isConfirmed = await confirm({
+      title: "Delete Comment",
+      message: "Are you sure you want to permanently delete this comment?",
+      confirmText: "Delete",
+      type: "danger"
+    });
+    if (!isConfirmed) return;
 
     try {
       await managerService.deleteComment(commentId);

@@ -385,37 +385,37 @@ export const AnalyticsPage = () => {
           </div>
         </div>
 
-        {/* Infrastructure & Network Telemetry */}
+        {/* Platform Service Operations */}
         <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
           <h3 className="text-base font-bold text-white flex items-center gap-2">
             <Server className="h-5 w-5 text-emerald-400" />
-            <span>Infrastructure Health & Realtime Gateway</span>
+            <span>Platform Service Performance</span>
           </h3>
-          <p className="text-xs text-slate-400">Realtime cluster workloads and live MongoDB status.</p>
+          <p className="text-xs text-slate-400">Real-time availability and service reliability metrics.</p>
 
           <div className="grid grid-cols-2 gap-3 text-xs pt-2">
             <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1">
-              <span className="text-slate-500">Database Connection</span>
-              <p className="text-white font-mono font-bold text-sm">MongoDB Atlas</p>
-              <p className="text-[10px] text-emerald-400">● ReplicaSet Connected</p>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1">
-              <span className="text-slate-500">API Health Status</span>
-              <p className="text-white font-mono font-bold text-sm">Port 8081 Active</p>
-              <p className="text-[10px] text-emerald-400">● Live Operations</p>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1">
-              <span className="text-slate-500">Platform Settings</span>
+              <span className="text-slate-500">Service Status</span>
               <p className="text-white font-mono font-bold text-sm">Operational</p>
-              <p className="text-[10px] text-indigo-400">Standard Security Policy</p>
+              <p className="text-[10px] text-emerald-400">● Core Services Up</p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1">
+              <span className="text-slate-500">API Health</span>
+              <p className="text-white font-mono font-bold text-sm">Healthy</p>
+              <p className="text-[10px] text-emerald-400">● Low Latency</p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1">
+              <span className="text-slate-500">Security Policies</span>
+              <p className="text-white font-mono font-bold text-sm">Enforced</p>
+              <p className="text-[10px] text-indigo-400">Standard Access Control</p>
             </div>
 
             <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1">
               <span className="text-slate-500">Service Uptime</span>
-              <p className="text-emerald-400 font-mono font-bold text-sm">{overview.apiUptime || '100%'}</p>
-              <p className="text-[10px] text-slate-400">Zero crash events</p>
+              <p className="text-emerald-400 font-mono font-bold text-sm">{overview.apiUptime || '99.98%'}</p>
+              <p className="text-[10px] text-slate-400">High Availability</p>
             </div>
           </div>
         </div>

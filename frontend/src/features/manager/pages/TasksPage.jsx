@@ -28,6 +28,7 @@ import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
 import managerService from "../managerService.js";
 import { getUserItem, setUserItem } from "../../../utils/userStorage.js";
+import { useConfirm } from "../../../context/ConfirmContext.jsx";
 
 const statusLabels = {
   todo: "To Do",
@@ -246,9 +247,11 @@ const statusStyles = {
 
 const TasksPage = () => {
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [projectMembers, setProjectMembers] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -355,12 +358,41 @@ const TasksPage = () => {
 
   // DELETE /api/v1/manager/comments/:commentId – Delete comment
   const handleDeleteInModal = async (commentId) => {
-    if (!window.confirm("Delete this comment?")) return;
+    const isConfirmed = await confirm({
+      title: "Delete Comment",
+      message: "Are you sure you want to permanently delete this comment?",
+      confirmText: "Delete Comment",
+      cancelText: "Cancel",
+      type: "danger",
+    });
+    if (!isConfirmed) return;
     try {
       await managerService.deleteComment(commentId);
       setModalComments((prev) => prev.filter((c) => (c.id || c._id) !== commentId));
     } catch (err) {
       console.error("Failed to delete comment in modal:", err);
+    }
+  };
+
+  // DELETE /api/v1/manager/tasks/:taskId – Delete task
+  const handleDeleteTask = async (taskId, taskTitle) => {
+    const isConfirmed = await confirm({
+      title: "Delete Task",
+      message: `Are you sure you want to permanently delete "${taskTitle || 'this task'}"? This action cannot be undone.`,
+      confirmText: "Delete Task",
+      cancelText: "Cancel",
+      type: "danger",
+    });
+    if (!isConfirmed) return;
+
+    try {
+      await managerService.deleteTask(taskId);
+      setTasks((prev) => prev.filter((t) => (t.id || t._id) !== taskId));
+      if (selectedTaskDetails && (selectedTaskDetails.id === taskId || selectedTaskDetails._id === taskId)) {
+        setSelectedTaskDetails(null);
+      }
+    } catch (err) {
+      console.error("Failed to delete task:", err);
     }
   };
 
@@ -376,11 +408,18 @@ const TasksPage = () => {
 
   useEffect(() => {
     let active = true;
-    Promise.all([managerService.getTasks(), managerService.getProjects()])
-      .then(([taskData, projectData]) => {
+    Promise.all([
+      managerService.getTasks(),
+      managerService.getProjects(),
+      managerService.getTeamMembers().catch(() => [])
+    ])
+      .then(([taskData, projectData, teamData]) => {
         if (!active) return;
         setTasks(taskData.map(toTaskView));
         setProjects(projectData);
+        if (Array.isArray(teamData) && teamData.length > 0) {
+          setTeamMembers(teamData);
+        }
         setNewTask((current) => ({
           ...current,
           projectId: current.projectId || projectData[0]?.id || "",
@@ -876,17 +915,30 @@ const TasksPage = () => {
                             </div>
                           </td>
                           <td className="py-3 px-4 text-right">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedTaskDetails(task);
-                              }}
-                              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600 transition"
-                              title="View Task Details"
-                            >
-                              <ArrowRight size={14} />
-                            </button>
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteTask(task.id, task.title);
+                                }}
+                                className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
+                                title="Delete Task"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedTaskDetails(task);
+                                }}
+                                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600 transition cursor-pointer"
+                                title="View Task Details"
+                              >
+                                <ArrowRight size={14} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -951,10 +1003,23 @@ const TasksPage = () => {
                           <Calendar size={12} />
                           <span>{task.dueDate}</span>
                         </div>
-                        <span className="text-blue-600 font-semibold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
-                          <span>Details</span>
-                          <ChevronRight size={13} />
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteTask(task.id, task.title);
+                            }}
+                            className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition cursor-pointer"
+                            title="Delete Task"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                          <span className="text-blue-600 font-semibold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                            <span>Details</span>
+                            <ChevronRight size={13} />
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1000,13 +1065,23 @@ const TasksPage = () => {
                   {selectedTaskDetails.title}
                 </h3>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedTaskDetails(null)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
-              >
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleDeleteTask(selectedTaskDetails.id, selectedTaskDetails.title)}
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
+                  title="Delete Task"
+                >
+                  <Trash2 size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTaskDetails(null)}
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-xs">
@@ -1299,11 +1374,15 @@ const TasksPage = () => {
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                   >
                     <option value="">Unassigned</option>
-                    {projectMembers.map((member) => (
-                      <option key={member.id} value={member.id}>
-                        {member.name}
-                      </option>
-                    ))}
+                    {(projectMembers.length > 0 ? projectMembers : teamMembers).map((member) => {
+                      const mId = member.id || member._id || member.userId;
+                      const roleTag = member.workspaceRole || member.role ? ` (${member.workspaceRole || member.role})` : '';
+                      return (
+                        <option key={mId} value={mId}>
+                          {member.name}{roleTag}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 

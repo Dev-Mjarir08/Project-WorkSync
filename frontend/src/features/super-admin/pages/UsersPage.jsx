@@ -22,10 +22,12 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useSuperAdmin } from '../../../context/SuperAdminContext.jsx';
+import { useConfirm } from '../../../context/ConfirmContext.jsx';
 import superAdminService from '../superAdminService.js';
 
 export const UsersPage = () => {
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const {
     usersState,
     loadUsers,
@@ -61,7 +63,13 @@ export const UsersPage = () => {
       role: roleFilter,
       status: statusFilter
     });
-    loadWorkspaces().then(list => setWorkspacesList(list || []));
+    loadWorkspaces().then(list => {
+      const ws = list || [];
+      setWorkspacesList(ws);
+      if (ws.length > 0) {
+        setNewUser(prev => ({ ...prev, workspaceId: prev.workspaceId || ws[0].id || ws[0]._id }));
+      }
+    });
   }, [search, roleFilter, statusFilter]);
 
   const showToast = (msg, isError = false) => {
@@ -78,7 +86,13 @@ export const UsersPage = () => {
   };
 
   const handleDeleteUser = async (userId, name) => {
-    if (window.confirm(`Are you sure you want to remove user "${name}" from the platform?`)) {
+    const isConfirmed = await confirm({
+      title: 'Remove User Account',
+      message: `Are you sure you want to permanently remove "${name}" from the platform? This will revoke all their workspace permissions.`,
+      confirmText: 'Remove User',
+      type: 'danger'
+    });
+    if (isConfirmed) {
       await deleteUser(userId, name);
     }
   };
@@ -106,7 +120,8 @@ export const UsersPage = () => {
         name: newUser.name.trim(),
         email: newUser.email.trim(),
         password: newUser.password || 'WorkSync@2026',
-        role: newUser.role
+        role: newUser.role,
+        workspaceId: newUser.workspaceId || ''
       };
 
       const created = await createUser(payload);
@@ -128,6 +143,7 @@ export const UsersPage = () => {
         role: 'member',
         workspaceId: ''
       });
+      await loadUsers({ search, role: roleFilter, status: statusFilter }, true);
       showToast('User provisioned successfully');
     } catch (err) {
       showToast(err.message || 'Failed to create user', true);

@@ -8,14 +8,17 @@ export default defineConfig({
     tailwindcss(),
   ],
   build: {
+    target: 'esnext',
+    cssCodeSplit: true,
     rollupOptions: {
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-redux': ['@reduxjs/toolkit', 'react-redux'],
           'vendor-icons': ['lucide-react'],
         }
       }
     },
-    chunkSizeWarningLimit: 800
+    chunkSizeWarningLimit: 900
   }
 });

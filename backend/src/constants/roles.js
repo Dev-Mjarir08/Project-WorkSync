@@ -11,6 +11,7 @@ export const WORKSPACE_ROLES = {
   OWNER: 'owner',
   ADMIN: 'admin',
   MANAGER: 'manager',
+  EMPLOYEE: 'employee',
   MEMBER: 'member',
   VIEWER: 'viewer'
 };

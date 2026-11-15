@@ -42,6 +42,11 @@ const userSchema = new mongoose.Schema(
       default: '',
       maxlength: [200, 'Bio cannot exceed 200 characters']
     },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
     isActive: {
       type: Boolean,
       default: true
@@ -80,6 +85,12 @@ const userSchema = new mongoose.Schema(
     }
   }
 );
+
+// Database indexes for high-throughput query performance
+userSchema.index({ role: 1 });
+userSchema.index({ isActive: 1 });
+userSchema.index({ createdAt: -1 });
+userSchema.index({ createdBy: 1 });
 
 // Pre-save hook to hash password if modified
 userSchema.pre('save', async function () {

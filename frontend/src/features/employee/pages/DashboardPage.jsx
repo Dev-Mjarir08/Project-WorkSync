@@ -31,9 +31,12 @@ import {
 } from "lucide-react";
 import { getCurrentUser, getUserItem, setUserItem } from "../../../utils/userStorage.js";
 import { employeeService } from "../employeeService.js";
+import { useConfirm } from "../../../context/ConfirmContext.jsx";
+import TopTaskTimelineKanban from "../../boards/components/TopTaskTimelineKanban.jsx";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const confirm = useConfirm();
   // Theme state
   const [darkMode, setDarkMode] = useState(false);
   
@@ -61,6 +64,29 @@ export default function DashboardPage() {
     status: "Pending",
     dueDate: "Oct 28, 2026",
   });
+
+  const handleTaskMove = async (taskId, newStatus) => {
+    setTasks((prev) => prev.map((t) => ((t.id === taskId || t._id === taskId) ? { ...t, status: newStatus } : t)));
+    try {
+      await employeeService.updateTaskStatus(taskId, newStatus);
+    } catch (e) {}
+  };
+
+  const handleTaskDelete = async (taskId, taskTitle) => {
+    const isConfirmed = await confirm({
+      title: "Delete Task",
+      message: `Are you sure you want to permanently delete "${taskTitle || 'this task'}"? This action cannot be undone.`,
+      confirmText: "Delete Task",
+      cancelText: "Cancel",
+      type: "danger"
+    });
+    if (!isConfirmed) return;
+
+    try {
+      await employeeService.deleteTask(taskId);
+      setTasks((prev) => prev.filter((t) => (t.id || t._id) !== taskId));
+    } catch (e) {}
+  };
 
   // Fetch live tasks and dashboard on mount
   useEffect(() => {
@@ -243,25 +269,25 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${darkMode ? "dark bg-slate-950 text-slate-100" : "bg-slate-50/80 text-slate-900"}`}>
+    <div className={`min-h-screen transition-colors duration-300 ${darkMode ? "dark bg-slate-950 text-slate-100" : "bg-[#0B0F19] text-white"}`}>
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-8">
         
         {/* Top Workspace Header */}
-        <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-teal-800 via-teal-700 to-emerald-800 p-6 sm:p-8 text-white shadow-xl shadow-teal-950/10">
-          <div className="absolute -right-10 -top-10 h-64 w-64 rounded-full bg-white/10 blur-3xl pointer-events-none" />
-          <div className="absolute right-40 -bottom-10 h-40 w-40 rounded-full bg-emerald-400/20 blur-2xl pointer-events-none" />
+        <header className="relative overflow-hidden rounded-3xl border border-slate-800 bg-[#0d1322] p-6 sm:p-8 text-white shadow-2xl backdrop-blur-xl">
+          <div className="absolute -right-10 -top-10 h-64 w-64 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
+          <div className="absolute right-40 -bottom-10 h-40 w-40 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none" />
           
           <div className="relative z-10 flex flex-col justify-between gap-6 md:flex-row md:items-center">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold tracking-wide backdrop-blur-md border border-white/20 mb-3">
-                <Sparkles className="h-3.5 w-3.5 text-teal-200" />
+              <div className="inline-flex items-center gap-2 rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-semibold tracking-wide border border-indigo-500/20 mb-3 text-indigo-400">
+                <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
                 <span>EMPLOYEE WORKSPACE</span>
               </div>
               <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl text-white">
                 Dashboard
               </h1>
-              <p className="mt-2 text-sm sm:text-base text-teal-100 max-w-xl">
-                Welcome back, {userName}! Here's a quick overview of your workspace progress and schedule today.
+              <p className="mt-2 text-sm sm:text-base text-slate-400 max-w-xl">
+                Welcome back, {userName}! Here's a live overview of your assigned deliverables, board status, and throughput today.
               </p>
             </div>
 
@@ -269,17 +295,8 @@ export default function DashboardPage() {
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={() => setDarkMode(!darkMode)}
-                aria-label="Toggle Theme"
-                className="inline-flex items-center justify-center rounded-2xl bg-white/10 p-3 text-white backdrop-blur-md transition hover:bg-white/20 border border-white/10"
-              >
-                {darkMode ? <Sun className="h-5 w-5 text-amber-300" /> : <Moon className="h-5 w-5 text-teal-100" />}
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setIsModalOpen(true)}
-                className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-teal-900 shadow-lg transition hover:bg-teal-50 active:scale-95"
+                className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition active:scale-95 cursor-pointer"
               >
                 <Plus className="h-4 w-4" />
                 New Task
@@ -287,53 +304,28 @@ export default function DashboardPage() {
 
               <button
                 type="button"
-                onClick={() => navigate('/employee/calendar')}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-teal-900/40 px-4 py-3 text-sm font-semibold text-white backdrop-blur-md border border-white/15 shadow-sm transition hover:bg-teal-900/60"
+                onClick={() => navigate('/employee/tasks')}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-300 border border-slate-800 shadow-sm transition hover:bg-slate-800 hover:text-white cursor-pointer"
               >
-                <Calendar className="h-4 w-4 text-teal-200" />
-                View Calendar
+                <FolderKanban className="h-4 w-4 text-indigo-400" />
+                Tasks Directory
                 <ArrowUpRight className="h-4 w-4 opacity-75" />
               </button>
             </div>
           </div>
-
-          {/* Nav / View Tabs */}
-          <div className="mt-8 flex items-center gap-2 border-t border-white/15 pt-4 text-sm font-medium">
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
-                activeTab === "overview"
-                  ? "bg-white text-teal-900 font-bold shadow-sm"
-                  : "text-teal-100 hover:bg-white/10"
-              }`}
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              Overview
-            </button>
-            <button
-              onClick={() => setActiveTab("analytics")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
-                activeTab === "analytics"
-                  ? "bg-white text-teal-900 font-bold shadow-sm"
-                  : "text-teal-100 hover:bg-white/10"
-              }`}
-            >
-              <BarChart2 className="h-4 w-4" />
-              Productivity Analytics
-            </button>
-            <button
-              onClick={() => setActiveTab("kanban")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 transition ${
-                activeTab === "kanban"
-                  ? "bg-white text-teal-900 font-bold shadow-sm"
-                  : "text-teal-100 hover:bg-white/10"
-              }`}
-            >
-              <Kanban className="h-4 w-4" />
-              Kanban Board
-            </button>
-          </div>
         </header>
+
+        {/* Top Task Timeline & Kanban Board */}
+        <TopTaskTimelineKanban
+          tasks={tasks}
+          onTaskMove={handleTaskMove}
+          onTaskDelete={handleTaskDelete}
+          onTaskClick={() => navigate('/employee/tasks')}
+          onAddTask={() => setIsModalOpen(true)}
+          title="My Assigned Deliverables & Kanban Timeline"
+          subtitle="Live sprint delivery status, personal backlog, and completion velocity."
+          role="employee"
+        />
 
         {/* Dynamic Metric Cards Grid */}
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

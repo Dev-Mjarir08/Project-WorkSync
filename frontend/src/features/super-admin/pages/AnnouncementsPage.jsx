@@ -20,9 +20,11 @@ import {
   Sparkles,
   AlertCircle
 } from 'lucide-react';
+import { useConfirm } from '../../../context/ConfirmContext.jsx';
 import superAdminService from '../superAdminService.js';
 
 export const AnnouncementsPage = () => {
+  const confirm = useConfirm();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -121,7 +123,13 @@ export const AnnouncementsPage = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this announcement?')) return;
+    const isConfirmed = await confirm({
+      title: 'Delete Announcement',
+      message: 'Are you sure you want to permanently delete this platform announcement? This will remove it from all users and workspaces.',
+      confirmText: 'Delete Announcement',
+      type: 'danger'
+    });
+    if (!isConfirmed) return;
     try {
       await superAdminService.deleteAnnouncement(id);
       showToast('Announcement deleted permanently');

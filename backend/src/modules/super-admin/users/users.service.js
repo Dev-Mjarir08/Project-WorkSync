@@ -28,9 +28,10 @@ const recordAudit = async ({ action, category = 'user_management', details, acto
 };
 
 export const getAllUsers = async (query = {}, actorUser) => {
-  const { search = '', role = 'all', status = 'all', page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+  const { search = '', role = 'all', status = 'all', page = 1, limit = 50, sortBy = 'createdAt', sortOrder = 'desc' } = query;
 
   const filter = {};
+  const andConditions = [];
 
   if (actorUser) {
     const { Workspace } = await import('../../../models/Workspace.js');
@@ -41,15 +42,30 @@ export const getAllUsers = async (query = {}, actorUser) => {
     const myWsIds = myWorkspaces.map(w => w._id);
     const myMemberships = await WorkspaceMember.find({ workspace: { $in: myWsIds } }).select('user');
     const allowedUserIds = [actorUser._id, ...myMemberships.map(m => m.user)];
-    filter._id = { $in: allowedUserIds };
+
+    // Visible users for this Super Admin:
+    // 1. The Super Admin themself
+    // 2. Members of workspaces owned/created by this Super Admin
+    // 3. Users directly created by this Super Admin
+    // 4. Any legacy users without createdBy tag
+    andConditions.push({
+      $or: [
+        { _id: { $in: allowedUserIds } },
+        { createdBy: actorUser._id },
+        { createdBy: null },
+        { createdBy: { $exists: false } }
+      ]
+    });
   }
 
   if (search.trim()) {
     const cleanSearch = escapeRegex(search.trim());
-    filter.$or = [
-      { name: { $regex: cleanSearch, $options: 'i' } },
-      { email: { $regex: cleanSearch, $options: 'i' } }
-    ];
+    andConditions.push({
+      $or: [
+        { name: { $regex: cleanSearch, $options: 'i' } },
+        { email: { $regex: cleanSearch, $options: 'i' } }
+      ]
+    });
   }
 
   if (role && role !== 'all') {
@@ -61,8 +77,12 @@ export const getAllUsers = async (query = {}, actorUser) => {
     if (status === 'inactive' || status === 'suspended') filter.isActive = false;
   }
 
+  if (andConditions.length > 0) {
+    filter.$and = andConditions;
+  }
+
   const parsedPage = Math.max(1, parseInt(page, 10) || 1);
-  const parsedLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+  const parsedLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
   const skip = (parsedPage - 1) * parsedLimit;
   const sortDirection = sortOrder === 'asc' ? 1 : -1;
 
@@ -130,7 +150,7 @@ export const getUserById = async (userId) => {
   };
 };
 
-export const createUser = async ({ name, email, password, role = 'member', bio = '' }, actorAdmin) => {
+export const createUser = async ({ name, email, password, role = 'member', bio = '', workspaceId = '' }, actorAdmin) => {
   const normalizedEmail = email.toLowerCase().trim();
   const userPassword = password || 'WorkSync@2026';
 
@@ -145,6 +165,7 @@ export const createUser = async ({ name, email, password, role = 'member', bio =
     password: userPassword,
     role,
     bio,
+    createdBy: actorAdmin?._id || null,
     sessions: [
       {
         ip: '127.0.0.1',
@@ -155,6 +176,42 @@ export const createUser = async ({ name, email, password, role = 'member', bio =
       }
     ]
   });
+
+  // Immediately associate user as workspace member
+  let targetWsId = workspaceId && mongoose.Types.ObjectId.isValid(workspaceId) ? workspaceId : null;
+  if (!targetWsId && actorAdmin) {
+    try {
+      const { Workspace } = await import('../../../models/Workspace.js');
+      const ownedWs = await Workspace.findOne({ owner: actorAdmin._id });
+      if (ownedWs) {
+        targetWsId = ownedWs._id;
+      } else {
+        const anyWs = await Workspace.findOne({ isActive: true });
+        if (anyWs) targetWsId = anyWs._id;
+      }
+    } catch (err) {}
+  }
+
+  if (targetWsId) {
+    try {
+      const { WorkspaceMember } = await import('../../../models/WorkspaceMember.js');
+      const { Workspace } = await import('../../../models/Workspace.js');
+      const wsRole = role === 'admin' ? 'admin' : (role === 'manager' ? 'manager' : (role === 'employee' ? 'employee' : 'member'));
+      await WorkspaceMember.findOneAndUpdate(
+        { workspace: targetWsId, user: user._id },
+        {
+          workspace: targetWsId,
+          user: user._id,
+          role: wsRole,
+          status: 'active'
+        },
+        { upsert: true, new: true }
+      );
+      await Workspace.findByIdAndUpdate(targetWsId, { $inc: { membersCount: 1 } }).catch(() => {});
+    } catch (wsErr) {
+      console.error('Failed to link member to workspace on creation:', wsErr.message);
+    }
+  }
 
   await recordAudit({
     action: 'User Created',

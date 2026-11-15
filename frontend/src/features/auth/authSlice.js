@@ -61,6 +61,7 @@ export const registerUser = createAsyncThunk(
 
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
+      if (user?.workspaceId) localStorage.setItem('workspaceId', user.workspaceId);
 
       return {
         user,
@@ -145,6 +146,7 @@ export const loginUser = createAsyncThunk(
 
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
+      if (user?.workspaceId) localStorage.setItem('workspaceId', user.workspaceId);
 
       return {
         user,
@@ -311,6 +313,7 @@ export const authSlice = createSlice({
     logoutUser: (state) => {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('workspaceId');
       state.user = null;
       state.token = null;
       state.role = null;

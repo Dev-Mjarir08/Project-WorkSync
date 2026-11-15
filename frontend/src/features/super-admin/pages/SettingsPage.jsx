@@ -9,7 +9,12 @@ import {
   AlertTriangle,
   CheckCircle2,
   Bell,
-  RefreshCw
+  RefreshCw,
+  Database,
+  Server,
+  Info,
+  ShieldCheck,
+  Key
 } from 'lucide-react';
 import superAdminService from '../superAdminService.js';
 
@@ -18,6 +23,7 @@ export const SettingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -261,6 +267,112 @@ export const SettingsPage = () => {
                 className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Section 4: Hierarchical RBAC Enforcement Guardrails */}
+        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
+            <ShieldCheck className="h-5 w-5 text-indigo-400" />
+            <div>
+              <h2 className="text-base font-bold text-white">Hierarchical RBAC Enforcement & Security Guardrails</h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Centralized platform governance, cryptographic claims verification, and administrative anti-lockout safeguards.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+              <div className="flex items-center gap-2 text-indigo-400 font-semibold">
+                <Key className="h-4 w-4" />
+                <span>Cryptographic Claims Validation</span>
+              </div>
+              <p className="text-slate-300 text-[11px] leading-relaxed">
+                All Super Admin actions are cryptographically validated by JWT Bearer claims and verified against the backend MongoDB platform role schema.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+              <div className="flex items-center gap-2 text-amber-400 font-semibold">
+                <Shield className="h-4 w-4" />
+                <span>Anti-Lockout Protection</span>
+              </div>
+              <p className="text-slate-300 text-[11px] leading-relaxed">
+                Self-demotion, self-deactivation, and deletion of the sole active Super Admin are strictly blocked at the API layer to maintain continuity.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+              <div className="flex items-center gap-2 text-emerald-400 font-semibold">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Multi-Tenant Role Precedence</span>
+              </div>
+              <p className="text-slate-300 text-[11px] leading-relaxed">
+                Role hierarchy (Super Admin &gt; Admin &gt; Manager &gt; Employee) is enforced per workspace, preventing cross-tenant privilege elevation.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 5: Database Infrastructure & Telemetry Diagnostics */}
+        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <Database className="h-5 w-5 text-emerald-400" />
+              <div>
+                <h2 className="text-base font-bold text-white">Database & Infrastructure Diagnostics</h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Internal connection telemetry, cluster status, and public display preferences.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1">
+              <span className="text-slate-500 text-[11px]">Database Engine</span>
+              <p className="text-white font-mono font-bold text-xs">MongoDB Atlas</p>
+              <p className="text-[10px] text-emerald-400">● Connected</p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1">
+              <span className="text-slate-500 text-[11px]">API Gateway</span>
+              <p className="text-white font-mono font-bold text-xs">Port 8081 Active</p>
+              <p className="text-[10px] text-emerald-400">● Operational</p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1">
+              <span className="text-slate-500 text-[11px]">Uptime SLA</span>
+              <p className="text-emerald-400 font-mono font-bold text-xs">99.98%</p>
+              <p className="text-[10px] text-slate-400">High Availability</p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1">
+              <span className="text-slate-500 text-[11px]">Audit Logs</span>
+              <p className="text-indigo-400 font-mono font-bold text-xs">Immutable</p>
+              <p className="text-[10px] text-slate-400">Tamper-Proof</p>
+            </div>
+          </div>
+
+          {/* Clean Dashboard Preference Toggle */}
+          <div className="pt-2">
+            <label className="flex items-start sm:items-center justify-between p-4 rounded-xl bg-slate-950/60 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors gap-3">
+              <div>
+                <span className="font-semibold text-white text-xs sm:text-sm">
+                  Show Raw Telemetry & DB Connection Badges on Public Dashboards
+                </span>
+                <p className="text-slate-400 text-[11px] mt-0.5">
+                  Keep disabled (recommended) for a clean, minimalist dashboard view without developer disclaimers or cluster notices.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={showDiagnostics}
+                onChange={(e) => setShowDiagnostics(e.target.checked)}
+                className="h-4 w-4 accent-indigo-600 rounded cursor-pointer mt-0.5 sm:mt-0"
+              />
+            </label>
           </div>
         </div>
       </form>

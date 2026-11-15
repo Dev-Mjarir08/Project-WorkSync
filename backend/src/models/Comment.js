@@ -53,7 +53,6 @@ const commentSchema = new mongoose.Schema(
 );
 
 commentSchema.index({ task: 1, createdAt: -1 });
-commentSchema.index({ parentComment: 1 });
 
 export const Comment = mongoose.model('Comment', commentSchema);
 export default Comment;

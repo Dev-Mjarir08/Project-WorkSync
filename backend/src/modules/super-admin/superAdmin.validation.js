@@ -59,7 +59,8 @@ export const createUserSchema = z.object({
   email: z.string().trim().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters').optional().default('WorkSync@2026'),
   role: z.enum(ROLE_VALUES).optional().default('member'),
-  bio: z.string().max(200).optional().default('')
+  bio: z.string().max(200).optional().default(''),
+  workspaceId: z.string().optional().default('')
 });
 
 export const updateUserSchema = z.object({

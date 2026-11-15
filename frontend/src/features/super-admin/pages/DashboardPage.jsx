@@ -188,28 +188,28 @@ export const DashboardPage = () => {
         </div>
 
         <div
-          onClick={() => navigate('/super-admin/system-health')}
+          onClick={() => navigate('/super-admin/settings')}
           className="relative overflow-hidden p-6 rounded-2xl bg-gradient-to-b from-slate-800/50 to-slate-900/80 border border-slate-800 shadow-xl group hover:border-emerald-500/40 cursor-pointer transition-all"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Database Status</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">System Status</span>
             <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 group-hover:scale-110 transition-transform">
-              <Database className="h-5 w-5" />
+              <ShieldCheck className="h-5 w-5" />
             </div>
           </div>
           <div className="mt-4 flex items-baseline justify-between">
             <h3 className="text-2xl font-bold text-white capitalize flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></span>
-              {stats?.databaseStatus || 'Connected'}
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+              Operational
             </h3>
             <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
               {stats?.apiUptime || '99.98%'}
             </span>
           </div>
           <p className="mt-2 text-xs text-slate-400 flex items-center justify-between">
-            <span>MongoDB Atlas Cluster</span>
+            <span>All services normal</span>
             <span className="text-emerald-400 group-hover:translate-x-1 transition-transform inline-flex items-center gap-0.5">
-              Diagnostics <ArrowRight className="h-3 w-3" />
+              Settings & Policies <ArrowRight className="h-3 w-3" />
             </span>
           </p>
         </div>

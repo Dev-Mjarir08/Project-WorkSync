@@ -19,10 +19,12 @@ import {
   X,
   CheckCircle
 } from 'lucide-react';
+import { useConfirm } from '../../../context/ConfirmContext.jsx';
 import superAdminService from '../superAdminService.js';
 
 export const WorkspacesPage = () => {
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [workspaces, setWorkspaces] = useState([]);
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,13 @@ export const WorkspacesPage = () => {
   };
 
   const handleDelete = async (id, name) => {
-    if (window.confirm(`Are you sure you want to delete workspace "${name}"? All associated boards will be decommissioned.`)) {
+    const isConfirmed = await confirm({
+      title: 'Delete Workspace',
+      message: `Are you sure you want to delete workspace "${name}"? All associated boards, lists, and tasks will be decommissioned.`,
+      confirmText: 'Delete Workspace',
+      type: 'danger'
+    });
+    if (isConfirmed) {
       await superAdminService.deleteWorkspace(id);
       showToast(`Workspace ${name} deleted`);
       fetchWorkspaces();

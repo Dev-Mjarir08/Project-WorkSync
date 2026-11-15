@@ -28,6 +28,7 @@ import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
 import { getCurrentUser, getUserItem, setUserItem } from "../../../utils/userStorage.js";
 import { authService } from "../../auth/authService.js";
+import { useConfirm } from "../../../context/ConfirmContext.jsx";
 import managerService from "../managerService.js";
 
 const getInitialProfile = () => {
@@ -50,6 +51,7 @@ const getInitialProfile = () => {
 };
 
 const ProfilePage = () => {
+  const confirm = useConfirm();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profile, setProfile] = useState(getInitialProfile);
   const [formData, setFormData] = useState(getInitialProfile);
@@ -94,7 +96,13 @@ const ProfilePage = () => {
 
   // Remote Session Revocation (DELETE /api/v1/manager/profile/sessions/:sessionId)
   const handleRevokeSession = async (sessionId, deviceName) => {
-    if (!window.confirm(`Revoke session for ${deviceName || "this device"}? You will be signed out on that device.`)) {
+    const isConfirmed = await confirm({
+      title: "Revoke Device Session",
+      message: `Revoke active session for ${deviceName || "this device"}? You will be signed out on that device.`,
+      confirmText: "Revoke Access",
+      type: "danger"
+    });
+    if (!isConfirmed) {
       return;
     }
 

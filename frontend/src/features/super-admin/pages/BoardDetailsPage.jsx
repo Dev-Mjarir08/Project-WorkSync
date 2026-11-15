@@ -18,6 +18,7 @@ import {
   Plus,
   X
 } from 'lucide-react';
+import { useConfirm } from '../../../context/ConfirmContext.jsx';
 import superAdminService from '../superAdminService.js';
 
 const STATUS_COLUMNS = [
@@ -37,6 +38,7 @@ const PRIORITY_BADGES = {
 export const BoardDetailsPage = () => {
   const { boardId } = useParams();
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   const [board, setBoard] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -141,6 +143,25 @@ export const BoardDetailsPage = () => {
     }
   };
 
+  const handleDeleteTask = async (taskId, taskTitle) => {
+    const isConfirmed = await confirm({
+      title: 'Delete Task',
+      message: `Are you sure you want to permanently delete "${taskTitle || 'this task'}"?`,
+      confirmText: 'Delete Task',
+      cancelText: 'Cancel',
+      type: 'danger'
+    });
+    if (!isConfirmed) return;
+
+    try {
+      await superAdminService.deleteTask(taskId);
+      setTasks(prev => prev.filter(t => (t.id || t._id) !== taskId));
+      showToast('Task removed from board successfully');
+    } catch (err) {
+      showToast('Failed to delete task', 'error');
+    }
+  };
+
   const handleCreateTask = async (e) => {
     e.preventDefault();
     if (!newTask.title.trim()) return;
@@ -184,7 +205,13 @@ export const BoardDetailsPage = () => {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to permanently delete this board?')) return;
+    const isConfirmed = await confirm({
+      title: 'Permanently Delete Board',
+      message: 'Are you sure you want to permanently delete this board? All tasks and activities on this board will be lost. This action cannot be undone.',
+      confirmText: 'Delete Board',
+      type: 'danger'
+    });
+    if (!isConfirmed) return;
     try {
       await superAdminService.deleteBoard(boardId);
       navigate('/super-admin/boards');
@@ -355,6 +382,17 @@ export const BoardDetailsPage = () => {
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${PRIORITY_BADGES[task.priority] || PRIORITY_BADGES.medium}`}>
                             {task.priority || 'medium'}
                           </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteTask(task.id || task._id, task.title);
+                            }}
+                            title="Delete Task"
+                            className="text-slate-500 hover:text-rose-400 opacity-60 hover:opacity-100 p-1 rounded-lg hover:bg-slate-800 transition"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
 
                         <div>

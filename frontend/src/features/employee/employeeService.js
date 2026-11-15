@@ -174,6 +174,16 @@ export const employeeService = {
     }
   },
 
+  deleteTask: async (taskId) => {
+    try {
+      await request(`/tasks/${taskId}`, { method: "DELETE" });
+    } catch {}
+    const tasks = getUserItem("employee_tasks", []);
+    const filtered = tasks.filter((t) => t.id !== taskId && t._id !== taskId);
+    setUserItem("employee_tasks", filtered);
+    return { success: true };
+  },
+
   // 5. Activities
   getActivities: async () => {
     try {

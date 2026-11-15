@@ -19,6 +19,8 @@ import {
 } from '../adminDashboardData';
 import ProjectTimeline from '../components/ProjectTimeline';
 import TimeTracker from '../components/TimeTracker';
+import { useConfirm } from '../../../context/ConfirmContext.jsx';
+import TopTaskTimelineKanban from '../../boards/components/TopTaskTimelineKanban.jsx';
 
 const priorityStyles = {
   High: 'bg-rose-50 text-rose-700',
@@ -46,6 +48,7 @@ const getMemberInitials = (name) =>
   name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toLocaleUpperCase();
 
 const DashboardPage = () => {
+  const confirm = useConfirm();
   const [boards, setBoards] = useState([]);
   const [dashboardTasks, setDashboardTasks] = useState(() => getDashboardTasks());
   const [search, setSearch] = useState('');
@@ -53,6 +56,29 @@ const DashboardPage = () => {
   const [teamFilter, setTeamFilter] = useState('all');
   const [sortBy, setSortBy] = useState('dueDate');
   const [taskViewMode, setTaskViewMode] = useState('kanban');
+
+  const handleTaskMove = async (taskId, newStatus) => {
+    setDashboardTasks(prev => prev.map(t => ((t.id === taskId || t._id === taskId) ? { ...t, status: newStatus } : t)));
+    try {
+      await adminService.updateTaskStatus(taskId, newStatus);
+    } catch (e) {}
+  };
+
+  const handleTaskDelete = async (taskId, taskTitle) => {
+    const isConfirmed = await confirm({
+      title: 'Delete Task',
+      message: `Are you sure you want to permanently delete "${taskTitle || 'this task'}"? This action cannot be undone.`,
+      confirmText: 'Delete Task',
+      cancelText: 'Cancel',
+      type: 'danger'
+    });
+    if (!isConfirmed) return;
+
+    try {
+      await adminService.deleteTask(taskId);
+      setDashboardTasks(prev => prev.filter(t => (t.id || t._id) !== taskId));
+    } catch (e) {}
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -64,6 +90,11 @@ const DashboardPage = () => {
         setDashboardTasks(dash.tasks);
       }
     });
+    adminService.getTasks().then((liveTasks) => {
+      if (mounted && Array.isArray(liveTasks) && liveTasks.length > 0) {
+        setDashboardTasks(liveTasks);
+      }
+    }).catch(() => {});
     return () => {
       mounted = false;
     };
@@ -99,22 +130,45 @@ const DashboardPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      {/* Header */}
+      <div className="rounded-3xl border border-slate-800 bg-[#0d1322] p-6 shadow-2xl flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between text-white backdrop-blur-xl">
         <div>
-          <p className="mb-2 text-sm font-semibold text-[#6542F5]">Your workspace at a glance</p>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Dashboard</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Keep projects moving and see how your team's work is progressing.
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-indigo-400 border border-indigo-500/20">
+              Admin Workspace
+            </span>
+            <span className="text-xs text-slate-500 font-medium">·</span>
+            <span className="text-xs text-emerald-400 font-medium flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Active System
+            </span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            Workspace Operations Console
+          </h1>
+          <p className="mt-1 text-sm text-slate-400 max-w-2xl">
+            Keep projects moving, monitor team throughput, and supervise live Kanban delivery.
           </p>
         </div>
         <Link
           to="/admin/boards/new"
-          className="inline-flex h-10 w-fit items-center gap-2 rounded-xl bg-[#6542F5] px-4 text-sm font-semibold text-white transition hover:bg-[#5635E0] focus:outline-none focus:ring-2 focus:ring-[#6542F5]/40 focus:ring-offset-2"
+          className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition active:scale-95"
         >
           <ListTodo aria-hidden="true" className="size-4" />
-          Create board
+          Create Board
         </Link>
       </div>
+
+      {/* Top Task Timeline & Kanban Board */}
+      <TopTaskTimelineKanban
+        tasks={dashboardTasks}
+        onTaskMove={handleTaskMove}
+        onTaskDelete={handleTaskDelete}
+        onTaskClick={() => {}}
+        title="Workspace Deliverables & Agile Timeline"
+        subtitle="Live delivery status across your team deliverables, active lanes, and project progress."
+        role="admin"
+      />
 
       <section aria-label="Task statistics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {dashboardStats.map((stat) => {

@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useConfirm } from "../../../context/ConfirmContext.jsx";
+import { employeeService } from "../employeeService.js";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -29,6 +31,7 @@ import {
 
 export default function TaskDetailsPage({ onBack }) {
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [task, setTask] = useState({
     id: 1,
     title: "Complete employee dashboard UI",
@@ -165,12 +168,19 @@ export default function TaskDetailsPage({ onBack }) {
     }));
   };
 
-  const handleDelete = () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this task?"
-    );
+  const handleDelete = async () => {
+    const isConfirmed = await confirm({
+      title: "Delete Task",
+      message: "Are you sure you want to delete this task? This action cannot be undone.",
+      confirmText: "Delete Task",
+      cancelText: "Cancel",
+      type: "danger",
+    });
 
-    if (confirmed) {
+    if (isConfirmed) {
+      try {
+        await employeeService.deleteTask(task.id || task._id);
+      } catch (err) {}
       setDeleted(true);
     }
   };

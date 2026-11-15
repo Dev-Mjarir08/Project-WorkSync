@@ -53,12 +53,22 @@ const memberStatusStyles = {
 };
 
 const TeamPage = () => {
-  const [members] = useState(initialTeamMembers);
+  const [members, setMembers] = useState(initialTeamMembers);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [selectedRole, setSelectedRole] = useState("All");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    managerService.getTeamMembers().then((res) => {
+      if (active && Array.isArray(res) && res.length > 0) {
+        setMembers(res);
+      }
+    }).catch((err) => console.error("Failed to load team members:", err));
+    return () => { active = false; };
+  }, []);
 
   // Close modal on Escape key
   useEffect(() => {

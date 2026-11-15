@@ -1,13 +1,16 @@
 import { User } from '../../models/User.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { generateAuthTokens } from '../../utils/generateToken.js';
+import { ROLES } from '../../constants/roles.js';
 
 /**
  * Register a new user account
- * @param {Object} userData - { name, email, password, role }
+ * Public self-registration is strictly for Super Admin.
+ * All other roles (admin, manager, employee) must be created/assigned by a Super Admin.
+ * @param {Object} userData - { name, email, password }
  * @returns {Promise<Object>} - { user, token, tokens }
  */
-export const registerUser = async ({ name, email, password, role }) => {
+export const registerUser = async ({ name, email, password }) => {
   const normalizedEmail = email.toLowerCase().trim();
 
   // Check if user already exists
@@ -16,19 +19,50 @@ export const registerUser = async ({ name, email, password, role }) => {
     throw new ApiError(409, 'An account with this email address already exists.');
   }
 
-  // Create user
+  // Create user - Enforce Super Admin role on public self-registration
   const user = await User.create({
     name: name.trim(),
     email: normalizedEmail,
     password,
-    ...(role && { role })
+    role: ROLES.SUPER_ADMIN
   });
 
   // Generate tokens
   const { token, tokens } = generateAuthTokens(user);
 
+  // Look up user's active workspace membership or ownership
+  let userWorkspaceId = null;
+  let workspaceRole = null;
+  try {
+    const { WorkspaceMember } = await import('../../models/WorkspaceMember.js');
+    const { Workspace } = await import('../../models/Workspace.js');
+    const member = await WorkspaceMember.findOne({ user: user._id, status: 'active' });
+    if (member) {
+      userWorkspaceId = member.workspace.toString();
+      workspaceRole = member.role;
+    } else {
+      const owned = await Workspace.findOne({ owner: user._id });
+      if (owned) {
+        userWorkspaceId = owned._id.toString();
+        workspaceRole = 'owner';
+      } else if (user.createdBy) {
+        const creatorWs = await Workspace.findOne({ owner: user.createdBy });
+        if (creatorWs) {
+          userWorkspaceId = creatorWs._id.toString();
+          workspaceRole = user.role;
+        }
+      }
+    }
+  } catch (wsErr) {}
+
+  const userData = user.toJSON();
+  if (userWorkspaceId) {
+    userData.workspaceId = userWorkspaceId;
+    userData.workspaceRole = workspaceRole || user.role;
+  }
+
   return {
-    user: user.toJSON(),
+    user: userData,
     token,
     tokens
   };
@@ -66,8 +100,39 @@ export const loginUser = async ({ email, password }) => {
   // Generate tokens
   const { token, tokens } = generateAuthTokens(user);
 
+  // Look up user's active workspace membership or ownership
+  let userWorkspaceId = null;
+  let workspaceRole = null;
+  try {
+    const { WorkspaceMember } = await import('../../models/WorkspaceMember.js');
+    const { Workspace } = await import('../../models/Workspace.js');
+    const member = await WorkspaceMember.findOne({ user: user._id, status: 'active' });
+    if (member) {
+      userWorkspaceId = member.workspace.toString();
+      workspaceRole = member.role;
+    } else {
+      const owned = await Workspace.findOne({ owner: user._id });
+      if (owned) {
+        userWorkspaceId = owned._id.toString();
+        workspaceRole = 'owner';
+      } else if (user.createdBy) {
+        const creatorWs = await Workspace.findOne({ owner: user.createdBy });
+        if (creatorWs) {
+          userWorkspaceId = creatorWs._id.toString();
+          workspaceRole = user.role;
+        }
+      }
+    }
+  } catch (wsErr) {}
+
+  const userData = user.toJSON();
+  if (userWorkspaceId) {
+    userData.workspaceId = userWorkspaceId;
+    userData.workspaceRole = workspaceRole || user.role;
+  }
+
   return {
-    user: user.toJSON(),
+    user: userData,
     token,
     tokens
   };

@@ -26,13 +26,10 @@ const BoardsPage = () => {
   const [ownerFilter, setOwnerFilter] = useState('all');
 
   useEffect(() => {
-    try {
-      setBoards(adminService.getBoards());
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Boards could not be loaded.');
-    } finally {
-      setIsLoading(false);
-    }
+    adminService.getBoards()
+      .then((data) => setBoards(data || []))
+      .catch((loadError) => setError(loadError instanceof Error ? loadError.message : 'Boards could not be loaded.'))
+      .finally(() => setIsLoading(false));
   }, []);
 
   const workspaces = useMemo(
