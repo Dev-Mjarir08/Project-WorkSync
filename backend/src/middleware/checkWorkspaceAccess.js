@@ -42,7 +42,7 @@ export const checkWorkspaceAccess = asyncHandler(async (req, res, next) => {
                 role: req.user.role || 'member',
                 status: 'active'
               },
-              { upsert: true, new: true }
+              { upsert: true, returnDocument: 'after' }
             ).catch(() => {});
           }
         }
@@ -58,7 +58,7 @@ export const checkWorkspaceAccess = asyncHandler(async (req, res, next) => {
                 role: req.user.role || 'member',
                 status: 'active'
               },
-              { upsert: true, new: true }
+              { upsert: true, returnDocument: 'after' }
             ).catch(() => {});
           }
         }
@@ -104,7 +104,7 @@ export const checkWorkspaceAccess = asyncHandler(async (req, res, next) => {
         role: autoRole,
         status: 'active'
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
   }
 

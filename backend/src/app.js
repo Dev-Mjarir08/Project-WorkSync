@@ -12,6 +12,7 @@ import managerRoutes from './modules/manager/manager.routes.js';
 import employeeRoutes from './modules/employee/employee.routes.js';
 import memberRoutes from './modules/members/member.routes.js';
 import projectRoutes from './modules/projects/project.routes.js';
+import notificationRoutes from './modules/notifications/notification.routes.js';
 
 export const app = express();
 
@@ -63,6 +64,9 @@ app.use('/api/v1/workspaces/:workspaceId/employee', employeeRoutes);
 
 app.use('/api/v1/projects', projectRoutes);
 app.use('/api/projects', projectRoutes);
+
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.use('/api/v1/workspaces/:workspaceId', memberRoutes);
 app.use('/api/workspaces/:workspaceId', memberRoutes);

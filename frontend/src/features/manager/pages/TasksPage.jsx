@@ -522,8 +522,23 @@ const TasksPage = () => {
     setPriorityFilter("All");
   };
 
-  const handleStatusChange = (taskId, newStatus) => {
+  const handleStatusChange = async (taskId, newStatus) => {
     setError("");
+    const currentTask = tasks.find((t) => (t.id === taskId || t._id === taskId));
+    if (currentTask && (currentTask.status === "Completed" || currentTask.status === "Done")) {
+      return; // Locked! Cannot edit or move backwards
+    }
+
+    if (newStatus === "Completed" || newStatus === "Done") {
+      const isConfirmed = await confirm({
+        title: "Complete Task",
+        message: "Is this task completed? Once completed, this task will be locked and cannot be edited.",
+        confirmText: "Yes, Complete",
+        cancelText: "Cancel"
+      });
+      if (!isConfirmed) return;
+    }
+
     managerService.updateTaskStatus(taskId, statusValues[newStatus])
       .then(() => {
         setTasks((prev) =>
@@ -885,19 +900,26 @@ const TasksPage = () => {
                             </div>
                           </td>
                           <td className="py-3 px-4">
-                            <select
-                              value={task.status}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={(e) => handleStatusChange(task.id, e.target.value)}
-                              className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold cursor-pointer focus:outline-none ${
-                                statusStyles[task.status] || statusStyles["To Do"]
-                              }`}
-                            >
-                              <option value="To Do">To Do</option>
-                              <option value="In Progress">In Progress</option>
-                              <option value="In Review">In Review</option>
-                              <option value="Completed">Completed</option>
-                            </select>
+                            {task.status === "Completed" || task.status === "Done" ? (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+                                <CheckCircle2 size={11} />
+                                Completed (Locked)
+                              </span>
+                            ) : (
+                              <select
+                                value={task.status}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => handleStatusChange(task.id, e.target.value)}
+                                className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold cursor-pointer focus:outline-none ${
+                                  statusStyles[task.status] || statusStyles["To Do"]
+                                }`}
+                              >
+                                <option value="To Do">To Do</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="In Review">In Review</option>
+                                <option value="Completed">Completed</option>
+                              </select>
+                            )}
                           </td>
                           <td className="py-3 px-4">
                             <span
@@ -1124,16 +1146,23 @@ const TasksPage = () => {
               <div className="rounded-xl bg-slate-50 p-3 border border-slate-100">
                 <span className="text-[10px] font-semibold text-slate-400 uppercase">Status</span>
                 <div className="mt-1.5">
-                  <select
-                    value={selectedTaskDetails.status}
-                    onChange={(e) => handleStatusChange(selectedTaskDetails.id, e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-white py-1 px-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-500"
-                  >
-                    <option value="To Do">To Do</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="In Review">In Review</option>
-                    <option value="Completed">Completed</option>
-                  </select>
+                  {selectedTaskDetails.status === "Completed" || selectedTaskDetails.status === "Done" ? (
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 py-1.5 px-3 rounded-lg">
+                      <CheckCircle2 size={14} />
+                      Completed & Locked
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedTaskDetails.status}
+                      onChange={(e) => handleStatusChange(selectedTaskDetails.id, e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 bg-white py-1 px-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="To Do">To Do</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="In Review">In Review</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                  )}
                 </div>
               </div>
             </div>

@@ -22,6 +22,7 @@ import {
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
 import { getUserItem, setUserItem } from "../../../utils/userStorage.js";
+import { managerService } from "../managerService.js";
 
 // Scoped team members dataset
 export const getScopedTeamMembers = () => getUserItem("manager_team", []);
@@ -85,21 +86,23 @@ const TeamPage = () => {
 
   // Extract unique roles for the filter dropdown
   const distinctRoles = useMemo(() => {
-    const rolesSet = new Set(members.map((m) => m.role));
+    const rolesSet = new Set(members.map((m) => m.role || m.workspaceRole || "Member"));
     return Array.from(rolesSet).sort();
   }, [members]);
 
   // High-level summary calculations (always derived dynamically from the member dataset)
   const overviewStats = useMemo(() => {
     const totalMembers = members.length;
-    const activeMembers = members.filter((m) => m.status === "Active").length;
+    const activeMembers = members.filter((m) => (m.status || "").toLowerCase() === "active").length;
     const totalAssignedTasks = members.reduce(
-      (sum, m) => sum + m.tasks.length,
+      (sum, m) => sum + (Array.isArray(m.tasks) ? m.tasks.length : (m.tasksCount || 0)),
       0
     );
     const completedTasks = members.reduce(
       (sum, m) =>
-        sum + m.tasks.filter((t) => t.status === "Completed").length,
+        sum + (Array.isArray(m.tasks)
+          ? m.tasks.filter((t) => (t.status || "").toLowerCase().includes("complete") || (t.status || "").toLowerCase() === "done").length
+          : (m.completedTasksCount || 0)),
       0
     );
 
@@ -115,17 +118,20 @@ const TeamPage = () => {
   const filteredMembers = useMemo(() => {
     return members.filter((member) => {
       const query = searchQuery.trim().toLowerCase();
+      const roleStr = String(member.role || member.workspaceRole || "").toLowerCase();
       const matchesSearch =
         !query ||
-        member.name.toLowerCase().includes(query) ||
-        member.email.toLowerCase().includes(query) ||
-        member.role.toLowerCase().includes(query);
+        member.name?.toLowerCase().includes(query) ||
+        member.email?.toLowerCase().includes(query) ||
+        roleStr.includes(query);
 
+      const memberStatus = (member.status || "Active").toLowerCase() === "active" ? "Active" : "Inactive";
       const matchesStatus =
-        selectedStatus === "All" || member.status === selectedStatus;
+        selectedStatus === "All" || memberStatus === selectedStatus;
 
+      const currentRole = member.role || member.workspaceRole || "Member";
       const matchesRole =
-        selectedRole === "All" || member.role === selectedRole;
+        selectedRole === "All" || currentRole === selectedRole;
 
       return matchesSearch && matchesStatus && matchesRole;
     });
@@ -135,8 +141,8 @@ const TeamPage = () => {
   const statusCounts = useMemo(() => {
     return {
       All: members.length,
-      Active: members.filter((m) => m.status === "Active").length,
-      Inactive: members.filter((m) => m.status === "Inactive").length,
+      Active: members.filter((m) => (m.status || "").toLowerCase() === "active").length,
+      Inactive: members.filter((m) => (m.status || "").toLowerCase() !== "active").length,
     };
   }, [members]);
 
@@ -324,11 +330,12 @@ const TeamPage = () => {
 
                 <tbody className="divide-y divide-slate-100">
                   {filteredMembers.map((member) => {
-                    const assignedCount = member.tasks.length;
-                    const completedCount = member.tasks.filter(
-                      (t) => t.status === "Completed"
-                    ).length;
-                    const pendingCount = assignedCount - completedCount;
+                    const memberTasks = Array.isArray(member.tasks) ? member.tasks : [];
+                    const assignedCount = memberTasks.length || member.tasksCount || 0;
+                    const completedCount = memberTasks.length > 0
+                      ? memberTasks.filter((t) => (t.status || "").toLowerCase().includes("complete") || (t.status || "").toLowerCase() === "done").length
+                      : (member.completedTasksCount || 0);
+                    const pendingCount = Math.max(0, assignedCount - completedCount);
                     const statusConfig =
                       memberStatusStyles[member.status] || memberStatusStyles.Active;
 
@@ -520,120 +527,123 @@ const TeamPage = () => {
               </div>
 
               {/* Member Quick Task Stats Bar inside modal */}
-              <div className="mt-4 grid grid-cols-3 gap-2.5 pt-3 border-t border-slate-100 text-center">
-                <div className="rounded-xl bg-slate-50/80 p-2.5 border border-slate-100">
-                  <p className="text-[10px] uppercase font-semibold text-slate-400">
-                    Assigned Tasks
-                  </p>
-                  <p className="text-lg font-bold text-slate-900 mt-0.5">
-                    {selectedMember.tasks.length}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-emerald-50/60 p-2.5 border border-emerald-100/60">
-                  <p className="text-[10px] uppercase font-semibold text-emerald-700">
-                    Completed
-                  </p>
-                  <p className="text-lg font-bold text-emerald-700 mt-0.5">
-                    {
-                      selectedMember.tasks.filter((t) => t.status === "Completed")
-                        .length
-                    }
-                  </p>
-                </div>
-                <div className="rounded-xl bg-amber-50/60 p-2.5 border border-amber-100/60">
-                  <p className="text-[10px] uppercase font-semibold text-amber-700">
-                    Pending
-                  </p>
-                  <p className="text-lg font-bold text-amber-700 mt-0.5">
-                    {
-                      selectedMember.tasks.filter((t) => t.status !== "Completed")
-                        .length
-                    }
-                  </p>
-                </div>
-              </div>
+              {(() => {
+                const modalTasks = Array.isArray(selectedMember?.tasks) ? selectedMember.tasks : [];
+                const modalAssigned = modalTasks.length || selectedMember?.tasksCount || 0;
+                const modalCompleted = modalTasks.length > 0
+                  ? modalTasks.filter((t) => (t.status || "").toLowerCase().includes("complete") || (t.status || "").toLowerCase() === "done").length
+                  : (selectedMember?.completedTasksCount || 0);
+                const modalPending = Math.max(0, modalAssigned - modalCompleted);
+
+                return (
+                  <div className="mt-4 grid grid-cols-3 gap-2.5 pt-3 border-t border-slate-100 text-center">
+                    <div className="rounded-xl bg-slate-50/80 p-2.5 border border-slate-100">
+                      <p className="text-[10px] uppercase font-semibold text-slate-400">
+                        Assigned Tasks
+                      </p>
+                      <p className="text-lg font-bold text-slate-900 mt-0.5">
+                        {modalAssigned}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-emerald-50/60 p-2.5 border border-emerald-100/60">
+                      <p className="text-[10px] uppercase font-semibold text-emerald-700">
+                        Completed
+                      </p>
+                      <p className="text-lg font-bold text-emerald-700 mt-0.5">
+                        {modalCompleted}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-amber-50/60 p-2.5 border border-amber-100/60">
+                      <p className="text-[10px] uppercase font-semibold text-amber-700">
+                        Pending
+                      </p>
+                      <p className="text-lg font-bold text-amber-700 mt-0.5">
+                        {modalPending}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Modal Body: Task List */}
-            <div className="p-5 overflow-y-auto space-y-3 max-h-[50vh] [scrollbar-width:thin]">
-              <div className="flex items-center justify-between pb-1">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                  Assigned Tasks ({selectedMember.tasks.length})
-                </h4>
-                <span className="text-[11px] text-slate-400 font-medium">
-                  Priority & Deadlines
-                </span>
-              </div>
+            {(() => {
+              const modalTasks = Array.isArray(selectedMember?.tasks) ? selectedMember.tasks : [];
+              return (
+                <div className="p-5 overflow-y-auto space-y-3 max-h-[50vh] [scrollbar-width:thin]">
+                  <div className="flex items-center justify-between pb-1">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                      Assigned Tasks ({modalTasks.length})
+                    </h4>
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      Priority & Deadlines
+                    </span>
+                  </div>
 
-              {selectedMember.tasks.length > 0 ? (
-                <div className="space-y-2.5">
-                  {selectedMember.tasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className="rounded-xl border border-slate-200/90 bg-white p-4 hover:border-blue-200 transition-colors shadow-2xs space-y-2.5"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h5 className="font-semibold text-xs sm:text-sm text-slate-900 leading-snug">
-                            {task.title}
-                          </h5>
-                          <div className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
-                            <FolderKanban size={13} className="text-blue-600 shrink-0" />
-                            <span className="font-medium text-slate-700">
-                              {task.project}
+                  {modalTasks.length > 0 ? (
+                    <div className="space-y-2.5">
+                      {modalTasks.map((task) => (
+                        <div
+                          key={task.id || task._id}
+                          className="rounded-xl border border-slate-200/90 bg-white p-4 hover:border-blue-200 transition-colors shadow-2xs space-y-2.5"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <h5 className="font-semibold text-xs sm:text-sm text-slate-900 leading-snug">
+                                {task.title}
+                              </h5>
+                              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
+                                <FolderKanban size={13} className="text-blue-600 shrink-0" />
+                                <span className="font-medium text-slate-700">
+                                  {task.project}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Task Status Pill */}
+                            <span
+                              className={`shrink-0 inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
+                                taskStatusStyles[task.status] ||
+                                taskStatusStyles["To Do"]
+                              }`}
+                            >
+                              {task.status}
                             </span>
                           </div>
-                        </div>
 
-                        {/* Task Status Pill */}
-                        <span
-                          className={`shrink-0 inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
-                            taskStatusStyles[task.status] ||
-                            taskStatusStyles["To Do"]
-                          }`}
-                        >
-                          {task.status}
-                        </span>
-                      </div>
+                          {/* Task Meta: Priority & Due Date */}
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] text-slate-400 font-medium">
+                                Priority:
+                              </span>
+                              <span
+                                className={`rounded-full border px-2 py-0.2 text-[10px] font-bold ${
+                                  priorityStyles[task.priority] || priorityStyles.Low
+                                }`}
+                              >
+                                {task.priority}
+                              </span>
+                            </div>
 
-                      {/* Task Meta: Priority & Due Date */}
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] text-slate-400 font-medium">
-                            Priority:
-                          </span>
-                          <span
-                            className={`rounded-full border px-2 py-0.2 text-[10px] font-bold ${
-                              priorityStyles[task.priority] || priorityStyles.Low
-                            }`}
-                          >
-                            {task.priority}
-                          </span>
+                            <div className="flex items-center gap-1 text-[11px] text-slate-600 font-medium">
+                              <Calendar size={12} className="text-slate-400" />
+                              <span>Due: {task.dueDate}</span>
+                            </div>
+                          </div>
                         </div>
-
-                        <div className="flex items-center gap-1 text-[11px] text-slate-600 font-medium">
-                          <Calendar size={12} className="text-slate-400" />
-                          <span>Due: {task.dueDate}</span>
-                        </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400 rounded-xl border border-dashed border-slate-200">
+                      <ClipboardList size={28} className="text-slate-300 mb-2" />
+                      <p className="text-xs font-semibold text-slate-700">No tasks currently assigned</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Tasks assigned to this member will appear here in real-time.</p>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                /* Empty tasks state */
-                <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center bg-slate-50/50">
-                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400 mb-2.5">
-                    <ClipboardList size={18} />
-                  </div>
-                  <p className="text-xs font-semibold text-slate-800">
-                    No tasks assigned yet
-                  </p>
-                  <p className="text-[11px] text-slate-500 mt-1 max-w-xs mx-auto">
-                    This team member does not have any active or completed tasks assigned at this moment.
-                  </p>
-                </div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* Modal Footer */}
             <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/80 px-5 py-3">

@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import notificationService from "../../notifications/notificationService.js";
 import {
   Bell,
   CheckCheck,
@@ -145,6 +146,27 @@ export default function NotificationPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
 
+  useEffect(() => {
+    notificationService.getNotifications().then((res) => {
+      if (res?.notifications && res.notifications.length > 0) {
+        const mapped = res.notifications.map((n) => ({
+          id: n.id || n._id,
+          type: n.type || "task",
+          title: n.title,
+          message: n.message,
+          time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Recent",
+          group: "today",
+          read: n.isRead || n.read,
+          icon: CheckCircle2,
+          color: n.type === "system" ? "emerald" : "blue",
+          actionText: "View task",
+          link: n.link || "/mytaskpage"
+        }));
+        setNotifications(mapped);
+      }
+    });
+  }, []);
+
   const unreadCount = notifications.filter((item) => !item.read).length;
   const readCount = notifications.filter((item) => item.read).length;
 
@@ -156,10 +178,10 @@ export default function NotificationPage() {
         notification.type === filter;
 
       const matchesSearch =
-        notification.title
+        (notification.title || "")
           .toLowerCase()
           .includes(searchQuery.toLowerCase()) ||
-        notification.message
+        (notification.message || "")
           .toLowerCase()
           .includes(searchQuery.toLowerCase());
 
@@ -177,7 +199,8 @@ export default function NotificationPage() {
     (item) => item.group === "earlier"
   );
 
-  const markAsRead = (id) => {
+  const markAsRead = async (id) => {
+    await notificationService.markAsRead(id);
     setNotifications((current) =>
       current.map((item) =>
         item.id === id ? { ...item, read: true } : item
@@ -185,7 +208,8 @@ export default function NotificationPage() {
     );
   };
 
-  const toggleRead = (id) => {
+  const toggleRead = async (id) => {
+    await notificationService.markAsRead(id);
     setNotifications((current) =>
       current.map((item) =>
         item.id === id ? { ...item, read: !item.read } : item
@@ -193,13 +217,15 @@ export default function NotificationPage() {
     );
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
+    await notificationService.markAllAsRead();
     setNotifications((current) =>
       current.map((item) => ({ ...item, read: true }))
     );
   };
 
-  const deleteNotification = (id) => {
+  const deleteNotification = async (id) => {
+    await notificationService.deleteNotification(id);
     setNotifications((current) =>
       current.filter((item) => item.id !== id)
     );

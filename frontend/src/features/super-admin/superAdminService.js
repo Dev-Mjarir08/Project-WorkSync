@@ -8,6 +8,8 @@ import { authService } from '../auth/authService.js';
 
 const API_BASE_URL = 'http://localhost:8081/api/v1/super-admin';
 
+const isObjectId = (id) => typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id);
+
 const getAuthHeaders = () => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   return {
@@ -151,10 +153,15 @@ export const superAdminService = {
         ? backendData.data.users
         : (Array.isArray(backendData.data) ? backendData.data : []);
 
-      // Merge backend users with local users so any freshly created user is guaranteed to show
+      // Keep local users cache cleanly in sync with backend MongoDB
+      setUserItem('users', beList);
+
+      // Only preserve non-server temporary local users if any exist
       const merged = [...beList];
       for (const lu of localUsers) {
         const luid = lu.id || lu._id;
+        // If it's a 24-character ObjectId and absent from beList, it was deleted on the server; do NOT resurrect!
+        if (isObjectId(luid)) continue;
         const exists = merged.some((bu) => (bu.id || bu._id) === luid || bu.email?.toLowerCase() === lu.email?.toLowerCase());
         if (!exists) {
           merged.unshift(lu);
@@ -282,8 +289,28 @@ export const superAdminService = {
   },
 
   updateUser: async (userId, updateData) => {
+    let serverUpdated = null;
+    if (isObjectId(userId)) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/users/${userId}`, {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(updateData)
+        });
+        if (res.ok) {
+          const json = await res.json();
+          serverUpdated = json.data?.user || json.data;
+        } else {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.message || 'Failed to update user on server');
+        }
+      } catch (e) {
+        if (e.message && !e.message.includes('fetch')) throw e;
+      }
+    }
+
     const users = getUserItem('users', []);
-    const updated = users.map((u) => (u.id === userId || u._id === userId ? { ...u, ...updateData } : u));
+    const updated = users.map((u) => (u.id === userId || u._id === userId ? { ...u, ...updateData, ...(serverUpdated || {}) } : u));
     setUserItem('users', updated);
     recordScopedAudit('USER_UPDATED', `Updated user details for ID ${userId}`);
 
@@ -303,14 +330,47 @@ export const superAdminService = {
   },
 
   updateUserStatus: async (userId, statusData = {}) => {
+    if (isObjectId(userId)) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/users/${userId}/status`, {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(statusData)
+        });
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.message || 'Failed to update user status on server');
+        }
+      } catch (e) {
+        if (e.message && !e.message.includes('fetch')) throw e;
+      }
+    }
     return superAdminService.updateUser(userId, statusData);
   },
 
   toggleUserStatus: async (userId) => {
     const users = getUserItem('users', []);
     const target = users.find((u) => u.id === userId || u._id === userId);
+    const newActiveState = target ? !target.isActive : true;
+
+    if (isObjectId(userId)) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/users/${userId}/status`, {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ isActive: newActiveState, status: newActiveState ? 'active' : 'suspended' })
+        });
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.message || 'Failed to update user status on server');
+        }
+      } catch (e) {
+        if (e.message && !e.message.includes('fetch')) throw e;
+      }
+    }
+
     if (target) {
-      target.isActive = !target.isActive;
+      target.isActive = newActiveState;
       setUserItem('users', users);
       recordScopedAudit('USER_STATUS_TOGGLED', `Changed status of "${target.name}" to ${target.isActive ? 'Active' : 'Disabled'}`);
 
@@ -329,10 +389,40 @@ export const superAdminService = {
   },
 
   updateUserRole: async (userId, newRole) => {
+    if (isObjectId(userId)) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/users/${userId}/role`, {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ role: newRole })
+        });
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.message || 'Failed to update user role on server');
+        }
+      } catch (e) {
+        if (e.message && !e.message.includes('fetch')) throw e;
+      }
+    }
     return superAdminService.updateUser(userId, { role: newRole });
   },
 
   deleteUser: async (userId) => {
+    if (isObjectId(userId)) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/users/${userId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.message || 'Failed to delete user on server');
+        }
+      } catch (e) {
+        if (e.message && !e.message.includes('fetch')) throw e;
+      }
+    }
+
     const users = getUserItem('users', []);
     const target = users.find((u) => u.id === userId || u._id === userId);
     const filtered = users.filter((u) => u.id !== userId && u._id !== userId);
@@ -650,7 +740,12 @@ export const superAdminService = {
       const res = await fetch(`${API_BASE_URL}/tasks?${params.toString()}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const json = await res.json();
-        return json.data;
+        const serverData = json.data;
+        if (serverData) {
+          const serverTasks = serverData.tasks || (Array.isArray(serverData) ? serverData : []);
+          setUserItem('tasks', serverTasks);
+          return serverData;
+        }
       }
     } catch (e) {}
 
@@ -692,7 +787,28 @@ export const superAdminService = {
       });
       if (res.ok) {
         const json = await res.json();
-        return json.data?.task || json.data;
+        const created = json.data?.task || json.data;
+        if (created) {
+          const tasks = getUserItem('tasks', []);
+          const normalized = {
+            id: created.id || created._id,
+            _id: created.id || created._id,
+            title: created.title,
+            description: created.description || '',
+            status: created.status || 'todo',
+            priority: created.priority || 'medium',
+            dueDate: created.dueDate || '',
+            assignee: created.assignee || null,
+            assigneeName: created.assignee?.name || 'Unassigned',
+            boardId: created.board?.id || created.board?._id || taskData.boardId,
+            workspaceId: created.workspace?.id || created.workspace?._id || taskData.workspaceId,
+            createdAt: created.createdAt || new Date().toISOString()
+          };
+          tasks.unshift(normalized);
+          setUserItem('tasks', tasks);
+          recordScopedAudit('TASK_CREATED', `Created task "${created.title}" [${created.status || 'todo'}]`);
+          return normalized;
+        }
       }
     } catch (e) {}
 
@@ -703,6 +819,7 @@ export const superAdminService = {
       title: taskData.title?.trim() || 'Untitled Task',
       description: taskData.description || '',
       workspaceId: taskData.workspaceId || '',
+      boardId: taskData.boardId || '',
       workspaceName: taskData.workspaceName || 'General Workspace',
       status: taskData.status || 'todo',
       priority: taskData.priority || 'medium',
@@ -718,6 +835,13 @@ export const superAdminService = {
   },
 
   getTaskById: async (taskId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/tasks/${taskId}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const json = await res.json();
+        return json.data?.task || json.data;
+      }
+    } catch (e) {}
     const tasks = getUserItem('tasks', []);
     const task = tasks.find((t) => t.id === taskId || t._id === taskId);
     if (!task) throw new Error('Task not found');
@@ -725,6 +849,13 @@ export const superAdminService = {
   },
 
   updateTask: async (taskId, updateData) => {
+    try {
+      await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updateData)
+      });
+    } catch (e) {}
     const tasks = getUserItem('tasks', []);
     const updated = tasks.map((t) => (t.id === taskId || t._id === taskId ? { ...t, ...updateData } : t));
     setUserItem('tasks', updated);
@@ -733,6 +864,13 @@ export const superAdminService = {
   },
 
   updateTaskStatus: async (taskId, status) => {
+    try {
+      await fetch(`${API_BASE_URL}/tasks/${taskId}/status`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status })
+      });
+    } catch (e) {}
     const tasks = getUserItem('tasks', []);
     const target = tasks.find((t) => t.id === taskId || t._id === taskId);
     if (target) {
@@ -744,6 +882,13 @@ export const superAdminService = {
   },
 
   assignTask: async (taskId, assigneeId) => {
+    try {
+      await fetch(`${API_BASE_URL}/tasks/${taskId}/assign`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ assigneeId })
+      });
+    } catch (e) {}
     const tasks = getUserItem('tasks', []);
     const users = getUserItem('users', []);
     const assignedUser = users.find((u) => u.id === assigneeId || u._id === assigneeId);
@@ -758,12 +903,24 @@ export const superAdminService = {
   },
 
   deleteTask: async (taskId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Failed to delete task on server');
+      }
+    } catch (e) {
+      if (e.message && !e.message.includes('fetch')) throw e;
+    }
     const tasks = getUserItem('tasks', []);
     const target = tasks.find((t) => t.id === taskId || t._id === taskId);
     const filtered = tasks.filter((t) => t.id !== taskId && t._id !== taskId);
     setUserItem('tasks', filtered);
     recordScopedAudit('TASK_DELETED', `Deleted task "${target?.title || taskId}"`);
-    return { success: true };
+    return { success: true, id: taskId };
   },
 
   getWorkspaceProjects: async (workspaceId) => {
@@ -802,6 +959,36 @@ export const superAdminService = {
         return json.data || json;
       }
     } catch (e) {}
+    return { success: true };
+  },
+
+  getNotifications: async () => {
+    try {
+      const res = await fetch(`http://localhost:8081/api/v1/notifications`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const json = await res.json();
+        return json.data?.notifications || json.data || [];
+      }
+    } catch (e) {}
+    return getUserItem('superadmin_notifications', []);
+  },
+  markNotificationAsRead: async (notifId) => {
+    try {
+      await fetch(`http://localhost:8081/api/v1/notifications/${notifId}/read`, {
+        method: 'PATCH',
+        headers: getAuthHeaders()
+      });
+    } catch (e) {}
+    return { success: true };
+  },
+  clearNotifications: async () => {
+    try {
+      await fetch(`http://localhost:8081/api/v1/notifications`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+    } catch (e) {}
+    setUserItem('superadmin_notifications', []);
     return { success: true };
   }
 };

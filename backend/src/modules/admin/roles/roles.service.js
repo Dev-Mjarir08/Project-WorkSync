@@ -213,7 +213,7 @@ export const updateRolePermissions = async (workspaceId, roleIdentifier, permiss
   const updatedDoc = await Role.findByIdAndUpdate(
     role.id,
     { permissions },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   return {

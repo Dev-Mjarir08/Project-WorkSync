@@ -205,7 +205,7 @@ export const createUser = async ({ name, email, password, role = 'member', bio =
           role: wsRole,
           status: 'active'
         },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
       await Workspace.findByIdAndUpdate(targetWsId, { $inc: { membersCount: 1 } }).catch(() => {});
     } catch (wsErr) {

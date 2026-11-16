@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Bell,
   Search,
@@ -19,6 +19,7 @@ import {
 
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import { getUserItem, setUserItem } from "../../../utils/userStorage.js";
+import notificationService from "../../notifications/notificationService.js";
 
 const initialNotifications = [];
 
@@ -47,31 +48,42 @@ const NotificationsPage = () => {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
 
+  useEffect(() => {
+    notificationService.getNotifications().then((res) => {
+      if (res?.notifications) {
+        setNotifications(res.notifications);
+        setUserItem("manager_notifications", res.notifications);
+      }
+    });
+  }, []);
+
   const unreadCount = notifications.filter(
-    (notification) => notification.unread
+    (n) => n.unread || (!n.isRead && !n.read)
   ).length;
 
   const filteredNotifications = useMemo(() => {
     return notifications.filter((notification) => {
+      const isUnread = notification.unread || (!notification.isRead && !notification.read);
       const matchesSearch =
-        notification.title.toLowerCase().includes(search.toLowerCase()) ||
-        notification.message.toLowerCase().includes(search.toLowerCase());
+        (notification.title || "").toLowerCase().includes(search.toLowerCase()) ||
+        (notification.message || "").toLowerCase().includes(search.toLowerCase());
 
       const matchesFilter =
         activeFilter === "All" ||
-        (activeFilter === "Unread" && notification.unread) ||
-        (activeFilter === "Read" && !notification.unread) ||
-        notification.type === activeFilter;
+        (activeFilter === "Unread" && isUnread) ||
+        (activeFilter === "Read" && !isUnread) ||
+        notification.type?.toLowerCase() === activeFilter.toLowerCase();
 
       return matchesSearch && matchesFilter;
     });
   }, [notifications, search, activeFilter]);
 
-  const markAsRead = (id) => {
+  const markAsRead = async (id) => {
+    await notificationService.markAsRead(id);
     setNotifications((previous) => {
       const updated = previous.map((notification) =>
-        notification.id === id
-          ? { ...notification, unread: false }
+        (notification.id === id || notification._id === id)
+          ? { ...notification, unread: false, isRead: true, read: true }
           : notification
       );
       setUserItem("manager_notifications", updated);
@@ -79,26 +91,31 @@ const NotificationsPage = () => {
     });
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
+    await notificationService.markAllAsRead();
     setNotifications((previous) => {
       const updated = previous.map((notification) => ({
         ...notification,
         unread: false,
+        isRead: true,
+        read: true
       }));
       setUserItem("manager_notifications", updated);
       return updated;
     });
   };
 
-  const deleteNotification = (id) => {
+  const deleteNotification = async (id) => {
+    await notificationService.deleteNotification(id);
     setNotifications((previous) => {
-      const updated = previous.filter((notification) => notification.id !== id);
+      const updated = previous.filter((notification) => notification.id !== id && notification._id !== id);
       setUserItem("manager_notifications", updated);
       return updated;
     });
   };
 
-  const clearAllNotifications = () => {
+  const clearAllNotifications = async () => {
+    await notificationService.clearAll();
     setNotifications([]);
     setUserItem("manager_notifications", []);
   };

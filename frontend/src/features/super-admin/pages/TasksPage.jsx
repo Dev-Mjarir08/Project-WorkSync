@@ -22,6 +22,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useSuperAdmin } from '../../../context/SuperAdminContext.jsx';
+import { useConfirm } from '../../../context/ConfirmContext.jsx';
 import superAdminService from '../superAdminService.js';
 
 const STATUS_COLUMNS = [
@@ -49,6 +50,20 @@ export const TasksPage = () => {
     loadWorkspaces,
     loadUsers
   } = useSuperAdmin();
+
+  const confirm = useConfirm();
+
+  const handleDeleteTask = async (taskId, taskTitle) => {
+    const isConfirmed = await confirm({
+      title: 'Delete Task',
+      message: `Are you sure you want to permanently delete "${taskTitle || 'this task'}"?`,
+      confirmText: 'Delete Task',
+      cancelText: 'Cancel',
+      type: 'danger'
+    });
+    if (!isConfirmed) return;
+    await deleteTask(taskId, taskTitle);
+  };
 
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'list'
   const [search, setSearch] = useState('');
@@ -140,6 +155,19 @@ export const TasksPage = () => {
     setDragOverColumn(null);
     const taskId = e.dataTransfer.getData('text/plain') || draggedTaskId;
     if (!taskId) return;
+
+    if (targetStatus === 'done') {
+      const isConfirmed = await confirm({
+        title: 'Complete Task',
+        message: 'Is this task completed? Once completed, this task will be locked and cannot be edited.',
+        confirmText: 'Yes, Complete',
+        cancelText: 'Cancel'
+      });
+      if (!isConfirmed) {
+        setDraggedTaskId(null);
+        return;
+      }
+    }
 
     // Trigger instant optimistic update via SuperAdminContext!
     await updateTaskStatus(taskId, targetStatus);
@@ -346,30 +374,44 @@ export const TasksPage = () => {
                       Drag tasks here to update status to {col.label}
                     </div>
                   ) : (
-                    columnTasks.map(task => (
+                    columnTasks.map(task => {
+                      const isDone = task.status === 'done';
+                      return (
                       <div
                         key={task.id || task._id}
-                        draggable
+                        draggable={!isDone}
                         onDragStart={(e) => handleDragStart(e, task.id || task._id)}
-                        className="bg-[#0f172a] hover:bg-[#131d35] border border-slate-800/90 hover:border-slate-700/80 rounded-xl p-3.5 space-y-2.5 shadow-md hover:shadow-xl cursor-grab active:cursor-grabbing transition-all group relative"
+                        className={`bg-[#0f172a] border border-slate-800/90 rounded-xl p-3.5 space-y-2.5 shadow-md transition-all group relative ${
+                          !isDone ? 'hover:bg-[#131d35] hover:border-slate-700/80 cursor-grab active:cursor-grabbing hover:shadow-xl' : 'opacity-90'
+                        }`}
                       >
                         
                         <div className="flex items-center justify-between gap-1">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${PRIORITY_BADGES[task.priority] || PRIORITY_BADGES.medium}`}>
-                            {task.priority || 'medium'}
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${PRIORITY_BADGES[task.priority] || PRIORITY_BADGES.medium}`}>
+                              {task.priority || 'medium'}
+                            </span>
+                            {isDone && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Done & Locked
+                              </span>
+                            )}
+                          </div>
 
-                          <button
-                            onClick={() => deleteTask(task.id || task._id, task.title)}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-400 rounded transition-opacity"
-                            title="Delete task"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          {!isDone && (
+                            <button
+                              onClick={() => handleDeleteTask(task.id || task._id, task.title)}
+                              className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-400 rounded transition-opacity cursor-pointer"
+                              title="Delete task"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                         </div>
 
                         <div>
-                          <h4 className="text-sm font-bold text-white group-hover:text-indigo-300 transition-colors line-clamp-2">
+                          <h4 className={`text-sm font-bold transition-colors line-clamp-2 ${isDone ? 'text-slate-400 line-through' : 'text-white group-hover:text-indigo-300'}`}>
                             {task.title}
                           </h4>
                           {task.description && (
@@ -422,8 +464,9 @@ export const TasksPage = () => {
                           )}
                         </div>
                       </div>
-                    ))
-                  )}
+                    );
+                  })
+                )}
                 </div>
               </div>
             );
@@ -496,8 +539,8 @@ export const TasksPage = () => {
                       </td>
                       <td className="py-3 px-4 text-right">
                         <button
-                          onClick={() => deleteTask(task.id || task._id, task.title)}
-                          className="p-1 text-slate-500 hover:text-rose-400 transition-colors"
+                          onClick={() => handleDeleteTask(task.id || task._id, task.title)}
+                          className="p-1 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
                           title="Delete task"
                         >
                           <Trash2 className="h-4 w-4" />

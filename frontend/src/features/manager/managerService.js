@@ -337,6 +337,27 @@ export const managerService = {
     }
   },
 
+  getProjectReports: async (query = {}) => {
+    try {
+      const params = new URLSearchParams();
+      Object.entries(query).forEach(([k, v]) => { if (v) params.set(k, v); });
+      const q = params.size ? `?${params.toString()}` : "";
+      const res = await request(`/reports/projects${q}`);
+      return Array.isArray(res?.projects) ? res.projects : (Array.isArray(res) ? res : []);
+    } catch {
+      return [];
+    }
+  },
+
+  getTeamPerformanceReports: async () => {
+    try {
+      const res = await request("/reports/team-performance");
+      return Array.isArray(res?.performance) ? res.performance : (Array.isArray(res) ? res : []);
+    } catch {
+      return [];
+    }
+  },
+
   getBurndownReports: async (query = {}) => {
     try {
       const params = new URLSearchParams();

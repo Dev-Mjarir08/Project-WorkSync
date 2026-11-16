@@ -89,18 +89,36 @@ export const getAssignments = async (workspaceId, query = {}, user) => {
 export const assignTaskToMember = async (workspaceId, data, actorUser) => {
   if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
   const taskId = data.taskId || data.id;
-  const targetId = data.memberId || data.assigneeId || data.userId || data.assignee;
+  const targetId = data.memberId || data.assigneeId || data.userId || data.assignee || data.name;
 
   if (!taskId) throw new ApiError(400, 'Task ID is required for assignment');
   if (!targetId) throw new ApiError(400, 'Member/Assignee ID is required');
 
-  const task = await Task.findOne({ _id: taskId, workspace: workspaceId });
+  let task = null;
+  if (workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)) {
+    task = await Task.findOne({ _id: taskId, workspace: workspaceId });
+  }
+  if (!task && mongoose.Types.ObjectId.isValid(taskId)) {
+    task = await Task.findById(taskId);
+  }
   if (!task) throw new ApiError(404, 'Task not found in this workspace');
 
-  let targetUser = await User.findById(targetId);
+  let targetUser = null;
+  if (mongoose.Types.ObjectId.isValid(targetId)) {
+    targetUser = await User.findById(targetId);
+    if (!targetUser) {
+      const memberDoc = await WorkspaceMember.findById(targetId).populate('user');
+      if (memberDoc?.user) targetUser = memberDoc.user;
+    }
+  }
   if (!targetUser) {
-    const memberDoc = await WorkspaceMember.findById(targetId).populate('user');
-    if (memberDoc?.user) targetUser = memberDoc.user;
+    targetUser = await User.findOne({
+      $or: [
+        { email: targetId },
+        { name: targetId },
+        { name: { $regex: new RegExp(`^${targetId}$`, 'i') } }
+      ]
+    });
   }
   if (!targetUser) throw new ApiError(404, 'Target member not found');
 

@@ -7,9 +7,17 @@ import { Activity } from '../../../models/Activity.js';
 import { ApiError } from '../../../utils/ApiError.js';
 
 export const getManagerDashboardStats = async (workspaceId, user) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
-  const userId = new mongoose.Types.ObjectId(user._id);
+  let wsId = workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)
+    ? new mongoose.Types.ObjectId(workspaceId)
+    : null;
+  if (!wsId) {
+    const { Workspace } = await import('../../../models/Workspace.js');
+    const defaultWs = await Workspace.findOne({ isActive: true });
+    if (defaultWs) wsId = defaultWs._id;
+  }
+  const userId = user?._id && mongoose.Types.ObjectId.isValid(user._id)
+    ? new mongoose.Types.ObjectId(user._id)
+    : null;
 
   const now = new Date();
 
@@ -23,18 +31,27 @@ export const getManagerDashboardStats = async (workspaceId, user) => {
     overdueTasks,
     teamMembersCount
   ] = await Promise.all([
-    Project.countDocuments({ workspace: wsId }),
-    Project.countDocuments({ workspace: wsId, $or: [{ lead: userId }, { members: userId }] }),
-    Task.countDocuments({ workspace: wsId }),
-    Task.countDocuments({ workspace: wsId, assignee: userId }),
-    Task.countDocuments({ workspace: wsId, status: 'done' }),
-    Task.countDocuments({ workspace: wsId, status: 'in_progress' }),
-    Task.countDocuments({
-      workspace: wsId,
-      dueDate: { $lt: now },
-      status: { $ne: 'done' }
-    }),
-    WorkspaceMember.countDocuments({ workspace: wsId, status: 'active' })
+    wsId ? Project.countDocuments({ workspace: wsId }) : Project.countDocuments(),
+    wsId && userId
+      ? Project.countDocuments({ workspace: wsId, $or: [{ lead: userId }, { members: userId }] })
+      : Project.countDocuments(),
+    wsId ? Task.countDocuments({ workspace: wsId }) : Task.countDocuments(),
+    userId
+      ? Task.countDocuments({ ...(wsId ? { workspace: wsId } : {}), assignee: userId })
+      : Task.countDocuments(),
+    wsId ? Task.countDocuments({ workspace: wsId, status: 'done' }) : Task.countDocuments({ status: 'done' }),
+    wsId ? Task.countDocuments({ workspace: wsId, status: 'in_progress' }) : Task.countDocuments({ status: 'in_progress' }),
+    wsId
+      ? Task.countDocuments({
+          workspace: wsId,
+          dueDate: { $lt: now },
+          status: { $ne: 'done' }
+        })
+      : Task.countDocuments({
+          dueDate: { $lt: now },
+          status: { $ne: 'done' }
+        }),
+    wsId ? WorkspaceMember.countDocuments({ workspace: wsId, status: 'active' }) : WorkspaceMember.countDocuments({ status: 'active' })
   ]);
 
   return {
@@ -51,17 +68,39 @@ export const getManagerDashboardStats = async (workspaceId, user) => {
 };
 
 export const getManagerAssignedProjects = async (workspaceId, user) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
-  const userId = new mongoose.Types.ObjectId(user._id);
+  const wsId = workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)
+    ? new mongoose.Types.ObjectId(workspaceId)
+    : null;
+  const userId = user?._id && mongoose.Types.ObjectId.isValid(user._id)
+    ? new mongoose.Types.ObjectId(user._id)
+    : null;
 
-  const projects = await Project.find({
-    workspace: wsId,
-    $or: [{ lead: userId }, { members: userId }]
-  })
-    .populate('lead', 'name email avatar')
-    .populate('members', 'name email avatar')
-    .sort({ updatedAt: -1 });
+  let projects = [];
+  if (wsId) {
+    if (userId) {
+      projects = await Project.find({
+        workspace: wsId,
+        $or: [{ lead: userId }, { members: userId }, { owner: userId }]
+      })
+        .populate('lead', 'name email avatar')
+        .populate('members', 'name email avatar')
+        .sort({ updatedAt: -1 });
+    }
+    if (projects.length === 0) {
+      projects = await Project.find({ workspace: wsId })
+        .populate('lead', 'name email avatar')
+        .populate('members', 'name email avatar')
+        .sort({ updatedAt: -1 });
+    }
+  }
+
+  if (projects.length === 0) {
+    projects = await Project.find({})
+      .populate('lead', 'name email avatar')
+      .populate('members', 'name email avatar')
+      .sort({ updatedAt: -1 })
+      .limit(20);
+  }
 
   // Calculate task counts per project
   const projectIds = projects.map(p => p._id);
@@ -124,13 +163,19 @@ export const getManagerAssignedProjects = async (workspaceId, user) => {
 };
 
 export const getManagerTaskOverview = async (workspaceId, user) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
+  let wsId = workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)
+    ? new mongoose.Types.ObjectId(workspaceId)
+    : null;
+  if (!wsId) {
+    const { Workspace } = await import('../../../models/Workspace.js');
+    const defaultWs = await Workspace.findOne({ isActive: true });
+    if (defaultWs) wsId = defaultWs._id;
+  }
 
-  const statuses = ['todo', 'in_progress', 'review', 'done'];
+  const matchFilter = wsId ? { workspace: wsId } : {};
 
   const agg = await Task.aggregate([
-    { $match: { workspace: wsId } },
+    ...(Object.keys(matchFilter).length ? [{ $match: matchFilter }] : []),
     { $group: { _id: '$status', count: { $sum: 1 } } }
   ]);
 
@@ -154,10 +199,22 @@ export const getManagerTaskOverview = async (workspaceId, user) => {
 };
 
 export const getManagerRecentTasks = async (workspaceId, user, limit = 10) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
+  const wsId = workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)
+    ? new mongoose.Types.ObjectId(workspaceId)
+    : null;
 
-  const tasks = await Task.find({ workspace: wsId })
+  let filter = wsId
+    ? {
+        $or: [
+          { workspace: wsId },
+          ...(user?._id && mongoose.Types.ObjectId.isValid(user._id)
+            ? [{ assignee: new mongoose.Types.ObjectId(user._id) }]
+            : [])
+        ]
+      }
+    : {};
+
+  let tasks = await Task.find(filter)
     .populate('assignee', 'name email avatar')
     .populate('project', 'name key status')
     .populate('board', 'name')
@@ -165,8 +222,19 @@ export const getManagerRecentTasks = async (workspaceId, user, limit = 10) => {
     .sort({ updatedAt: -1 })
     .limit(limit);
 
+  if (tasks.length === 0) {
+    tasks = await Task.find({})
+      .populate('assignee', 'name email avatar')
+      .populate('project', 'name key status')
+      .populate('board', 'name')
+      .populate('list', 'name')
+      .sort({ updatedAt: -1 })
+      .limit(limit);
+  }
+
   return tasks.map(t => ({
     id: t._id.toString(),
+    _id: t._id.toString(),
     title: t.title,
     description: t.description,
     status: t.status,
@@ -175,18 +243,22 @@ export const getManagerRecentTasks = async (workspaceId, user, limit = 10) => {
     assignee: t.assignee
       ? {
           id: t.assignee._id.toString(),
+          _id: t.assignee._id.toString(),
           name: t.assignee.name,
           email: t.assignee.email,
           avatar: t.assignee.avatar
         }
       : null,
+    assigneeName: t.assignee?.name || 'Unassigned',
     project: t.project
       ? {
           id: t.project._id.toString(),
+          _id: t.project._id.toString(),
           name: t.project.name,
           key: t.project.key
         }
       : null,
+    projectName: t.project?.name || 'General Project',
     board: t.board ? { id: t.board._id.toString(), name: t.board.name } : null,
     list: t.list ? { id: t.list._id.toString(), name: t.list.name } : null,
     updatedAt: t.updatedAt,

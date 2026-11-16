@@ -131,28 +131,28 @@ const DashboardPage = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="rounded-3xl border border-slate-800 bg-[#0d1322] p-6 shadow-2xl flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between text-white backdrop-blur-xl">
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between text-slate-900">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-indigo-400 border border-indigo-500/20">
+            <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-blue-700 border border-blue-200">
               Admin Workspace
             </span>
-            <span className="text-xs text-slate-500 font-medium">·</span>
-            <span className="text-xs text-emerald-400 font-medium flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs text-slate-400 font-medium">·</span>
+            <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Active System
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
             Workspace Operations Console
           </h1>
-          <p className="mt-1 text-sm text-slate-400 max-w-2xl">
+          <p className="mt-1 text-sm text-slate-500 max-w-2xl">
             Keep projects moving, monitor team throughput, and supervise live Kanban delivery.
           </p>
         </div>
         <Link
           to="/admin/boards/new"
-          className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition active:scale-95"
+          className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition active:scale-95"
         >
           <ListTodo aria-hidden="true" className="size-4" />
           Create Board
@@ -168,6 +168,7 @@ const DashboardPage = () => {
         title="Workspace Deliverables & Agile Timeline"
         subtitle="Live delivery status across your team deliverables, active lanes, and project progress."
         role="admin"
+        theme="light"
       />
 
       <section aria-label="Task statistics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

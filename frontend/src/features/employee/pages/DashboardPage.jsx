@@ -33,6 +33,7 @@ import { getCurrentUser, getUserItem, setUserItem } from "../../../utils/userSto
 import { employeeService } from "../employeeService.js";
 import { useConfirm } from "../../../context/ConfirmContext.jsx";
 import TopTaskTimelineKanban from "../../boards/components/TopTaskTimelineKanban.jsx";
+import KanbanBoard from "../../boards/components/KanbanBoard.jsx";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -66,6 +67,24 @@ export default function DashboardPage() {
   });
 
   const handleTaskMove = async (taskId, newStatus) => {
+    const s = String(newStatus || '').toLowerCase();
+    const isTargetDone = s.includes('done') || s.includes('complete');
+    const current = tasks.find(t => (t.id === taskId || t._id === taskId));
+
+    if (current && (current.status === "Completed" || current.status === "done")) {
+      return; // Locked!
+    }
+
+    if (isTargetDone) {
+      const isConfirmed = await confirm({
+        title: "Complete Task",
+        message: "Is this task completed? Once completed, this task will be locked and cannot be edited.",
+        confirmText: "Yes, Complete",
+        cancelText: "Cancel"
+      });
+      if (!isConfirmed) return;
+    }
+
     setTasks((prev) => prev.map((t) => ((t.id === taskId || t._id === taskId) ? { ...t, status: newStatus } : t)));
     try {
       await employeeService.updateTaskStatus(taskId, newStatus);
@@ -122,7 +141,7 @@ export default function DashboardPage() {
         value: total,
         subtitle: "Tasks assigned to you",
         icon: Folder,
-        color: "bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400 border-blue-100 dark:border-blue-900",
+        color: "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900",
         badge: `${total} total`
       },
       {
@@ -180,12 +199,25 @@ export default function DashboardPage() {
   }, [tasks, searchTerm, priorityFilter, statusFilter]);
 
   // Handlers
-  const handleMarkCompleted = (taskId) => {
+  const handleMarkCompleted = async (taskId) => {
+    const target = tasks.find((t) => t.id === taskId || t._id === taskId);
+    if (!target) return;
+    if (target.status === "Completed" || target.status === "done") {
+      return; // Already locked
+    }
+
+    const isConfirmed = await confirm({
+      title: "Complete Task",
+      message: "Is this task completed? Once completed, this task will be locked and cannot be edited.",
+      confirmText: "Yes, Complete",
+      cancelText: "Cancel"
+    });
+    if (!isConfirmed) return;
+
     setTasks((prev) => {
       const updated = prev.map((t) => {
-        if (t.id === taskId) {
-          const newStatus = t.status === "Completed" ? "In Progress" : "Completed";
-          return { ...t, status: newStatus, progress: newStatus === "Completed" ? 100 : 50 };
+        if (t.id === taskId || t._id === taskId) {
+          return { ...t, status: "Completed", progress: 100 };
         }
         return t;
       });
@@ -193,24 +225,25 @@ export default function DashboardPage() {
       return updated;
     });
 
-    const target = tasks.find((t) => t.id === taskId);
-    if (target && target.status !== "Completed") {
-      setActivities((act) => {
-        const updated = [
-          {
-            id: Date.now(),
-            title: `Marked "${target.title}" as complete`,
-            project: target.project,
-            time: "Just now",
-            icon: CheckCircle2,
-            color: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400",
-          },
-          ...act,
-        ];
-        setUserItem("employee_activities", updated);
-        return updated;
-      });
-    }
+    try {
+      await employeeService.updateTaskStatus(taskId, "done");
+    } catch (e) {}
+
+    setActivities((act) => {
+      const updated = [
+        {
+          id: Date.now(),
+          title: `Marked "${target.title}" as complete`,
+          project: target.project,
+          time: "Just now",
+          icon: CheckCircle2,
+          color: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400",
+        },
+        ...act,
+      ];
+      setUserItem("employee_activities", updated);
+      return updated;
+    });
   };
 
   const handleToggleRSVP = (eventId) => {
@@ -221,41 +254,51 @@ export default function DashboardPage() {
     });
   };
 
-  const handleCreateTask = (e) => {
+  const handleCreateTask = async (e) => {
     e.preventDefault();
     if (!newTask.title.trim()) return;
 
-    let priorityColor = "bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border-sky-200 dark:border-sky-800";
+    let priorityColor = "bg-sky-50 text-sky-700 border-sky-200";
     if (newTask.priority === "High") {
-      priorityColor = "bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800";
+      priorityColor = "bg-rose-50 text-rose-700 border-rose-200";
     } else if (newTask.priority === "Medium") {
-      priorityColor = "bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800";
+      priorityColor = "bg-amber-50 text-amber-700 border-amber-200";
     }
 
-    const createdTask = {
-      id: Date.now(),
-      ...newTask,
-      color: priorityColor,
-      progress: newTask.status === "Completed" ? 100 : newTask.status === "In Progress" ? 30 : 0,
-    };
-
-    const updatedTasks = [createdTask, ...tasks];
-    setTasks(updatedTasks);
-    setUserItem("employee_tasks", updatedTasks);
-
-    const updatedActivities = [
-      {
-        id: Date.now(),
-        title: `Added new task "${newTask.title}"`,
+    try {
+      const serverTask = await employeeService.createTask({
+        title: newTask.title.trim(),
         project: newTask.project,
-        time: "Just now",
-        icon: Briefcase,
-        color: "bg-teal-50 text-teal-600 dark:bg-teal-950/50 dark:text-teal-400",
-      },
-      ...activities,
-    ];
-    setActivities(updatedActivities);
-    setUserItem("employee_activities", updatedActivities);
+        priority: (newTask.priority || 'medium').toLowerCase(),
+        status: (newTask.status || 'todo').toLowerCase().replace(' ', '_'),
+        dueDate: newTask.dueDate || null
+      });
+
+      const createdTask = {
+        id: serverTask.id || serverTask._id || Date.now(),
+        _id: serverTask.id || serverTask._id,
+        title: serverTask.title || newTask.title,
+        project: serverTask.project?.name || newTask.project,
+        priority: serverTask.priority || newTask.priority,
+        status: serverTask.status || newTask.status,
+        color: priorityColor,
+        progress: newTask.status === "Completed" ? 100 : newTask.status === "In Progress" ? 30 : 0,
+      };
+
+      const updatedTasks = [createdTask, ...tasks];
+      setTasks(updatedTasks);
+      setUserItem("employee_tasks", updatedTasks);
+    } catch (err) {
+      const fallbackTask = {
+        id: Date.now(),
+        ...newTask,
+        color: priorityColor,
+        progress: newTask.status === "Completed" ? 100 : newTask.status === "In Progress" ? 30 : 0,
+      };
+      const updatedTasks = [fallbackTask, ...tasks];
+      setTasks(updatedTasks);
+      setUserItem("employee_tasks", updatedTasks);
+    }
 
     // Reset Form
     setNewTask({
@@ -269,24 +312,21 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${darkMode ? "dark bg-slate-950 text-slate-100" : "bg-[#0B0F19] text-white"}`}>
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 transition-colors duration-300">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-8">
         
         {/* Top Workspace Header */}
-        <header className="relative overflow-hidden rounded-3xl border border-slate-800 bg-[#0d1322] p-6 sm:p-8 text-white shadow-2xl backdrop-blur-xl">
-          <div className="absolute -right-10 -top-10 h-64 w-64 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
-          <div className="absolute right-40 -bottom-10 h-40 w-40 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none" />
-          
+        <header className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 text-slate-900 shadow-xs">
           <div className="relative z-10 flex flex-col justify-between gap-6 md:flex-row md:items-center">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-semibold tracking-wide border border-indigo-500/20 mb-3 text-indigo-400">
-                <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold tracking-wide border border-slate-200 mb-3 text-slate-700">
+                <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
                 <span>EMPLOYEE WORKSPACE</span>
               </div>
-              <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl text-white">
+              <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl text-slate-900">
                 Dashboard
               </h1>
-              <p className="mt-2 text-sm sm:text-base text-slate-400 max-w-xl">
+              <p className="mt-2 text-sm sm:text-base text-slate-500 max-w-xl">
                 Welcome back, {userName}! Here's a live overview of your assigned deliverables, board status, and throughput today.
               </p>
             </div>
@@ -296,7 +336,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
-                className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition active:scale-95 cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 hover:bg-slate-800 px-4 py-3 text-sm font-semibold text-white shadow-xs transition active:scale-95 cursor-pointer"
               >
                 <Plus className="h-4 w-4" />
                 New Task
@@ -305,9 +345,9 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => navigate('/employee/tasks')}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-300 border border-slate-800 shadow-sm transition hover:bg-slate-800 hover:text-white cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-100 hover:bg-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 border border-slate-200 shadow-xs transition cursor-pointer"
               >
-                <FolderKanban className="h-4 w-4 text-indigo-400" />
+                <FolderKanban className="h-4 w-4 text-slate-600" />
                 Tasks Directory
                 <ArrowUpRight className="h-4 w-4 opacity-75" />
               </button>
@@ -325,6 +365,7 @@ export default function DashboardPage() {
           title="My Assigned Deliverables & Kanban Timeline"
           subtitle="Live sprint delivery status, personal backlog, and completion velocity."
           role="employee"
+          theme="light"
         />
 
         {/* Dynamic Metric Cards Grid */}
@@ -450,11 +491,12 @@ export default function DashboardPage() {
                           {/* Interactive Completion Toggle */}
                           <button
                             type="button"
-                            onClick={() => handleMarkCompleted(task.id)}
+                            onClick={() => !isCompleted && handleMarkCompleted(task.id)}
+                            disabled={isCompleted}
                             className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border transition ${
                               isCompleted
-                                ? "border-emerald-600 bg-emerald-600 text-white"
-                                : "border-slate-300 hover:border-teal-600 dark:border-slate-600"
+                                ? "border-emerald-600 bg-emerald-600 text-white cursor-default"
+                                : "border-slate-300 hover:border-teal-600 dark:border-slate-600 cursor-pointer"
                             }`}
                           >
                             {isCompleted && <Check className="h-3.5 w-3.5" />}
@@ -491,6 +533,7 @@ export default function DashboardPage() {
 
                               <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                                 {task.status}
+                                {isCompleted && " (Locked)"}
                               </span>
 
                               {/* Progress bar */}
@@ -515,13 +558,20 @@ export default function DashboardPage() {
                               {task.dueDate}
                             </p>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleMarkCompleted(task.id)}
-                            className="mt-1 text-xs font-semibold text-teal-600 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300 transition"
-                          >
-                            {isCompleted ? "Reopen" : "Mark Complete"}
-                          </button>
+                          {isCompleted ? (
+                            <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                              <CheckCircle2 size={12} />
+                              <span>Completed & Locked</span>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleMarkCompleted(task.id)}
+                              className="mt-1 text-xs font-semibold text-teal-600 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300 transition cursor-pointer"
+                            >
+                              Mark Complete
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -808,103 +858,15 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { id: "todo", label: "To Do", dot: "bg-slate-400", badge: "bg-slate-100 text-slate-700 border-slate-200" },
-                  { id: "in_progress", label: "In Progress", dot: "bg-blue-500", badge: "bg-blue-50 text-blue-700 border-blue-200" },
-                  { id: "review", label: "In Review", dot: "bg-purple-500", badge: "bg-purple-50 text-purple-700 border-purple-200" },
-                  { id: "completed", label: "Completed", dot: "bg-emerald-500", badge: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-                ].map((col) => {
-                  const colTasks = tasks.filter((t) => {
-                    const s = (t.status || "").toLowerCase();
-                    if (col.id === "todo") return s === "pending" || s === "todo" || s === "to do";
-                    if (col.id === "in_progress") return s === "in progress" || s === "in_progress";
-                    if (col.id === "review") return s === "in review" || s === "review" || s === "in_review";
-                    if (col.id === "completed") return s === "completed" || s === "done";
-                    return false;
-                  });
-
-                  return (
-                    <div key={col.id} className="flex flex-col rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-950/40">
-                      <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800">
-                        <div className="flex items-center gap-2">
-                          <span className={`h-2.5 w-2.5 rounded-full ${col.dot}`} />
-                          <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200">{col.label}</h3>
-                        </div>
-                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${col.badge}`}>
-                          {colTasks.length}
-                        </span>
-                      </div>
-
-                      <div className="mt-3 flex flex-col gap-3 min-h-[160px]">
-                        {colTasks.length > 0 ? (
-                          colTasks.map((t) => (
-                            <div
-                              key={t.id}
-                              className="group rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-xs hover:border-teal-400 hover:shadow-md transition dark:border-slate-800 dark:bg-slate-900"
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                  t.priority === "High" ? "bg-rose-50 text-rose-700 border border-rose-200" :
-                                  t.priority === "Medium" ? "bg-amber-50 text-amber-700 border border-amber-200" :
-                                  "bg-slate-100 text-slate-600 border border-slate-200"
-                                }`}>
-                                  {t.priority}
-                                </span>
-                                <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {t.dueDate}
-                                </span>
-                              </div>
-
-                              <h4 className="mt-2 text-xs font-bold text-slate-900 dark:text-white leading-snug group-hover:text-teal-600 transition">
-                                {t.title}
-                              </h4>
-
-                              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                <FolderKanban className="h-3 w-3 text-slate-400" />
-                                {t.project}
-                              </p>
-
-                              <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px]">
-                                <span className="text-slate-500 font-medium">Stage: {t.status}</span>
-                                <div className="flex items-center gap-1">
-                                  {col.id !== "completed" && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const nextStatus = col.id === "todo" ? "In Progress" : col.id === "in_progress" ? "In Review" : "Completed";
-                                        const updated = tasks.map(item => item.id === t.id ? { ...item, status: nextStatus } : item);
-                                        setTasks(updated);
-                                        setUserItem("employee_tasks", updated);
-                                      }}
-                                      className="rounded-md p-1 bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold cursor-pointer"
-                                      title="Advance stage"
-                                    >
-                                      <ChevronRight className="h-3.5 w-3.5" />
-                                    </button>
-                                  )}
-                                  <button
-                                    type="button"
-                                    onClick={() => navigate(`/employee/tasks/${t.id}`)}
-                                    className="rounded-md p-1 bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                                    title="View task"
-                                  >
-                                    <ArrowUpRight className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="flex flex-col items-center justify-center h-32 rounded-xl border border-dashed border-slate-200 text-center p-3 text-xs text-slate-400 dark:border-slate-800">
-                            <span>No tasks</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="mt-6">
+                <KanbanBoard
+                  tasks={tasks}
+                  onTaskMove={handleTaskMove}
+                  onTaskDelete={handleTaskDelete}
+                  onTaskClick={() => navigate('/employee/tasks')}
+                  onAddTask={() => setIsModalOpen(true)}
+                  theme="light"
+                />
               </div>
             </section>
           </div>

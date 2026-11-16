@@ -1,24 +1,42 @@
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 import { ApiResponse } from '../../../utils/ApiResponse.js';
 import * as tasksService from './tasks.service.js';
+import { WorkspaceMember } from '../../../models/WorkspaceMember.js';
+import { Workspace } from '../../../models/Workspace.js';
 
-const getWorkspaceId = (req) => {
-  return (
+const getWorkspaceId = async (req) => {
+  const direct = (
     req.workspace?._id?.toString() ||
     req.params.workspaceId ||
     req.headers['x-workspace-id'] ||
-    req.query.workspaceId
+    req.query.workspaceId ||
+    req.user?.workspaceId?.toString()
   );
+  if (direct) return direct;
+
+  if (req.user?._id) {
+    const member = await WorkspaceMember.findOne({ user: req.user._id, status: 'active' }).select('workspace');
+    if (member?.workspace) return member.workspace.toString();
+
+    const ownerWs = await Workspace.findOne({
+      $or: [{ owner: req.user._id }, { createdBy: req.user._id }],
+      isActive: true
+    }).select('_id');
+    if (ownerWs?._id) return ownerWs._id.toString();
+  }
+
+  const defaultWs = await Workspace.findOne({ isActive: true }).select('_id');
+  return defaultWs?._id?.toString() || null;
 };
 
 export const getTasks = asyncHandler(async (req, res) => {
-  const wsId = getWorkspaceId(req);
+  const wsId = await getWorkspaceId(req);
   const data = await tasksService.getTasks(wsId, req.query);
   return res.status(200).json(new ApiResponse(200, { tasks: data }, 'Workspace tasks fetched successfully'));
 });
 
 export const createTask = asyncHandler(async (req, res) => {
-  const wsId = getWorkspaceId(req);
+  const wsId = await getWorkspaceId(req);
   const data = await tasksService.createTask(wsId, req.body, req.user);
   return res.status(201).json(new ApiResponse(201, { task: data }, 'Task created successfully'));
 });
@@ -42,13 +60,13 @@ export const getTaskById = asyncHandler(async (req, res) => {
 });
 
 export const updateTask = asyncHandler(async (req, res) => {
-  const wsId = getWorkspaceId(req);
+  const wsId = await getWorkspaceId(req);
   const data = await tasksService.updateTask(wsId, req.params.taskId, req.body, req.user);
   return res.status(200).json(new ApiResponse(200, { task: data }, 'Task updated successfully'));
 });
 
 export const deleteTask = asyncHandler(async (req, res) => {
-  const wsId = getWorkspaceId(req);
+  const wsId = await getWorkspaceId(req);
   const data = await tasksService.deleteTask(wsId, req.params.taskId, req.user);
   return res.status(200).json(new ApiResponse(200, data, 'Task deleted successfully'));
 });

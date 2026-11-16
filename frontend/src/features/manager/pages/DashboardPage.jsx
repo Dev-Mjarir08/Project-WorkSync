@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import {
@@ -23,7 +23,8 @@ import {
   Sparkles,
   BarChart2,
   Table,
-  LayoutGrid
+  LayoutGrid,
+  Lock
 } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
@@ -113,11 +114,65 @@ export const DashboardPage = () => {
     dueDate: "Nov 25, 2026",
   });
 
+  const loadLiveDashboard = useCallback(async () => {
+    try {
+      const [dashData, liveTasks, tm] = await Promise.all([
+        managerService.getDashboard().catch(() => null),
+        managerService.getTasks().catch(() => null),
+        managerService.getTeamMembers().catch(() => null)
+      ]);
+
+      if (dashData?.myProjects && Array.isArray(dashData.myProjects)) {
+        setProjects(dashData.myProjects);
+        setUserItem("manager_projects", dashData.myProjects);
+      }
+
+      if (Array.isArray(liveTasks)) {
+        setTasks(liveTasks);
+        setUserItem("manager_tasks", liveTasks);
+      } else if (dashData?.recentTasks && Array.isArray(dashData.recentTasks)) {
+        setTasks(dashData.recentTasks);
+        setUserItem("manager_tasks", dashData.recentTasks);
+      }
+
+      if (Array.isArray(tm) && tm.length > 0) {
+        setTeamMembersData(tm);
+        setUserItem("manager_team", tm);
+      }
+    } catch (e) {
+      console.error("Dashboard refresh error:", e);
+    }
+  }, []);
+
   const handleTaskMove = async (taskId, newStatus) => {
-    setTasks((prev) => prev.map((t) => ((t.id === taskId || t._id === taskId) ? { ...t, status: newStatus } : t)));
+    const s = String(newStatus || '').toLowerCase();
+    const isTargetDone = s.includes('done') || s.includes('complete');
+    const current = tasks.find(t => (t.id === taskId || t._id === taskId));
+
+    if (current && normalizeStatus(current.status) === "Completed") {
+      return; // Locked! Cannot edit or move backwards
+    }
+
+    if (isTargetDone) {
+      const isConfirmed = await confirm({
+        title: "Complete Task",
+        message: "Is this task completed? Once completed, this task will be locked and cannot be edited.",
+        confirmText: "Yes, Complete",
+        cancelText: "Cancel"
+      });
+      if (!isConfirmed) return;
+    }
+
+    setTasks((prev) => {
+      const updated = prev.map((t) => ((t.id === taskId || t._id === taskId) ? { ...t, status: newStatus } : t));
+      setUserItem("manager_tasks", updated);
+      return updated;
+    });
     try {
       await managerService.updateTaskStatus(taskId, newStatus);
     } catch (e) {}
+
+    await loadLiveDashboard();
   };
 
   const handleTaskDelete = async (taskId, taskTitle) => {
@@ -134,43 +189,24 @@ export const DashboardPage = () => {
       await managerService.deleteTask(taskId);
       setTasks((prev) => prev.filter((t) => (t.id || t._id) !== taskId));
     } catch (e) {}
+
+    await loadLiveDashboard();
   };
 
   // Live Backend API Fetch with Graceful Local Fallback
   useEffect(() => {
-    let isMounted = true;
-
-    managerService.getDashboard().then((data) => {
-      if (!isMounted || !data) return;
-      if (Array.isArray(data.myProjects) && data.myProjects.length > 0) {
-        setProjects(data.myProjects);
-      }
-      if (Array.isArray(data.recentTasks) && data.recentTasks.length > 0) {
-        setTasks(data.recentTasks);
-      }
-    }).catch(() => {});
-
-    managerService.getTasks().then((liveTasks) => {
-      if (!isMounted || !Array.isArray(liveTasks) || liveTasks.length === 0) return;
-      setTasks(liveTasks);
-    }).catch(() => {});
-
-    managerService.getTeamMembers().then((tm) => {
-      if (!isMounted || !Array.isArray(tm) || tm.length === 0) return;
-      setTeamMembersData(tm);
-    }).catch(() => {});
-
-    return () => {
-      isMounted = false;
-    };
-  }, [token]);
+    loadLiveDashboard();
+  }, [token, loadLiveDashboard]);
 
   // Derived Metrics
   const stats = useMemo(() => {
     const totalTasks = tasks.length;
-    const inProgressTasks = tasks.filter((t) => t.status === "In Progress").length;
-    const completedTasks = tasks.filter((t) => t.status === "Completed").length;
-    const overdueTasks = tasks.filter((t) => t.status === "Overdue").length;
+    const inProgressTasks = tasks.filter((t) => normalizeStatus(t.status) === "In Progress").length;
+    const completedTasks = tasks.filter((t) => normalizeStatus(t.status) === "Completed").length;
+    const overdueTasks = tasks.filter((t) => {
+      const isPast = t.dueDate && new Date(t.dueDate) < new Date();
+      return isPast && normalizeStatus(t.status) !== "Completed";
+    }).length;
     const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
     const totalProjects = projects.length;
 
@@ -188,21 +224,23 @@ export const DashboardPage = () => {
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
       const q = taskSearchQuery.trim().toLowerCase();
+      const taskAssignee = typeof task.assignee === 'string' ? task.assignee : (task.assignee?.name || task.assigneeName || '');
+      const taskProj = typeof task.project === 'string' ? task.project : (task.project?.name || task.projectName || '');
       const matchesSearch =
         !q ||
         task.title?.toLowerCase().includes(q) ||
-        task.project?.toLowerCase().includes(q) ||
-        task.assignee?.toLowerCase().includes(q);
+        taskProj.toLowerCase().includes(q) ||
+        taskAssignee.toLowerCase().includes(q);
 
       const matchesStatus =
-        taskStatusFilter === "All" || task.status === taskStatusFilter;
+        taskStatusFilter === "All" || normalizeStatus(task.status) === taskStatusFilter;
 
       return matchesSearch && matchesStatus;
     });
   }, [tasks, taskSearchQuery, taskStatusFilter]);
 
   // Handle Create Task Form Submit
-  const handleCreateTaskSubmit = (e) => {
+  const handleCreateTaskSubmit = async (e) => {
     e.preventDefault();
     if (!newTask.title.trim()) return;
 
@@ -214,28 +252,56 @@ export const DashboardPage = () => {
       "Jarir Multani": "from-indigo-600 to-purple-600",
     };
 
-    const created = {
-      id: "task-" + Date.now(),
-      title: newTask.title.trim(),
-      project: newTask.project,
-      assignee: newTask.assignee,
-      assigneeRole: "Contributor",
-      assigneeColor: assigneeColors[newTask.assignee] || "from-blue-600 to-indigo-600",
-      priority: newTask.priority,
-      status: "In Progress",
-      dueDate: newTask.dueDate || "Nov 25, 2026",
-    };
+    try {
+      const serverTask = await managerService.createTask({
+        title: newTask.title.trim(),
+        project: newTask.project,
+        assignee: newTask.assignee,
+        priority: (newTask.priority || 'medium').toLowerCase(),
+        status: 'in_progress',
+        dueDate: newTask.dueDate || null
+      });
 
-    const updatedTasks = [created, ...tasks];
-    setTasks(updatedTasks);
-    setUserItem("manager_tasks", updatedTasks);
+      const created = {
+        id: serverTask.id || serverTask._id || ("task-" + Date.now()),
+        _id: serverTask.id || serverTask._id,
+        title: serverTask.title || newTask.title.trim(),
+        project: serverTask.project?.name || newTask.project,
+        assignee: serverTask.assignee?.name || newTask.assignee,
+        assigneeRole: "Contributor",
+        assigneeColor: assigneeColors[newTask.assignee] || "from-blue-600 to-indigo-600",
+        priority: serverTask.priority || newTask.priority,
+        status: serverTask.status || "In Progress",
+        dueDate: serverTask.dueDate || newTask.dueDate || "Nov 25, 2026",
+      };
+
+      const updatedTasks = [created, ...tasks];
+      setTasks(updatedTasks);
+      setUserItem("manager_tasks", updatedTasks);
+    } catch (err) {
+      const created = {
+        id: "task-" + Date.now(),
+        title: newTask.title.trim(),
+        project: newTask.project,
+        assignee: newTask.assignee,
+        assigneeRole: "Contributor",
+        assigneeColor: assigneeColors[newTask.assignee] || "from-blue-600 to-indigo-600",
+        priority: newTask.priority,
+        status: "In Progress",
+        dueDate: newTask.dueDate || "Nov 25, 2026",
+      };
+
+      const updatedTasks = [created, ...tasks];
+      setTasks(updatedTasks);
+      setUserItem("manager_tasks", updatedTasks);
+    }
 
     // Record activity
     const newActivity = {
       id: "act-" + Date.now(),
       user: userName,
       action: "created deliverable",
-      target: created.title,
+      target: newTask.title.trim(),
       time: "Just now",
       avatar: getInitials(userName),
       color: "from-blue-600 to-indigo-600",
@@ -243,6 +309,8 @@ export const DashboardPage = () => {
     const updatedActivities = [newActivity, ...recentActivities];
     setRecentActivities(updatedActivities);
     setUserItem("manager_activities", updatedActivities);
+
+    await loadLiveDashboard();
 
     setNewTask({
       title: "",
@@ -294,7 +362,7 @@ export const DashboardPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white flex antialiased selection:bg-indigo-600 selection:text-white">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex antialiased">
       {/* Navigation Sidebar */}
       <Sidebar activeItem="dashboard" mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} />
 
@@ -308,22 +376,22 @@ export const DashboardPage = () => {
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-7 max-w-7xl w-full mx-auto">
           {/* Executive Header Banner */}
-          <div className="rounded-3xl border border-slate-800 bg-[#0d1322] p-5 sm:p-6 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 backdrop-blur-xl">
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1.5">
-                <span className="rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-indigo-400 border border-indigo-500/20">
+                <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-blue-700 border border-blue-200">
                   Manager Workspace
                 </span>
-                <span className="text-xs text-slate-500 font-medium">·</span>
-                <span className="text-xs text-emerald-400 font-medium flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-xs text-slate-400 font-medium">·</span>
+                <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   Live Sync
                 </span>
               </div>
-              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">
                 Welcome back, {userName}!
               </h1>
-              <p className="mt-1 text-xs sm:text-sm text-slate-400">
+              <p className="mt-1 text-xs sm:text-sm text-slate-500">
                 Live delivery status across your team deliverables, active boards, and project velocity.
               </p>
             </div>
@@ -331,24 +399,24 @@ export const DashboardPage = () => {
             <div className="flex flex-wrap items-center gap-2.5 shrink-0">
               <Link
                 to="/manager/boards/board-1"
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-300 shadow-sm hover:bg-slate-800 hover:text-white transition"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-100 transition"
               >
-                <Kanban size={15} className="text-indigo-400" />
+                <Kanban size={15} className="text-blue-600" />
                 <span>Kanban Board</span>
               </Link>
 
               <Link
                 to="/manager/projects"
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-300 shadow-sm hover:bg-slate-800 hover:text-white transition"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-100 transition"
               >
-                <FolderKanban size={15} className="text-indigo-400" />
+                <FolderKanban size={15} className="text-blue-600" />
                 <span>Projects ({stats.totalProjects})</span>
               </Link>
 
               <button
                 type="button"
                 onClick={() => setShowCreateTaskModal(true)}
-                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-600/20 transition active:scale-[0.98] cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 text-xs font-semibold text-white shadow-xs transition active:scale-[0.98] cursor-pointer"
               >
                 <Plus size={15} />
                 <span>New Task</span>
@@ -366,28 +434,29 @@ export const DashboardPage = () => {
             title="Team Deliverables & Kanban Lifecycle"
             subtitle="Real-time delivery progress, sprint throughput, and active workflow lanes."
             role="manager"
+            theme="light"
           />
 
           {/* Middle Row: Active Projects Progress & Velocity Insights */}
           <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* Active Projects Progress (8 Columns) */}
-            <div className="lg:col-span-8 rounded-3xl border border-slate-800 bg-[#0d1322] p-5 sm:p-6 shadow-2xl backdrop-blur-xl flex flex-col justify-between">
+            <div className="lg:col-span-8 rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                   <div className="flex items-center gap-2.5">
-                    <div className="rounded-xl bg-indigo-500/10 p-2 text-indigo-400 border border-indigo-500/20">
+                    <div className="rounded-xl bg-blue-50 p-2 text-blue-600 border border-blue-100">
                       <FolderKanban size={18} />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-white">Project Progress Overview</h3>
-                      <p className="text-xs text-slate-400">
+                      <h3 className="text-sm font-bold text-slate-900">Project Progress Overview</h3>
+                      <p className="text-xs text-slate-500">
                         Live delivery milestones across active project initiatives.
                       </p>
                     </div>
                   </div>
                   <Link
                     to="/manager/projects"
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
                   >
                     <span>Manage Projects</span>
                     <ChevronRight size={14} />
@@ -400,37 +469,37 @@ export const DashboardPage = () => {
                       <div
                         key={proj.id}
                         onClick={() => navigate(`/manager/projects/${proj.id}`)}
-                        className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:bg-slate-900 hover:border-slate-700 cursor-pointer"
+                        className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 transition-all hover:bg-slate-100/80 hover:border-slate-300 cursor-pointer"
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="text-xs font-bold text-white">{proj.name}</p>
-                              <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300 border border-slate-700">
+                              <p className="text-xs font-bold text-slate-900">{proj.name}</p>
+                              <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-700 border border-slate-200">
                                 {proj.category || proj.key}
                               </span>
                             </div>
-                            <p className="mt-1 text-[11px] text-slate-400">
+                            <p className="mt-1 text-[11px] text-slate-500">
                               {proj.completedTasks} of {proj.totalTasks} deliverables completed
                             </p>
                           </div>
 
                           <div className="flex items-center gap-3 self-end sm:self-auto">
                             <span
-                              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${proj.statusColor || "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${proj.statusColor || "bg-emerald-50 text-emerald-700 border-emerald-200"
                                 }`}
                             >
                               <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
                               {proj.status}
                             </span>
-                            <span className="text-xs font-extrabold text-white min-w-[38px] text-right">
+                            <span className="text-xs font-bold text-slate-700 min-w-[38px] text-right">
                               {proj.progress}%
                             </span>
                           </div>
                         </div>
 
                         {/* Progress Bar */}
-                        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-200">
                           <div
                             className="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-300"
                             style={{ width: `${proj.progress}%` }}
@@ -440,12 +509,12 @@ export const DashboardPage = () => {
                     ))
                   ) : (
                     <div className="py-10 text-center space-y-2">
-                      <FolderKanban size={32} className="mx-auto text-slate-600" />
-                      <p className="text-xs font-semibold text-slate-300">No active projects</p>
+                      <FolderKanban size={32} className="mx-auto text-slate-400" />
+                      <p className="text-xs font-semibold text-slate-700">No active projects</p>
                       <p className="text-[11px] text-slate-500">Initialize a project to start tracking team delivery milestones.</p>
                       <Link
                         to="/manager/projects"
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300 mt-2"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 mt-2"
                       >
                         <Plus size={14} />
                         <span>Create Project</span>
@@ -455,53 +524,53 @@ export const DashboardPage = () => {
                 </div>
               </div>
 
-              <div className="pt-4 mt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+              <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
                 <span>Showing {projects.length} workspace projects</span>
-                <Link to="/manager/projects" className="text-indigo-400 font-semibold hover:underline text-[11px]">
+                <Link to="/manager/projects" className="text-blue-600 font-semibold hover:underline text-[11px]">
                   Explore Project Roadmaps &rarr;
                 </Link>
               </div>
             </div>
 
             {/* Sprint Velocity & Activity Insights (4 Columns) */}
-            <div className="lg:col-span-4 rounded-3xl border border-slate-800 bg-[#0d1322] p-5 sm:p-6 shadow-2xl backdrop-blur-xl flex flex-col justify-between">
+            <div className="lg:col-span-4 rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                   <div className="flex items-center gap-2.5">
-                    <div className="rounded-xl bg-indigo-500/10 p-2 text-indigo-400 border border-indigo-500/20">
+                    <div className="rounded-xl bg-blue-50 p-2 text-blue-600 border border-blue-100">
                       <TrendingUp size={18} />
                     </div>
                     <div>
-                      <h3 className="text-xs font-bold text-white">Sprint 4 Velocity</h3>
-                      <p className="text-[10px] text-slate-400">Oct 14 - Oct 28 cycle</p>
+                      <h3 className="text-xs font-bold text-slate-900">Sprint 4 Velocity</h3>
+                      <p className="text-[10px] text-slate-500">Oct 14 - Oct 28 cycle</p>
                     </div>
                   </div>
-                  <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400 border border-emerald-500/20">
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
                     +18% Velocity
                   </span>
                 </div>
 
                 {/* Velocity Stat Tiles */}
                 <div className="mt-4 grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3.5 text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Points Done</p>
-                    <p className="mt-1 text-2xl font-extrabold text-white">34</p>
-                    <p className="mt-0.5 text-[10px] text-emerald-400 font-semibold">of 42 points</p>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5 text-center">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Points Done</p>
+                    <p className="mt-1 text-2xl font-extrabold text-slate-900">34</p>
+                    <p className="mt-0.5 text-[10px] text-emerald-600 font-semibold">of 42 points</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3.5 text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Schedule</p>
-                    <p className="mt-1 text-2xl font-extrabold text-white">6 Days</p>
-                    <p className="mt-0.5 text-[10px] text-blue-400 font-semibold">On Target</p>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5 text-center">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Schedule</p>
+                    <p className="mt-1 text-2xl font-extrabold text-slate-900">6 Days</p>
+                    <p className="mt-0.5 text-[10px] text-blue-600 font-semibold">On Target</p>
                   </div>
                 </div>
 
                 {/* Collaborative Activity Feed */}
                 <div className="mt-5">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                       Recent Activity
                     </h4>
-                    <Link to="/manager/activity" className="text-[10px] font-semibold text-indigo-400 hover:underline">
+                    <Link to="/manager/activity" className="text-[10px] font-semibold text-blue-600 hover:underline">
                       View all
                     </Link>
                   </div>
@@ -516,12 +585,12 @@ export const DashboardPage = () => {
                             {act.avatar || "U"}
                           </div>
                           <div className="min-w-0 flex-1 leading-snug">
-                            <p className="text-slate-300 text-[11px]">
-                              <span className="font-semibold text-white">{act.user}</span>{" "}
+                            <p className="text-slate-600 text-[11px]">
+                              <span className="font-semibold text-slate-900">{act.user}</span>{" "}
                               {act.action}{" "}
-                              {act.target && <span className="font-semibold text-indigo-400">{act.target}</span>}
+                              {act.target && <span className="font-semibold text-blue-600">{act.target}</span>}
                             </p>
-                            <span className="text-[10px] text-slate-500 mt-0.5 block">{act.time}</span>
+                            <span className="text-[10px] text-slate-400 mt-0.5 block">{act.time}</span>
                           </div>
                         </div>
                       ))
@@ -532,8 +601,8 @@ export const DashboardPage = () => {
                 </div>
               </div>
 
-              <div className="pt-4 mt-4 border-t border-slate-800 text-center">
-                <Link to="/manager/workload" className="text-xs font-semibold text-indigo-400 hover:underline inline-flex items-center gap-1">
+              <div className="pt-4 mt-4 border-t border-slate-100 text-center">
+                <Link to="/manager/workload" className="text-xs font-semibold text-blue-600 hover:underline inline-flex items-center gap-1">
                   <span>View Team Capacity & Workload</span>
                   <ChevronRight size={13} />
                 </Link>
@@ -671,15 +740,27 @@ export const DashboardPage = () => {
                                   </div>
 
                                   <div className="flex items-center gap-1">
-                                    {col.id !== "completed" && (
+                                    {col.id === "completed" ? (
+                                      <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                        <Lock size={10} />
+                                        <span>Locked</span>
+                                      </span>
+                                    ) : (
                                       <button
                                         type="button"
                                         title="Advance status"
-                                        onClick={() => {
+                                        onClick={async () => {
                                           const nextStatus = col.id === "todo" ? "In Progress" : col.id === "in_progress" ? "In Review" : "Completed";
-                                          const updated = tasks.map(t => t.id === task.id ? { ...t, status: nextStatus } : t);
-                                          setTasks(updated);
-                                          setUserItem("manager_tasks", updated);
+                                          if (nextStatus === "Completed") {
+                                            const isConfirmed = await confirm({
+                                              title: "Complete Task",
+                                              message: "Is this task completed? Once completed, this task will be locked and cannot be edited.",
+                                              confirmText: "Yes, Complete",
+                                              cancelText: "Cancel"
+                                            });
+                                            if (!isConfirmed) return;
+                                          }
+                                          await handleTaskMove(task.id, nextStatus);
                                         }}
                                         className="rounded-md p-1 bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 cursor-pointer transition"
                                       >
@@ -775,18 +856,26 @@ export const DashboardPage = () => {
                           >
                             <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
                             {task.status}
+                            {normalizeStatus(task.status) === "Completed" && " (Locked)"}
                           </span>
                         </td>
 
                         {/* Action Link */}
                         <td className="px-5 py-3.5 text-right">
-                          <Link
-                            to="/manager/tasks"
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 hover:underline"
-                          >
-                            <span>Inspect</span>
-                            <ArrowRight size={12} />
-                          </Link>
+                          {normalizeStatus(task.status) === "Completed" ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600">
+                              <Lock size={11} />
+                              <span>Locked</span>
+                            </span>
+                          ) : (
+                            <Link
+                              to="/manager/tasks"
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                            >
+                              <span>Inspect</span>
+                              <ArrowRight size={12} />
+                            </Link>
+                          )}
                         </td>
                       </tr>
                     ))

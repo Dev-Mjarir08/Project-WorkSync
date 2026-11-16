@@ -5,29 +5,44 @@ import { List } from '../../../models/List.js';
 import { Project } from '../../../models/Project.js';
 import { Activity } from '../../../models/Activity.js';
 import { ApiError } from '../../../utils/ApiError.js';
+import { createNotification } from '../../../utils/createNotification.js';
 
 export const getTasks = async (workspaceId, query = {}, user) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
+  const wsId = workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)
+    ? new mongoose.Types.ObjectId(workspaceId)
+    : null;
 
-  const filter = { workspace: wsId };
+  const filter = {};
+  if (wsId) {
+    filter.$or = [
+      { workspace: wsId },
+      ...(user?._id && mongoose.Types.ObjectId.isValid(user._id)
+        ? [{ assignee: new mongoose.Types.ObjectId(user._id) }]
+        : [])
+    ];
+  }
 
   if (query.status && query.status !== 'all') {
-    filter.status = query.status.toLowerCase();
+    let s = query.status.toLowerCase().trim().replace(/[\s-]+/g, '_');
+    if (s === 'completed') s = 'done';
+    if (s === 'pending') s = 'todo';
+    if (s === 'inprogress') s = 'in_progress';
+    if (s === 'inreview') s = 'review';
+    filter.status = s;
   }
   if (query.priority && query.priority !== 'all') {
     filter.priority = query.priority.toLowerCase();
   }
-  if (query.boardId) {
+  if (query.boardId && mongoose.Types.ObjectId.isValid(query.boardId)) {
     filter.board = new mongoose.Types.ObjectId(query.boardId);
   }
-  if (query.projectId) {
+  if (query.projectId && mongoose.Types.ObjectId.isValid(query.projectId)) {
     filter.project = new mongoose.Types.ObjectId(query.projectId);
   }
-  if (query.assigneeId) {
+  if (query.assigneeId && mongoose.Types.ObjectId.isValid(query.assigneeId)) {
     filter.assignee = new mongoose.Types.ObjectId(query.assigneeId);
   }
-  if (query.onlyMine === 'true' && user) {
+  if (query.onlyMine === 'true' && user?._id && mongoose.Types.ObjectId.isValid(user._id)) {
     filter.assignee = new mongoose.Types.ObjectId(user._id);
   }
   if (query.search) {
@@ -37,15 +52,26 @@ export const getTasks = async (workspaceId, query = {}, user) => {
     ];
   }
 
-  const tasks = await Task.find(filter)
+  let tasks = await Task.find(filter)
     .populate('assignee', 'name email avatar')
     .populate('project', 'name key status')
     .populate('board', 'name')
     .populate('list', 'name position')
     .sort({ order: 1, createdAt: -1 });
 
+  if (tasks.length === 0 && !query.search && !query.status) {
+    tasks = await Task.find({})
+      .populate('assignee', 'name email avatar')
+      .populate('project', 'name key status')
+      .populate('board', 'name')
+      .populate('list', 'name position')
+      .sort({ order: 1, createdAt: -1 })
+      .limit(60);
+  }
+
   return tasks.map(t => ({
     id: t._id.toString(),
+    _id: t._id.toString(),
     title: t.title,
     description: t.description,
     status: t.status,
@@ -55,18 +81,22 @@ export const getTasks = async (workspaceId, query = {}, user) => {
     assignee: t.assignee
       ? {
           id: t.assignee._id.toString(),
+          _id: t.assignee._id.toString(),
           name: t.assignee.name,
           email: t.assignee.email,
           avatar: t.assignee.avatar
         }
       : null,
+    assigneeName: t.assignee?.name || 'Unassigned',
     project: t.project
       ? {
           id: t.project._id.toString(),
+          _id: t.project._id.toString(),
           name: t.project.name,
           key: t.project.key
         }
       : null,
+    projectName: t.project?.name || 'General Project',
     board: t.board ? { id: t.board._id.toString(), name: t.board.name } : null,
     list: t.list ? { id: t.list._id.toString(), name: t.list.name } : null,
     createdAt: t.createdAt,
@@ -146,6 +176,19 @@ export const createTask = async (workspaceId, data, actorUser) => {
     details: `Created in board ${boardId}`
   }).catch(() => {});
 
+  const cleanAssignee = data.assigneeId || data.assignee;
+  if (cleanAssignee && mongoose.Types.ObjectId.isValid(cleanAssignee)) {
+    await createNotification({
+      recipient: cleanAssignee,
+      workspace: workspaceId,
+      sender: actorUser?._id,
+      title: 'New Task Assigned',
+      message: `You were assigned to task "${cleanTitle}"`,
+      type: 'task',
+      link: '/tasks'
+    }).catch(() => {});
+  }
+
   const populated = await Task.findById(task._id)
     .populate('assignee', 'name email avatar')
     .populate('project', 'name key')
@@ -169,19 +212,36 @@ export const createTask = async (workspaceId, data, actorUser) => {
 };
 
 export const getTaskById = async (workspaceId, taskId) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
   if (!taskId) throw new ApiError(400, 'Task ID is required');
 
-  const task = await Task.findOne({
-    _id: taskId,
-    workspace: workspaceId
-  })
-    .populate('assignee', 'name email avatar')
-    .populate('project', 'name key status')
-    .populate('board', 'name')
-    .populate('list', 'name position');
+  let task = null;
+  if (mongoose.Types.ObjectId.isValid(taskId)) {
+    task = await Task.findOne({
+      _id: taskId,
+      ...(workspaceId && mongoose.Types.ObjectId.isValid(workspaceId) ? { workspace: workspaceId } : {})
+    })
+      .populate('assignee', 'name email avatar')
+      .populate('project', 'name key status')
+      .populate('board', 'name')
+      .populate('list', 'name position');
 
-  if (!task) throw new ApiError(404, 'Task not found in this workspace');
+    if (!task) {
+      task = await Task.findById(taskId)
+        .populate('assignee', 'name email avatar')
+        .populate('project', 'name key status')
+        .populate('board', 'name')
+        .populate('list', 'name position');
+    }
+  } else {
+    task = await Task.findOne({ $or: [{ _id: taskId }, { id: taskId }] })
+      .populate('assignee', 'name email avatar')
+      .populate('project', 'name key status')
+      .populate('board', 'name')
+      .populate('list', 'name position')
+      .catch(() => null);
+  }
+
+  if (!task) throw new ApiError(404, 'Task not found');
 
   return {
     id: task._id.toString(),
@@ -201,13 +261,20 @@ export const getTaskById = async (workspaceId, taskId) => {
 };
 
 export const updateTask = async (workspaceId, taskId, data, actorUser) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
   if (!taskId) throw new ApiError(400, 'Task ID is required');
 
-  const task = await Task.findOne({
-    _id: taskId,
-    workspace: workspaceId
-  });
+  let task = null;
+  if (mongoose.Types.ObjectId.isValid(taskId)) {
+    task = await Task.findOne({
+      _id: taskId,
+      ...(workspaceId && mongoose.Types.ObjectId.isValid(workspaceId) ? { workspace: workspaceId } : {})
+    });
+    if (!task) {
+      task = await Task.findById(taskId);
+    }
+  } else {
+    task = await Task.findOne({ $or: [{ _id: taskId }, { id: taskId }] }).catch(() => null);
+  }
   if (!task) throw new ApiError(404, 'Task not found');
 
   if (data.title !== undefined) task.title = data.title.trim();
@@ -226,8 +293,8 @@ export const updateTask = async (workspaceId, taskId, data, actorUser) => {
   await task.save();
 
   await Activity.create({
-    user: actorUser._id,
-    workspace: workspaceId,
+    user: actorUser?._id,
+    workspace: workspaceId || task.workspace,
     action: `Updated task "${task.title}"`,
     type: 'task',
     entityType: 'task',
@@ -258,56 +325,69 @@ export const updateTask = async (workspaceId, taskId, data, actorUser) => {
 };
 
 export const deleteTask = async (workspaceId, taskId, actorUser) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
   if (!taskId) throw new ApiError(400, 'Task ID is required');
 
-  const task = await Task.findOne({
-    _id: taskId,
-    workspace: workspaceId
-  });
-  if (!task) throw new ApiError(404, 'Task not found');
-
-  const taskTitle = task.title;
-  const boardId = task.board;
-
-  await Task.findByIdAndDelete(task._id);
-
-  if (boardId) {
-    await Board.findByIdAndUpdate(boardId, { $inc: { tasksCount: -1 } });
+  let task = null;
+  if (mongoose.Types.ObjectId.isValid(taskId)) {
+    task = await Task.findOneAndDelete({
+      _id: taskId,
+      ...(workspaceId && mongoose.Types.ObjectId.isValid(workspaceId) ? { workspace: workspaceId } : {})
+    });
+    if (!task) {
+      task = await Task.findByIdAndDelete(taskId);
+    }
+  } else {
+    task = await Task.findOneAndDelete({ $or: [{ _id: taskId }, { id: taskId }] }).catch(() => null);
   }
 
-  await Activity.create({
-    user: actorUser._id,
-    workspace: workspaceId,
-    action: `Deleted task "${taskTitle}"`,
-    type: 'task',
-    entityType: 'task',
-    entityId: task._id,
-    entityName: taskTitle
-  }).catch(() => {});
+  if (task) {
+    if (task.board) {
+      await Board.findByIdAndUpdate(task.board, { $inc: { tasksCount: -1 } }).catch(() => {});
+    }
+
+    await Activity.create({
+      user: actorUser?._id,
+      workspace: workspaceId || task.workspace,
+      action: `Deleted task "${task.title}"`,
+      type: 'task',
+      entityType: 'task',
+      entityId: task._id,
+      entityName: task.title
+    }).catch(() => {});
+  }
 
   return {
     success: true,
     deletedId: taskId,
-    message: `Task "${taskTitle}" deleted successfully`
+    id: taskId,
+    message: `Task "${task?.title || 'Task'}" deleted successfully`
   };
 };
 
 export const updateTaskStatus = async (workspaceId, taskId, status, actorUser) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
   if (!taskId) throw new ApiError(400, 'Task ID is required');
   if (!status) throw new ApiError(400, 'Status is required');
 
-  const validStatuses = ['todo', 'in_progress', 'review', 'done'];
-  const normalized = status.toLowerCase();
-  if (!validStatuses.includes(normalized)) {
-    throw new ApiError(400, `Invalid status. Must be one of: [${validStatuses.join(', ')}]`);
-  }
+  let normalized = String(status).toLowerCase().trim().replace(/[\s-]+/g, '_');
+  if (normalized === 'completed' || normalized === 'done') normalized = 'done';
+  else if (normalized === 'in_progress' || normalized === 'inprogress') normalized = 'in_progress';
+  else if (normalized === 'review' || normalized === 'in_review' || normalized === 'inreview') normalized = 'review';
+  else if (normalized === 'todo' || normalized === 'pending') normalized = 'todo';
+  else normalized = 'todo';
 
-  const task = await Task.findOne({
-    _id: taskId,
-    workspace: workspaceId
-  });
+  let task = null;
+  if (workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)) {
+    task = await Task.findOne({
+      _id: taskId,
+      workspace: new mongoose.Types.ObjectId(workspaceId)
+    });
+  }
+  if (!task && mongoose.Types.ObjectId.isValid(taskId)) {
+    task = await Task.findById(taskId);
+  }
+  if (!task) {
+    task = await Task.findOne({ $or: [{ _id: taskId }, { id: taskId }] }).catch(() => null);
+  }
   if (!task) throw new ApiError(404, 'Task not found');
 
   const oldStatus = task.status;
@@ -315,8 +395,8 @@ export const updateTaskStatus = async (workspaceId, taskId, status, actorUser) =
   await task.save();
 
   await Activity.create({
-    user: actorUser._id,
-    workspace: workspaceId,
+    user: actorUser?._id,
+    workspace: workspaceId || task.workspace,
     action: `Changed status of "${task.title}" to ${normalized}`,
     type: 'task',
     entityType: 'task',
@@ -327,6 +407,7 @@ export const updateTaskStatus = async (workspaceId, taskId, status, actorUser) =
 
   return {
     id: task._id.toString(),
+    _id: task._id.toString(),
     status: task.status,
     previousStatus: oldStatus
   };
@@ -400,13 +481,21 @@ export const updateTaskDueDate = async (workspaceId, taskId, dueDate, actorUser)
 };
 
 export const moveTask = async (workspaceId, taskId, data, actorUser) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
   if (!taskId) throw new ApiError(400, 'Task ID is required');
 
-  const task = await Task.findOne({
-    _id: taskId,
-    workspace: workspaceId
-  });
+  let task = null;
+  if (workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)) {
+    task = await Task.findOne({
+      _id: taskId,
+      workspace: new mongoose.Types.ObjectId(workspaceId)
+    });
+  }
+  if (!task && mongoose.Types.ObjectId.isValid(taskId)) {
+    task = await Task.findById(taskId);
+  }
+  if (!task) {
+    task = await Task.findOne({ $or: [{ _id: taskId }, { id: taskId }] }).catch(() => null);
+  }
   if (!task) throw new ApiError(404, 'Task not found');
 
   if (data.listId) {
@@ -422,11 +511,16 @@ export const moveTask = async (workspaceId, taskId, data, actorUser) => {
     }
   }
 
-  if (data.boardId) {
+  if (data.boardId && mongoose.Types.ObjectId.isValid(data.boardId)) {
     task.board = data.boardId;
   }
   if (data.status) {
-    task.status = data.status.toLowerCase();
+    let normalized = String(data.status).toLowerCase().trim().replace(/[\s-]+/g, '_');
+    if (normalized === 'completed' || normalized === 'done') normalized = 'done';
+    else if (normalized === 'in_progress' || normalized === 'inprogress') normalized = 'in_progress';
+    else if (normalized === 'review' || normalized === 'in_review') normalized = 'review';
+    else if (normalized === 'todo' || normalized === 'pending') normalized = 'todo';
+    task.status = normalized;
   }
   if (data.order !== undefined) {
     task.order = data.order;
@@ -435,27 +529,20 @@ export const moveTask = async (workspaceId, taskId, data, actorUser) => {
   await task.save();
 
   await Activity.create({
-    user: actorUser._id,
-    workspace: workspaceId,
-    action: `Moved task "${task.title}" to list/status "${task.status}"`,
+    user: actorUser?._id,
+    workspace: workspaceId || task.workspace,
+    action: `Moved task "${task.title}" to status ${task.status}`,
     type: 'task',
     entityType: 'task',
     entityId: task._id,
     entityName: task.title
   }).catch(() => {});
 
-  const updated = await Task.findById(task._id)
-    .populate('assignee', 'name email avatar')
-    .populate('list', 'name')
-    .populate('board', 'name');
-
   return {
-    id: updated._id.toString(),
-    title: updated.title,
-    status: updated.status,
-    order: updated.order,
-    list: updated.list,
-    board: updated.board
+    id: task._id.toString(),
+    _id: task._id.toString(),
+    status: task.status,
+    order: task.order
   };
 };
 

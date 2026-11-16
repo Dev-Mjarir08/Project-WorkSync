@@ -6,6 +6,7 @@ import { Project } from '../../../models/Project.js';
 import { User } from '../../../models/User.js';
 import { AuditLog } from '../../../models/AuditLog.js';
 import { ApiError } from '../../../utils/ApiError.js';
+import { createNotification } from '../../../utils/createNotification.js';
 
 const recordAudit = async ({ action, details, actor, target = '', targetId = '' }) => {
   try {
@@ -157,35 +158,50 @@ export const createTask = async (data, actorAdmin) => {
   }
 
   let workspaceId = data.workspaceId || data.workspace;
-  if (!workspaceId) {
+  if (!workspaceId || !mongoose.Types.ObjectId.isValid(workspaceId)) {
     const defaultWs = await Workspace.findOne({ isActive: true });
     if (!defaultWs) throw new ApiError(400, 'No active workspace available to create task');
     workspaceId = defaultWs._id;
   }
 
   let boardId = data.boardId || data.board;
-  if (!boardId) {
+  if (!boardId || !mongoose.Types.ObjectId.isValid(boardId)) {
     let defaultBoard = await Board.findOne({ workspace: workspaceId, isArchived: false });
     if (!defaultBoard) {
       defaultBoard = await Board.create({
         workspace: workspaceId,
         name: 'General Tasks Board',
-        createdBy: actorAdmin._id
+        createdBy: actorAdmin?._id
       });
     }
     boardId = defaultBoard._id;
   }
 
+  let projectId = data.projectId || data.project;
+  if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) {
+    projectId = null;
+  }
+
+  let listId = data.listId || data.list;
+  if (!listId || !mongoose.Types.ObjectId.isValid(listId)) {
+    listId = null;
+  }
+
+  let assigneeId = data.assigneeId || data.assignee || data.userId;
+  if (!assigneeId || !mongoose.Types.ObjectId.isValid(assigneeId) || assigneeId === 'unassigned') {
+    assigneeId = null;
+  }
+
   const task = await Task.create({
     workspace: workspaceId,
     board: boardId,
-    project: data.projectId || data.project || null,
-    list: data.listId || data.list || null,
-    assignee: data.assigneeId || data.assignee || null,
+    project: projectId,
+    list: listId,
+    assignee: assigneeId,
     title: data.title.trim(),
     description: data.description || '',
-    status: data.status || 'todo',
-    priority: data.priority || 'medium',
+    status: data.status ? data.status.toLowerCase() : 'todo',
+    priority: data.priority ? data.priority.toLowerCase() : 'medium',
     dueDate: data.dueDate ? new Date(data.dueDate) : null,
     order: data.order !== undefined ? Number(data.order) : 0
   });
@@ -195,6 +211,18 @@ export const createTask = async (data, actorAdmin) => {
   }
   if (workspaceId) {
     await Workspace.findByIdAndUpdate(workspaceId, { $inc: { tasksCount: 1 } }).catch(() => {});
+  }
+
+  if (assigneeId) {
+    await createNotification({
+      recipient: assigneeId,
+      workspace: workspaceId,
+      sender: actorAdmin?._id,
+      title: 'New Task Assigned',
+      message: `You were assigned to task "${task.title}"`,
+      type: 'task',
+      link: '/tasks'
+    }).catch(() => {});
   }
 
   await recordAudit({
@@ -319,27 +347,35 @@ export const assignTask = async (taskId, assigneeId, actorAdmin) => {
 };
 
 export const deleteTask = async (taskId, actorAdmin) => {
-  const task = await Task.findByIdAndDelete(taskId);
-  if (!task) throw new ApiError(404, 'Task not found');
+  if (!taskId) throw new ApiError(400, 'Task ID is required');
 
-  if (task.board) {
-    await Board.findByIdAndUpdate(task.board, { $inc: { tasksCount: -1 } }).catch(() => {});
-  }
-  if (task.workspace) {
-    await Workspace.findByIdAndUpdate(task.workspace, { $inc: { tasksCount: -1 } }).catch(() => {});
+  let task = null;
+  if (mongoose.Types.ObjectId.isValid(taskId)) {
+    task = await Task.findByIdAndDelete(taskId);
+  } else {
+    task = await Task.findOneAndDelete({ $or: [{ _id: taskId }, { id: taskId }] }).catch(() => null);
   }
 
-  await recordAudit({
-    action: 'Task Deleted',
-    details: `Super Admin permanently deleted task "${task.title}"`,
-    actor: actorAdmin,
-    target: task.title,
-    targetId: taskId.toString()
-  });
+  if (task) {
+    if (task.board) {
+      await Board.findByIdAndUpdate(task.board, { $inc: { tasksCount: -1 } }).catch(() => {});
+    }
+    if (task.workspace) {
+      await Workspace.findByIdAndUpdate(task.workspace, { $inc: { tasksCount: -1 } }).catch(() => {});
+    }
+
+    await recordAudit({
+      action: 'Task Deleted',
+      details: `Super Admin permanently deleted task "${task.title}"`,
+      actor: actorAdmin,
+      target: task.title,
+      targetId: taskId.toString()
+    });
+  }
 
   return {
     id: taskId,
-    title: task.title,
+    title: task?.title || 'Task',
     deleted: true
   };
 };

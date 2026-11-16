@@ -41,7 +41,7 @@ export const createProject = async (data, creator) => {
 };
 
 export const updateProject = async (projectId, data) => {
-  const project = await Project.findByIdAndUpdate(projectId, data, { new: true })
+  const project = await Project.findByIdAndUpdate(projectId, data, { returnDocument: 'after' })
     .populate('lead', 'name email avatar')
     .populate('members', 'name email avatar');
 

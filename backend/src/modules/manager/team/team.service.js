@@ -37,11 +37,11 @@ export const getTeamMembers = async (workspaceId, query = {}) => {
   try {
     const { Workspace } = await import('../../../models/Workspace.js');
     const ws = await Workspace.findById(workspaceId);
-    if (ws && ws.owner) {
-      const creatorUsers = await User.find({
-        $or: [{ createdBy: ws.owner }, { _id: ws.owner }]
+    if (ws) {
+      const relevantUsers = await User.find({
+        role: { $in: ['admin', 'manager', 'employee', 'member'] }
       }).select('_id role');
-      for (const u of creatorUsers) {
+      for (const u of relevantUsers) {
         await WorkspaceMember.findOneAndUpdate(
           { workspace: ws._id, user: u._id },
           {
@@ -50,7 +50,7 @@ export const getTeamMembers = async (workspaceId, query = {}) => {
             role: u.role === 'admin' ? 'admin' : (u.role === 'manager' ? 'manager' : (u.role === 'employee' ? 'employee' : 'member')),
             status: 'active'
           },
-          { upsert: true, new: true }
+          { upsert: true, returnDocument: 'after' }
         ).catch(() => {});
       }
     }
@@ -70,6 +70,11 @@ export const getTeamMembers = async (workspaceId, query = {}) => {
     .sort({ joinedAt: -1 });
 
   const memberUserIds = members.map((m) => m.user?._id).filter(Boolean);
+
+  // Fetch all tasks for this workspace to link to team members
+  const allWorkspaceTasks = await Task.find({
+    workspace: new mongoose.Types.ObjectId(workspaceId)
+  }).populate('project', 'name key').lean();
 
   // Aggregate task counts for all members in one query
   const taskAggregations = await Task.aggregate([
@@ -115,9 +120,18 @@ export const getTeamMembers = async (workspaceId, query = {}) => {
     taskStatsMap.set(stat._id.toString(), stat);
   });
 
+  const colorPalettes = [
+    'from-blue-600 to-indigo-600',
+    'from-cyan-500 to-blue-600',
+    'from-purple-600 to-indigo-600',
+    'from-emerald-500 to-teal-600',
+    'from-amber-500 to-orange-600',
+    'from-rose-500 to-pink-600'
+  ];
+
   const formattedMembers = members
     .filter((m) => m.user)
-    .map((m) => {
+    .map((m, idx) => {
       const stats = taskStatsMap.get(m.user._id.toString()) || {
         totalTasks: 0,
         completedTasks: 0,
@@ -126,7 +140,24 @@ export const getTeamMembers = async (workspaceId, query = {}) => {
         overdueTasks: 0
       };
 
+      const userTasks = allWorkspaceTasks.filter(
+        (t) => t.assignee && t.assignee.toString() === m.user._id.toString()
+      );
       const activeTasks = (stats.totalTasks || 0) - (stats.completedTasks || 0);
+
+      const initials = (m.user.name || 'U')
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((p) => p.charAt(0))
+        .join('')
+        .toUpperCase() || 'U';
+
+      const roleDisplay = m.role
+        ? m.role.charAt(0).toUpperCase() + m.role.slice(1)
+        : m.user.role
+        ? m.user.role.charAt(0).toUpperCase() + m.user.role.slice(1)
+        : 'Member';
 
       return {
         id: m._id.toString(),
@@ -134,16 +165,27 @@ export const getTeamMembers = async (workspaceId, query = {}) => {
         userId: m.user._id.toString(),
         name: m.user.name,
         email: m.user.email,
-        avatar: m.user.avatar || '',
+        role: roleDisplay,
+        department: roleDisplay + ' Department',
         workspaceRole: m.role,
-        status: m.status,
+        status: m.status === 'active' ? 'Active' : 'Inactive',
+        avatar: initials,
+        color: colorPalettes[idx % colorPalettes.length],
         joinedAt: m.joinedAt,
         isActive: m.user.isActive,
         lastLogin: m.user.lastLogin,
-        tasksCount: stats.totalTasks || 0,
+        tasksCount: stats.totalTasks || userTasks.length || 0,
         activeTasksCount: activeTasks,
-        completedTasksCount: stats.completedTasks || 0,
+        completedTasksCount: stats.completedTasks || userTasks.filter((t) => t.status === 'done').length || 0,
         overdueTasksCount: stats.overdueTasks || 0,
+        tasks: userTasks.map((t) => ({
+          id: t._id.toString(),
+          title: t.title,
+          project: t.project?.name || 'WorkSync Platform',
+          status: t.status === 'done' ? 'Completed' : (t.status === 'in_progress' ? 'In Progress' : (t.status === 'review' ? 'In Review' : 'To Do')),
+          priority: t.priority ? (t.priority.charAt(0).toUpperCase() + t.priority.slice(1)) : 'Medium',
+          dueDate: t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date'
+        })),
         workloadLevel: activeTasks > 8 ? 'high' : activeTasks > 4 ? 'medium' : 'low'
       };
     });

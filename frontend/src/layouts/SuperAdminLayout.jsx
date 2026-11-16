@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { SuperAdminProvider } from '../context/SuperAdminContext.jsx';
+import notificationService from '../features/notifications/notificationService.js';
 import {
   LayoutDashboard,
   Users,
@@ -29,8 +30,37 @@ export const SuperAdminLayout = () => {
   const { logout, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchNotifs = async () => {
+      try {
+        const res = await notificationService.getNotifications();
+        if (isMounted && res?.notifications) {
+          setNotifications(res.notifications);
+          setUnreadCount(res.unreadCount ?? res.notifications.filter(n => !n.isRead && !n.read).length);
+        }
+      } catch (e) {}
+    };
+    fetchNotifs();
+    const timer = setInterval(fetchNotifs, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+    };
+  }, []);
+
+  const handleMarkAllRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+    } catch (e) {}
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true, read: true })));
+    setUnreadCount(0);
+  };
 
   const navItems = [
     {
@@ -221,22 +251,62 @@ export const SuperAdminLayout = () => {
               <div className="relative">
                 <button
                   onClick={() => setNotificationsOpen(!notificationsOpen)}
-                  className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors relative"
+                  className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors relative cursor-pointer"
+                  title="Notifications"
                 >
                   <Bell className="h-4 w-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-indigo-500 ring-2 ring-slate-950"></span>
+                  )}
                 </button>
 
                 {notificationsOpen && (
                   <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-4 z-50">
                     <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                      <h4 className="text-sm font-semibold text-white">System Alerts</h4>
-                      <span className="text-xs text-slate-400">
-                        All clear
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="text-sm font-semibold text-white">System Alerts</h4>
+                        {unreadCount > 0 && (
+                          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                            {unreadCount}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={handleMarkAllRead}
+                        className="text-xs text-indigo-400 hover:text-indigo-300 font-medium cursor-pointer"
+                      >
+                        Mark all read
+                      </button>
                     </div>
-                    <div className="py-4 text-center">
-                      <p className="text-xs text-slate-400">No unread alerts or notifications.</p>
-                      <p className="text-[10px] text-slate-500 mt-1">Platform services operating normally.</p>
+                    <div className="mt-3 space-y-2 max-h-64 overflow-y-auto">
+                      {notifications.length > 0 ? (
+                        notifications.slice(0, 6).map((notif) => {
+                          const isUnread = !notif.isRead && !notif.read;
+                          return (
+                            <div
+                              key={notif.id || notif._id}
+                              className={`p-2.5 rounded-xl border text-xs transition ${
+                                isUnread
+                                  ? 'bg-indigo-950/40 border-indigo-500/30 text-slate-200'
+                                  : 'bg-slate-950/40 border-slate-800 text-slate-400'
+                              }`}
+                            >
+                              <p className="font-semibold text-white leading-snug">{notif.title}</p>
+                              {notif.message && (
+                                <p className="mt-0.5 text-slate-300 text-[11px] leading-relaxed">{notif.message}</p>
+                              )}
+                              <p className="mt-1 text-[10px] text-slate-500">
+                                {notif.createdAt ? new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent'}
+                              </p>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="py-4 text-center">
+                          <p className="text-xs text-slate-400">No unread alerts or notifications.</p>
+                          <p className="text-[10px] text-slate-500 mt-1">Platform services operating normally.</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

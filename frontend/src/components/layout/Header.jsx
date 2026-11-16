@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Menu,
@@ -9,6 +9,7 @@ import {
   Plus,
   User,
 } from "lucide-react";
+import notificationService from "../../features/notifications/notificationService.js";
 
 export const Header = ({
   setMobileOpen,
@@ -22,11 +23,27 @@ export const Header = ({
   const location = useLocation();
   const [internalSearch, setInternalSearch] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { id: 1, text: "Ayan updated 'Design login page' to In Progress", time: "15m ago", unread: true },
-    { id: 2, text: "Rouhan completed 'Set up workspace'", time: "2h ago", unread: true },
-    { id: 3, text: "Review task assignments pending approval", time: "5h ago", unread: false },
-  ]);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchNotifs = async () => {
+      try {
+        const res = await notificationService.getNotifications();
+        if (isMounted && res?.notifications) {
+          setNotifications(res.notifications);
+          setUnreadCount(res.unreadCount ?? res.notifications.filter(n => !n.isRead && !n.read).length);
+        }
+      } catch (e) {}
+    };
+    fetchNotifs();
+    const timer = setInterval(fetchNotifs, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+    };
+  }, []);
 
   const activeSearch = searchQuery !== undefined ? searchQuery : internalSearch;
   const handleSearchChange = (e) => {
@@ -63,7 +80,15 @@ export const Header = ({
   };
 
   const currentTitle = pageTitle || getAutoTitle();
-  const hasUnread = notifications.some((n) => n.unread);
+  const hasUnread = unreadCount > 0 || notifications.some((n) => !n.isRead && !n.read);
+
+  const handleMarkAllRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+    } catch (e) {}
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true, read: true })));
+    setUnreadCount(0);
+  };
 
   const profilePath = location.pathname.startsWith('/admin')
     ? '/admin/profile'
@@ -158,31 +183,50 @@ export const Header = ({
             {showNotifications && (
               <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl z-50">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <h4 className="text-xs font-semibold text-slate-900">Notifications</h4>
+                  <div className="flex items-center gap-1.5">
+                    <h4 className="text-xs font-semibold text-slate-900">Notifications</h4>
+                    {unreadCount > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </div>
                   <button
                     type="button"
-                    onClick={() =>
-                      setNotifications(notifications.map((n) => ({ ...n, unread: false })))
-                    }
-                    className="text-[11px] text-blue-600 hover:text-blue-700 font-medium"
+                    onClick={handleMarkAllRead}
+                    className="text-[11px] text-blue-600 hover:text-blue-700 font-medium cursor-pointer"
                   >
                     Mark all as read
                   </button>
                 </div>
-                <div className="mt-3 space-y-2 max-h-60 overflow-y-auto">
-                  {notifications.map((notif) => (
-                    <div
-                      key={notif.id}
-                      className={`rounded-xl p-2.5 text-xs transition border ${
-                        notif.unread
-                          ? "bg-blue-50/60 text-slate-800 border-blue-100"
-                          : "bg-slate-50 text-slate-600 border-slate-100"
-                      }`}
-                    >
-                      <p className="font-medium leading-relaxed">{notif.text}</p>
-                      <p className="mt-1 text-[10px] text-slate-400">{notif.time}</p>
+                <div className="mt-3 space-y-2 max-h-64 overflow-y-auto">
+                  {notifications.length > 0 ? (
+                    notifications.slice(0, 5).map((notif) => {
+                      const isUnread = !notif.isRead && !notif.read;
+                      return (
+                        <div
+                          key={notif.id || notif._id}
+                          className={`rounded-xl p-2.5 text-xs transition border ${
+                            isUnread
+                              ? "bg-blue-50/70 text-slate-800 border-blue-100"
+                              : "bg-slate-50 text-slate-600 border-slate-100"
+                          }`}
+                        >
+                          <p className="font-semibold text-slate-900 leading-snug">{notif.title || notif.text}</p>
+                          {notif.message && (
+                            <p className="mt-0.5 text-slate-600 text-[11px] leading-relaxed">{notif.message}</p>
+                          )}
+                          <p className="mt-1 text-[10px] text-slate-400">
+                            {notif.time || (notif.createdAt ? new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent')}
+                          </p>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="py-6 text-center text-slate-400 text-xs">
+                      No notifications right now
                     </div>
-                  ))}
+                  )}
                 </div>
                 <div className="pt-2 border-t border-slate-100 mt-2 text-center">
                   <Link

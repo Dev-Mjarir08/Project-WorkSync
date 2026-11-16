@@ -4,6 +4,7 @@ import { Board } from '../../../models/Board.js';
 import { List } from '../../../models/List.js';
 import { Activity } from '../../../models/Activity.js';
 import { ApiError } from '../../../utils/ApiError.js';
+import { createNotification } from '../../../utils/createNotification.js';
 
 export const getTasks = async (workspaceId, query = {}) => {
   if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
@@ -51,12 +52,12 @@ export const createTask = async (workspaceId, data, actorUser) => {
     workspace: workspaceId,
     title: data.title.trim(),
     description: data.description || '',
-    board: data.boardId || data.board || null,
-    project: data.projectId || data.project || null,
-    list: data.listId || data.list || null,
-    assignee: data.assigneeId || data.assignee || null,
-    status: data.status || 'todo',
-    priority: data.priority || 'medium',
+    board: data.boardId && mongoose.Types.ObjectId.isValid(data.boardId) ? data.boardId : null,
+    project: data.projectId && mongoose.Types.ObjectId.isValid(data.projectId) ? data.projectId : null,
+    list: data.listId && mongoose.Types.ObjectId.isValid(data.listId) ? data.listId : null,
+    assignee: data.assigneeId && mongoose.Types.ObjectId.isValid(data.assigneeId) ? data.assigneeId : null,
+    status: data.status ? data.status.toLowerCase() : 'todo',
+    priority: data.priority ? data.priority.toLowerCase() : 'medium',
     dueDate: data.dueDate ? new Date(data.dueDate) : null,
     order: data.order !== undefined ? Number(data.order) : 0
   };
@@ -65,6 +66,18 @@ export const createTask = async (workspaceId, data, actorUser) => {
 
   if (task.board) {
     await Board.findByIdAndUpdate(task.board, { $inc: { tasksCount: 1 } }).catch(() => {});
+  }
+
+  if (task.assignee) {
+    await createNotification({
+      recipient: task.assignee,
+      workspace: workspaceId,
+      sender: actorUser?._id,
+      title: 'New Task Assigned',
+      message: `You were assigned to task "${task.title}"`,
+      type: 'task',
+      link: '/tasks'
+    }).catch(() => {});
   }
 
   await Activity.create({
@@ -155,28 +168,36 @@ export const updateTask = async (workspaceId, taskId, data, actorUser) => {
 };
 
 export const deleteTask = async (workspaceId, taskId, actorUser) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
   if (!taskId) throw new ApiError(400, 'Task ID is required');
 
-  const task = await Task.findOneAndDelete({ _id: taskId, workspace: workspaceId });
-  if (!task) throw new ApiError(404, 'Task not found');
-
-  if (task.board) {
-    await Board.findByIdAndUpdate(task.board, { $inc: { tasksCount: -1 } }).catch(() => {});
+  let task = null;
+  if (mongoose.Types.ObjectId.isValid(taskId)) {
+    task = await Task.findOneAndDelete({
+      _id: taskId,
+      ...(workspaceId && mongoose.Types.ObjectId.isValid(workspaceId) ? { workspace: workspaceId } : {})
+    });
+  } else {
+    task = await Task.findOneAndDelete({ $or: [{ _id: taskId }, { id: taskId }] }).catch(() => null);
   }
 
-  await Activity.create({
-    workspace: workspaceId,
-    user: actorUser._id,
-    action: 'TASK_DELETED',
-    entityType: 'task',
-    entityName: task.title,
-    details: `Deleted task: ${task.title}`
-  }).catch(() => {});
+  if (task) {
+    if (task.board) {
+      await Board.findByIdAndUpdate(task.board, { $inc: { tasksCount: -1 } }).catch(() => {});
+    }
+
+    await Activity.create({
+      workspace: workspaceId || task.workspace,
+      user: actorUser?._id,
+      action: 'TASK_DELETED',
+      entityType: 'task',
+      entityName: task.title,
+      details: `Deleted task: ${task.title}`
+    }).catch(() => {});
+  }
 
   return {
     id: taskId,
-    title: task.title,
+    title: task?.title || 'Task',
     deleted: true
   };
 };
