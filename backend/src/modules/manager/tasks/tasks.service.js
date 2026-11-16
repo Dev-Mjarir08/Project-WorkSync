@@ -11,15 +11,22 @@ export const getTasks = async (workspaceId, query = {}, user) => {
   const wsId = workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)
     ? new mongoose.Types.ObjectId(workspaceId)
     : null;
+  const userObjectId = user?._id && mongoose.Types.ObjectId.isValid(user._id)
+    ? new mongoose.Types.ObjectId(user._id)
+    : null;
 
   const filter = {};
+  const orConditions = [];
+
   if (wsId) {
-    filter.$or = [
-      { workspace: wsId },
-      ...(user?._id && mongoose.Types.ObjectId.isValid(user._id)
-        ? [{ assignee: new mongoose.Types.ObjectId(user._id) }]
-        : [])
-    ];
+    orConditions.push({ workspace: wsId });
+  }
+  if (userObjectId) {
+    orConditions.push({ assignee: userObjectId });
+  }
+
+  if (orConditions.length > 0) {
+    filter.$or = orConditions;
   }
 
   if (query.status && query.status !== 'all') {
@@ -42,14 +49,22 @@ export const getTasks = async (workspaceId, query = {}, user) => {
   if (query.assigneeId && mongoose.Types.ObjectId.isValid(query.assigneeId)) {
     filter.assignee = new mongoose.Types.ObjectId(query.assigneeId);
   }
-  if (query.onlyMine === 'true' && user?._id && mongoose.Types.ObjectId.isValid(user._id)) {
-    filter.assignee = new mongoose.Types.ObjectId(user._id);
+  if (query.onlyMine === 'true' && userObjectId) {
+    filter.assignee = userObjectId;
+    delete filter.$or;
   }
-  if (query.search) {
-    filter.$or = [
-      { title: { $regex: query.search, $options: 'i' } },
-      { description: { $regex: query.search, $options: 'i' } }
+  if (query.search && query.search.trim()) {
+    const searchRegex = { $regex: query.search.trim(), $options: 'i' };
+    const searchOr = [
+      { title: searchRegex },
+      { description: searchRegex }
     ];
+    if (filter.$or) {
+      filter.$and = [{ $or: filter.$or }, { $or: searchOr }];
+      delete filter.$or;
+    } else {
+      filter.$or = searchOr;
+    }
   }
 
   let tasks = await Task.find(filter)
@@ -60,13 +75,23 @@ export const getTasks = async (workspaceId, query = {}, user) => {
     .sort({ order: 1, createdAt: -1 });
 
   if (tasks.length === 0 && !query.search && !query.status) {
-    tasks = await Task.find({})
-      .populate('assignee', 'name email avatar')
-      .populate('project', 'name key status')
-      .populate('board', 'name')
-      .populate('list', 'name position')
-      .sort({ order: 1, createdAt: -1 })
-      .limit(60);
+    if (userObjectId) {
+      tasks = await Task.find({ assignee: userObjectId })
+        .populate('assignee', 'name email avatar')
+        .populate('project', 'name key status')
+        .populate('board', 'name')
+        .populate('list', 'name position')
+        .sort({ order: 1, createdAt: -1 });
+    }
+    if (tasks.length === 0) {
+      tasks = await Task.find({})
+        .populate('assignee', 'name email avatar')
+        .populate('project', 'name key status')
+        .populate('board', 'name')
+        .populate('list', 'name position')
+        .sort({ order: 1, createdAt: -1 })
+        .limit(60);
+    }
   }
 
   return tasks.map(t => ({

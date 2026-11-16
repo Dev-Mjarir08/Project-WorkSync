@@ -1,52 +1,91 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, AlertCircle } from "lucide-react";
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
-import { initialProjects } from "./ProjectsPage.jsx";
-
-const teamMembers = [
-  "Devanshi Sharma (Engineering Manager)",
-  "Ayan Mukherjee (Fullstack Admin)",
-  "Rouhan Siddiqui (Frontend Dev)",
-  "Priya Patel (UI Designer)",
-  "Vikram Malhotra (Mobile Engineer)",
-  "Neha Verma (Data Analyst)",
-];
+import { managerService } from "../managerService.js";
+import { getUserItem, setUserItem } from "../../../utils/userStorage.js";
 
 const CreateTaskPage = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [projectsList, setProjectsList] = useState(() => getUserItem("manager_projects", []));
+  const [teamMembersList, setTeamMembersList] = useState(() => getUserItem("manager_team", []));
 
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    projectId: "proj-1",
-    assignee: "Devanshi Sharma (Engineering Manager)",
-    priority: "High",
+    projectId: "",
+    assignee: "",
+    priority: "Medium",
     status: "To Do",
-    deadline: "2026-11-20",
+    deadline: "",
   });
 
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      managerService.getProjects().catch(() => []),
+      managerService.getTeamMembers().catch(() => [])
+    ]).then(([projs, members]) => {
+      if (!active) return;
+      if (Array.isArray(projs) && projs.length > 0) {
+        setProjectsList(projs);
+        setUserItem("manager_projects", projs);
+        setFormData((prev) => ({
+          ...prev,
+          projectId: prev.projectId || projs[0]?.id || projs[0]?._id || ""
+        }));
+      }
+      if (Array.isArray(members) && members.length > 0) {
+        setTeamMembersList(members);
+        setUserItem("manager_team", members);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const validate = () => {
     const errs = {};
     if (!formData.title.trim()) {
       errs.title = "Task title is required";
     }
-    if (!formData.deadline) {
-      errs.deadline = "Deadline is required";
-    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-    // UI-only submission according to strict scope specifications
-    navigate("/manager/tasks");
+    setSubmitting(true);
+
+    try {
+      const selectedProj = projectsList.find(p => (p.id === formData.projectId || p._id === formData.projectId));
+      const projName = selectedProj?.name || "General Initiative";
+
+      await managerService.createTask({
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        projectId: formData.projectId || undefined,
+        project: projName,
+        assignee: formData.assignee || "Unassigned",
+        priority: formData.priority.toLowerCase(),
+        status: (formData.status || "To Do").toLowerCase().replace(/[\s-]+/g, "_"),
+        dueDate: formData.deadline || null
+      });
+
+      navigate("/manager/tasks");
+    } catch (err) {
+      console.error("Create task error:", err);
+      navigate("/manager/tasks");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const breadcrumbs = [
@@ -139,7 +178,7 @@ const CreateTaskPage = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700">
-                    Project
+                    Project Initiative
                   </label>
                   <div className="mt-1.5">
                     <select
@@ -147,8 +186,9 @@ const CreateTaskPage = () => {
                       onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
                     >
-                      {initialProjects.map((p) => (
-                        <option key={p.id} value={p.id}>
+                      <option value="">Select Project</option>
+                      {projectsList.map((p) => (
+                        <option key={p.id || p._id} value={p.id || p._id}>
                           {p.name}
                         </option>
                       ))}
@@ -166,9 +206,10 @@ const CreateTaskPage = () => {
                       onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
                     >
-                      {teamMembers.map((m) => (
-                        <option key={m} value={m}>
-                          {m}
+                      <option value="">Unassigned</option>
+                      {teamMembersList.map((m) => (
+                        <option key={m.id || m._id || m.name} value={m.name}>
+                          {m.name} {m.role ? `(${m.role})` : ""}
                         </option>
                       ))}
                     </select>
@@ -217,7 +258,7 @@ const CreateTaskPage = () => {
               {/* Deadline */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700">
-                  Deadline <span className="text-rose-500">*</span>
+                  Deadline
                 </label>
                 <div className="mt-1.5">
                   <input
@@ -253,10 +294,11 @@ const CreateTaskPage = () => {
 
                 <button
                   type="submit"
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition active:scale-[0.98] cursor-pointer"
+                  disabled={submitting}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition active:scale-[0.98] cursor-pointer disabled:opacity-60"
                 >
                   <Plus size={15} />
-                  <span>Create Task</span>
+                  <span>{submitting ? "Creating..." : "Create Task"}</span>
                 </button>
               </div>
             </form>

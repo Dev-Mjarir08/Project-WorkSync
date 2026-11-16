@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { managerService } from "../managerService.js";
 import {
   ArrowLeft,
   Calendar,
@@ -149,6 +150,43 @@ const ProjectDetailsPage = () => {
   const [tasks, setTasks] = useState(initialProjectTasks);
   const [taskStatusFilter, setTaskStatusFilter] = useState("All");
   const [taskSearchQuery, setTaskSearchQuery] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      managerService.getProjectById(projectId).catch(() => null),
+      managerService.getTasks({ projectId }).catch(() => [])
+    ]).then(([liveProj, liveTasks]) => {
+      if (!active) return;
+      if (liveProj) {
+        setProject(prev => ({
+          ...prev,
+          name: liveProj.name || prev.name,
+          description: liveProj.description || prev.description,
+          status: liveProj.status || prev.status,
+          priority: liveProj.priority || prev.priority,
+          progress: liveProj.progress ?? prev.progress
+        }));
+      }
+      if (Array.isArray(liveTasks) && liveTasks.length > 0) {
+        setTasks(liveTasks.map(t => {
+          const assigneeName = typeof t.assignee === 'string' ? t.assignee : (t.assignee?.name || t.assigneeName || 'Unassigned');
+          return {
+            id: t.id || t._id,
+            title: t.title,
+            status: t.status ? t.status[0].toUpperCase() + t.status.slice(1).replace('_', ' ') : 'To Do',
+            priority: t.priority ? t.priority[0].toUpperCase() + t.priority.slice(1) : 'Medium',
+            assignee: assigneeName,
+            assigneeAvatar: assigneeName.slice(0, 2).toUpperCase(),
+            assigneeRole: 'Contributor',
+            assigneeColor: 'from-blue-600 to-indigo-600',
+            dueDate: t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date'
+          };
+        }));
+      }
+    });
+    return () => { active = false; };
+  }, [projectId]);
 
   // Modals state
   const [showEditModal, setShowEditModal] = useState(false);

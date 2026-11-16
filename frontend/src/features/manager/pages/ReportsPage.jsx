@@ -1095,15 +1095,14 @@ const ReportsPage = () => {
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-slate-600 leading-relaxed max-w-3xl">
-                    Sprint 4 is currently <strong>81.0% complete</strong> with 34 of 42 story points delivered. Team velocity increased by <strong>+18%</strong> over Sprint 3.{" "}
-                    <span className="text-amber-800 font-medium">Risk Alert:</span> Mobile Companion App is pacing 2 days behind schedule due to SQLite sync refactor. Recommended action: Pair Rouhan Siddiqui with Vikram Malhotra on Thursday to ensure deadline clearance.
+                    Active sprint is currently <strong>{activeVelocity[activeVelocity.length - 1]?.rate || 80}% complete</strong> with {activeVelocity[activeVelocity.length - 1]?.completed || 0} of {activeVelocity[activeVelocity.length - 1]?.planned || 0} deliverables completed. Team capacity and throughput are pacing on schedule.
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                 <button
                   type="button"
-                  onClick={() => triggerToast("AI recommendation noted for sprint backlog review")}
+                  onClick={() => triggerToast("Sprint backlog and velocity metrics acknowledged")}
                   className="rounded-xl border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 transition shadow-xs"
                 >
                   Accept Suggestion
@@ -1122,7 +1121,7 @@ const ReportsPage = () => {
                     Sprint Completion
                   </p>
                   <p className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                    81.0%
+                    {activeVelocity[activeVelocity.length - 1]?.rate || 80}%
                   </p>
                 </div>
                 <div className="rounded-xl p-2.5 bg-blue-50 text-blue-600 border border-blue-100">
@@ -1131,13 +1130,13 @@ const ReportsPage = () => {
               </div>
               <div className="mt-3.5 space-y-1.5">
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-500">34 of 42 Story Pts</span>
+                  <span className="text-slate-500">{activeVelocity[activeVelocity.length - 1]?.completed || 0} of {activeVelocity[activeVelocity.length - 1]?.planned || 0} Deliverables</span>
                   <span className="font-bold text-emerald-600 flex items-center gap-0.5">
-                    <ArrowUpRight size={12} /> +18.4%
+                    <ArrowUpRight size={12} /> Live
                   </span>
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full rounded-full bg-blue-600" style={{ width: "81%" }}></div>
+                  <div className="h-full rounded-full bg-blue-600" style={{ width: `${activeVelocity[activeVelocity.length - 1]?.rate || 80}%` }}></div>
                 </div>
               </div>
             </div>

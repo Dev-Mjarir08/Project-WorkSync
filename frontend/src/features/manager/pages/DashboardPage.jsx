@@ -71,7 +71,7 @@ const normalizePriority = (value) => {
 };
 
 const formatDate = (value) => {
-  if (!value) return "Nov 15, 2026";
+  if (!value) return "No due date";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -85,6 +85,53 @@ const getInitials = (name) =>
     .map((p) => p.charAt(0))
     .join("")
     .toUpperCase() || "U";
+
+const getAssigneeGradient = (name) => {
+  const gradients = [
+    "from-blue-600 to-indigo-600",
+    "from-cyan-500 to-blue-600",
+    "from-purple-600 to-indigo-600",
+    "from-emerald-600 to-teal-600",
+    "from-amber-500 to-orange-600",
+    "from-rose-500 to-pink-600",
+    "from-indigo-600 to-purple-600"
+  ];
+  const str = String(name || "U");
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return gradients[Math.abs(hash) % gradients.length];
+};
+
+const getAssigneeName = (assignee) => {
+  if (!assignee) return "Unassigned";
+  if (typeof assignee === "string") return assignee;
+  return assignee.name || assignee.email || "Unassigned";
+};
+
+const getProjectName = (project) => {
+  if (!project) return "General Initiative";
+  if (typeof project === "string") return project;
+  return project.name || "General Initiative";
+};
+
+const normalizeTask = (t) => {
+  const aName = getAssigneeName(t.assignee);
+  const pName = getProjectName(t.project);
+  return {
+    ...t,
+    id: t.id || t._id,
+    _id: t._id || t.id,
+    title: t.title || "Untitled Deliverable",
+    project: pName,
+    assignee: aName,
+    assigneeColor: t.assigneeColor || getAssigneeGradient(aName),
+    status: normalizeStatus(t.status),
+    priority: normalizePriority(t.priority),
+    dueDate: t.dueDate || null,
+  };
+};
 
 export const DashboardPage = () => {
   const navigate = useNavigate();
@@ -101,17 +148,20 @@ export const DashboardPage = () => {
 
   // Scoped Data Initialization - starts empty for new users
   const [projects, setProjects] = useState(() => getUserItem("manager_projects", []));
-  const [tasks, setTasks] = useState(() => getUserItem("manager_tasks", []));
+  const [tasks, setTasks] = useState(() => {
+    const raw = getUserItem("manager_tasks", []);
+    return Array.isArray(raw) ? raw.map(normalizeTask) : [];
+  });
   const [teamMembersData, setTeamMembersData] = useState(() => getUserItem("manager_team", []));
   const [recentActivities, setRecentActivities] = useState(() => getUserItem("manager_activities", []));
 
   // Modal form state
   const [newTask, setNewTask] = useState({
     title: "",
-    project: "WorkSync Web Platform",
-    assignee: "Rouhan Siddiqui",
+    project: "",
+    assignee: "",
     priority: "High",
-    dueDate: "Nov 25, 2026",
+    dueDate: "",
   });
 
   const loadLiveDashboard = useCallback(async () => {
@@ -127,12 +177,22 @@ export const DashboardPage = () => {
         setUserItem("manager_projects", dashData.myProjects);
       }
 
-      if (Array.isArray(liveTasks)) {
-        setTasks(liveTasks);
-        setUserItem("manager_tasks", liveTasks);
+      if (Array.isArray(liveTasks) && liveTasks.length > 0) {
+        const norm = liveTasks.map(normalizeTask);
+        setTasks(norm);
+        setUserItem("manager_tasks", norm);
       } else if (dashData?.recentTasks && Array.isArray(dashData.recentTasks)) {
-        setTasks(dashData.recentTasks);
-        setUserItem("manager_tasks", dashData.recentTasks);
+        const norm = dashData.recentTasks.map(normalizeTask);
+        setTasks(norm);
+        setUserItem("manager_tasks", norm);
+      } else if (Array.isArray(liveTasks)) {
+        setTasks([]);
+        setUserItem("manager_tasks", []);
+      }
+
+      if (dashData?.recentActivities && Array.isArray(dashData.recentActivities)) {
+        setRecentActivities(dashData.recentActivities);
+        setUserItem("manager_activities", dashData.recentActivities);
       }
 
       if (Array.isArray(tm) && tm.length > 0) {
@@ -244,52 +304,43 @@ export const DashboardPage = () => {
     e.preventDefault();
     if (!newTask.title.trim()) return;
 
-    const assigneeColors = {
-      "Rouhan Siddiqui": "from-blue-600 to-indigo-600",
-      "Ayan Mukherjee": "from-cyan-500 to-blue-600",
-      "Priya Patel": "from-purple-600 to-indigo-600",
-      "Sarah Connor": "from-emerald-500 to-teal-600",
-      "Jarir Multani": "from-indigo-600 to-purple-600",
-    };
+    const assigneeName = newTask.assignee || "Unassigned";
+    const projectName = newTask.project || (projects[0]?.name || "General Initiative");
 
     try {
       const serverTask = await managerService.createTask({
         title: newTask.title.trim(),
-        project: newTask.project,
-        assignee: newTask.assignee,
+        project: projectName,
+        assignee: assigneeName,
         priority: (newTask.priority || 'medium').toLowerCase(),
         status: 'in_progress',
         dueDate: newTask.dueDate || null
       });
 
-      const created = {
+      const created = normalizeTask({
         id: serverTask.id || serverTask._id || ("task-" + Date.now()),
         _id: serverTask.id || serverTask._id,
         title: serverTask.title || newTask.title.trim(),
-        project: serverTask.project?.name || newTask.project,
-        assignee: serverTask.assignee?.name || newTask.assignee,
-        assigneeRole: "Contributor",
-        assigneeColor: assigneeColors[newTask.assignee] || "from-blue-600 to-indigo-600",
-        priority: serverTask.priority || newTask.priority,
-        status: serverTask.status || "In Progress",
-        dueDate: serverTask.dueDate || newTask.dueDate || "Nov 25, 2026",
-      };
+        project: projectName,
+        assignee: assigneeName,
+        priority: newTask.priority,
+        status: "In Progress",
+        dueDate: newTask.dueDate || null,
+      });
 
       const updatedTasks = [created, ...tasks];
       setTasks(updatedTasks);
       setUserItem("manager_tasks", updatedTasks);
     } catch (err) {
-      const created = {
+      const created = normalizeTask({
         id: "task-" + Date.now(),
         title: newTask.title.trim(),
-        project: newTask.project,
-        assignee: newTask.assignee,
-        assigneeRole: "Contributor",
-        assigneeColor: assigneeColors[newTask.assignee] || "from-blue-600 to-indigo-600",
+        project: projectName,
+        assignee: assigneeName,
         priority: newTask.priority,
         status: "In Progress",
-        dueDate: newTask.dueDate || "Nov 25, 2026",
-      };
+        dueDate: newTask.dueDate || null,
+      });
 
       const updatedTasks = [created, ...tasks];
       setTasks(updatedTasks);
@@ -314,10 +365,10 @@ export const DashboardPage = () => {
 
     setNewTask({
       title: "",
-      project: "WorkSync Web Platform",
-      assignee: "Rouhan Siddiqui",
-      priority: "High",
-      dueDate: "Nov 25, 2026",
+      project: projects[0]?.name || "",
+      assignee: teamMembersData[0]?.name || "",
+      priority: "Medium",
+      dueDate: "",
     });
     setShowCreateTaskModal(false);
   };
@@ -541,26 +592,30 @@ export const DashboardPage = () => {
                       <TrendingUp size={18} />
                     </div>
                     <div>
-                      <h3 className="text-xs font-bold text-slate-900">Sprint 4 Velocity</h3>
-                      <p className="text-[10px] text-slate-500">Oct 14 - Oct 28 cycle</p>
+                      <h3 className="text-xs font-bold text-slate-900">Delivery Velocity</h3>
+                      <p className="text-[10px] text-slate-500">Live Workspace Throughput</p>
                     </div>
                   </div>
                   <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
-                    +18% Velocity
+                    {stats.completionRate}% Delivered
                   </span>
                 </div>
 
                 {/* Velocity Stat Tiles */}
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5 text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Points Done</p>
-                    <p className="mt-1 text-2xl font-extrabold text-slate-900">34</p>
-                    <p className="mt-0.5 text-[10px] text-emerald-600 font-semibold">of 42 points</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Tasks Done</p>
+                    <p className="mt-1 text-2xl font-extrabold text-slate-900">{stats.completedTasks}</p>
+                    <p className="mt-0.5 text-[10px] text-emerald-600 font-semibold">of {stats.totalTasks} deliverables</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5 text-center">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Schedule</p>
-                    <p className="mt-1 text-2xl font-extrabold text-slate-900">6 Days</p>
-                    <p className="mt-0.5 text-[10px] text-blue-600 font-semibold">On Target</p>
+                    <p className="mt-1 text-2xl font-extrabold text-slate-900">
+                      {stats.overdueTasks > 0 ? stats.overdueTasks : (stats.inProgressTasks > 0 ? stats.inProgressTasks : "0")}
+                    </p>
+                    <p className={`mt-0.5 text-[10px] font-semibold ${stats.overdueTasks > 0 ? "text-rose-600" : "text-blue-600"}`}>
+                      {stats.overdueTasks > 0 ? "Overdue Tasks" : (stats.inProgressTasks > 0 ? "In Progress" : "On Target")}
+                    </p>
                   </div>
                 </div>
 
@@ -728,15 +783,15 @@ export const DashboardPage = () => {
 
                                 <p className="mt-1 text-[10px] text-slate-400 truncate flex items-center gap-1">
                                   <FolderKanban size={11} className="text-slate-400 shrink-0" />
-                                  {task.project}
+                                  {getProjectName(task.project)}
                                 </p>
 
                                 <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-100 text-[10px]">
                                   <div className="flex items-center gap-1.5 min-w-0">
-                                    <div className={`flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-tr ${task.assigneeColor || 'from-blue-600 to-indigo-600'} text-[8px] font-bold text-white shrink-0`}>
-                                      {getInitials(task.assignee)}
+                                    <div className={`flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-tr ${task.assigneeColor || getAssigneeGradient(getAssigneeName(task.assignee))} text-[8px] font-bold text-white shrink-0`}>
+                                      {getInitials(getAssigneeName(task.assignee))}
                                     </div>
-                                    <span className="truncate text-slate-600 font-medium">{task.assignee}</span>
+                                    <span className="truncate text-slate-600 font-medium">{getAssigneeName(task.assignee)}</span>
                                   </div>
 
                                   <div className="flex items-center gap-1">
@@ -811,19 +866,19 @@ export const DashboardPage = () => {
                         {/* Task Title & Project */}
                         <td className="px-5 py-3.5">
                           <p className="font-semibold text-slate-900 leading-snug">{task.title}</p>
-                          <p className="mt-0.5 text-[11px] text-slate-500">{task.project}</p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">{getProjectName(task.project)}</p>
                         </td>
 
                         {/* Assignee */}
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-2">
                             <div
-                              className={`flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr ${task.assigneeColor} text-[9px] font-bold text-white shadow-xs shrink-0`}
+                              className={`flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr ${task.assigneeColor || getAssigneeGradient(getAssigneeName(task.assignee))} text-[9px] font-bold text-white shadow-xs shrink-0`}
                             >
-                              {getInitials(task.assignee)}
+                              {getInitials(getAssigneeName(task.assignee))}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-medium text-slate-800 text-xs truncate">{task.assignee}</p>
+                              <p className="font-medium text-slate-800 text-xs truncate">{getAssigneeName(task.assignee)}</p>
                               <p className="text-[10px] text-slate-400">{task.assigneeRole || "Contributor"}</p>
                             </div>
                           </div>
@@ -930,15 +985,15 @@ export const DashboardPage = () => {
         </section>
 
           {/* Team Overview Section */}
-          <section className="rounded-3xl border border-slate-800 bg-[#0d1322] p-5 sm:p-6 shadow-2xl backdrop-blur-xl text-white">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-800">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs text-slate-900">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className="rounded-xl bg-indigo-500/10 p-2 text-indigo-400 border border-indigo-500/20">
+                <div className="rounded-xl bg-blue-50 p-2 text-blue-600 border border-blue-100">
                   <Users size={18} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-white text-sm">Team Workload & Delivery Performance</h3>
-                  <p className="text-xs text-slate-400">
+                  <h3 className="font-bold text-slate-900 text-sm">Team Workload & Delivery Performance</h3>
+                  <p className="text-xs text-slate-500">
                     Individual throughput, completion rate, and active assignments across this workspace.
                   </p>
                 </div>
@@ -946,7 +1001,7 @@ export const DashboardPage = () => {
 
               <Link
                 to="/manager/team"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
               >
                 <span>Manage Team</span>
                 <ChevronRight size={14} />
@@ -958,22 +1013,22 @@ export const DashboardPage = () => {
               {teamMembersData.map((member) => (
                 <div
                   key={member.id}
-                  className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:bg-slate-900 hover:border-slate-700 flex flex-col justify-between"
+                  className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4 transition-all hover:bg-slate-50 hover:border-blue-200 flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <div
-                          className={`flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr ${member.color || "from-blue-600 to-indigo-600"} font-bold text-white text-xs shadow-xs`}
+                          className={`flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr ${member.color || getAssigneeGradient(member.name)} font-bold text-white text-xs shadow-xs`}
                         >
                           {member.avatar || (member.name ? member.name.slice(0, 2).toUpperCase() : "U")}
                         </div>
                         <div>
-                          <p className="font-bold text-white text-xs leading-tight">{member.name}</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">{member.role || member.workspaceRole || "Member"}</p>
+                          <p className="font-bold text-slate-900 text-xs leading-tight">{member.name}</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">{member.role || member.workspaceRole || "Member"}</p>
                         </div>
                       </div>
-                      <span className="rounded-full bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-400">
+                      <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-700">
                         {member.completionRate || 100}%
                       </span>
                     </div>
@@ -988,22 +1043,22 @@ export const DashboardPage = () => {
                   </div>
 
                   <dl className="mt-4 grid grid-cols-2 gap-x-2 gap-y-2 border-t border-slate-200/80 pt-3 text-[10px]">
-                    <div className="flex items-center justify-between bg-white px-2 py-1 rounded-md border border-slate-100">
+                    <div className="flex items-center justify-between bg-white px-2 py-1 rounded-md border border-slate-200/60">
                       <dt className="text-slate-500">Assigned</dt>
-                      <dd className="font-bold text-slate-800">{member.totalAssigned}</dd>
+                      <dd className="font-bold text-slate-800">{member.totalAssigned || 0}</dd>
                     </div>
-                    <div className="flex items-center justify-between bg-white px-2 py-1 rounded-md border border-slate-100">
+                    <div className="flex items-center justify-between bg-white px-2 py-1 rounded-md border border-slate-200/60">
                       <dt className="text-slate-500">Done</dt>
-                      <dd className="font-bold text-emerald-700">{member.completed}</dd>
+                      <dd className="font-bold text-emerald-700">{member.completed || 0}</dd>
                     </div>
-                    <div className="flex items-center justify-between bg-white px-2 py-1 rounded-md border border-slate-100">
+                    <div className="flex items-center justify-between bg-white px-2 py-1 rounded-md border border-slate-200/60">
                       <dt className="text-slate-500">In Progress</dt>
-                      <dd className="font-bold text-blue-700">{member.inProgress}</dd>
+                      <dd className="font-bold text-blue-700">{member.inProgress || 0}</dd>
                     </div>
-                    <div className="flex items-center justify-between bg-white px-2 py-1 rounded-md border border-slate-100">
+                    <div className="flex items-center justify-between bg-white px-2 py-1 rounded-md border border-slate-200/60">
                       <dt className="text-slate-500">Overdue</dt>
                       <dd className={`font-bold ${member.overdue > 0 ? "text-rose-600" : "text-slate-800"}`}>
-                        {member.overdue}
+                        {member.overdue || 0}
                       </dd>
                     </div>
                   </dl>
@@ -1056,8 +1111,9 @@ export const DashboardPage = () => {
                   onChange={(e) => setNewTask({ ...newTask, project: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none shadow-xs"
                 >
+                  <option value="">Select Project</option>
                   {projects.map((p) => (
-                    <option key={p.id} value={p.name}>
+                    <option key={p.id || p._id} value={p.name}>
                       {p.name}
                     </option>
                   ))}
@@ -1072,8 +1128,9 @@ export const DashboardPage = () => {
                     onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none shadow-xs"
                   >
+                    <option value="">Unassigned</option>
                     {teamMembersData.map((m) => (
-                      <option key={m.id} value={m.name}>
+                      <option key={m.id || m._id} value={m.name}>
                         {m.name}
                       </option>
                     ))}
@@ -1097,11 +1154,10 @@ export const DashboardPage = () => {
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">Due Date</label>
                 <input
-                  type="text"
-                  placeholder="e.g. Nov 25, 2026"
+                  type="date"
                   value={newTask.dueDate}
                   onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none shadow-xs"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none shadow-xs"
                 />
               </div>
 

@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Search,
   Menu,
@@ -12,6 +12,7 @@ import {
 import Sidebar from "../../../components/layout/Sidebar.jsx";
 import Header from "../../../components/layout/Header.jsx";
 import { getUserItem, setUserItem } from "../../../utils/userStorage.js";
+import { managerService } from "../managerService.js";
 
 const getInitialAssignments = () => getUserItem("manager_assignments", []);
 const getEmployees = () => getUserItem("manager_team", []).map((m) => m.name);
@@ -31,13 +32,56 @@ const priorityStyles = {
 
 export default function AssignmentsPage() {
   const [assignments, setAssignments] = useState(getInitialAssignments);
-  const employees = useMemo(() => getEmployees(), []);
+  const [employees, setEmployees] = useState(() => getEmployees());
+  const [teamList, setTeamList] = useState([]);
   const [search, setSearch] = useState("");
   const [employeeFilter, setEmployeeFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      managerService.getTasks().catch(() => []),
+      managerService.getTeamMembers().catch(() => [])
+    ]).then(([taskList, members]) => {
+      if (!active) return;
+      if (Array.isArray(taskList) && taskList.length > 0) {
+        const mapped = taskList.map(t => {
+          const assigneeName = typeof t.assignee === 'string' ? t.assignee : (t.assignee?.name || t.assigneeName || 'Unassigned');
+          const projectName = typeof t.project === 'string' ? t.project : (t.project?.name || t.projectName || 'General Initiative');
+          const statusMap = {
+            todo: 'To Do',
+            pending: 'To Do',
+            in_progress: 'In Progress',
+            review: 'In Review',
+            done: 'Completed',
+            completed: 'Completed'
+          };
+          return {
+            id: t.id || t._id,
+            title: t.title,
+            project: projectName,
+            assignee: assigneeName,
+            status: statusMap[t.status?.toLowerCase()] || t.status || 'To Do',
+            priority: (t.priority ? t.priority[0].toUpperCase() + t.priority.slice(1) : 'Medium'),
+            dueDate: t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date'
+          };
+        });
+        setAssignments(mapped);
+        setUserItem('manager_assignments', mapped);
+      }
+      if (Array.isArray(members) && members.length > 0) {
+        setTeamList(members);
+        const names = members.map(m => m.name);
+        setEmployees(names);
+        setUserItem('manager_team', members);
+      }
+    });
+    return () => { active = false; };
+  }, []);
 
   const counts = useMemo(
     () => ({

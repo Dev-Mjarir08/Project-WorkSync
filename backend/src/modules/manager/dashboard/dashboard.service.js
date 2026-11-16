@@ -3,23 +3,38 @@ import { Project } from '../../../models/Project.js';
 import { Board } from '../../../models/Board.js';
 import { Task } from '../../../models/Task.js';
 import { WorkspaceMember } from '../../../models/WorkspaceMember.js';
+import { Workspace } from '../../../models/Workspace.js';
 import { Activity } from '../../../models/Activity.js';
 import { ApiError } from '../../../utils/ApiError.js';
 
-export const getManagerDashboardStats = async (workspaceId, user) => {
-  let wsId = workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)
-    ? new mongoose.Types.ObjectId(workspaceId)
-    : null;
-  if (!wsId) {
-    const { Workspace } = await import('../../../models/Workspace.js');
-    const defaultWs = await Workspace.findOne({ isActive: true });
-    if (defaultWs) wsId = defaultWs._id;
+const resolveWorkspaceId = async (workspaceId, user) => {
+  if (workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)) {
+    return new mongoose.Types.ObjectId(workspaceId);
   }
+  if (user?._id) {
+    const member = await WorkspaceMember.findOne({ user: user._id, status: 'active' }).select('workspace');
+    if (member?.workspace) return member.workspace;
+
+    const ownerWs = await Workspace.findOne({
+      $or: [{ owner: user._id }, { createdBy: user._id }],
+      isActive: true
+    }).select('_id');
+    if (ownerWs?._id) return ownerWs._id;
+  }
+  const defaultWs = await Workspace.findOne({ isActive: true }).select('_id');
+  return defaultWs?._id || null;
+};
+
+export const getManagerDashboardStats = async (workspaceId, user) => {
+  const wsId = await resolveWorkspaceId(workspaceId, user);
   const userId = user?._id && mongoose.Types.ObjectId.isValid(user._id)
     ? new mongoose.Types.ObjectId(user._id)
     : null;
 
   const now = new Date();
+  const taskQuery = wsId
+    ? (userId ? { $or: [{ workspace: wsId }, { assignee: userId }] } : { workspace: wsId })
+    : (userId ? { assignee: userId } : {});
 
   const [
     totalProjects,
@@ -35,22 +50,17 @@ export const getManagerDashboardStats = async (workspaceId, user) => {
     wsId && userId
       ? Project.countDocuments({ workspace: wsId, $or: [{ lead: userId }, { members: userId }] })
       : Project.countDocuments(),
-    wsId ? Task.countDocuments({ workspace: wsId }) : Task.countDocuments(),
+    Task.countDocuments(taskQuery),
     userId
-      ? Task.countDocuments({ ...(wsId ? { workspace: wsId } : {}), assignee: userId })
-      : Task.countDocuments(),
-    wsId ? Task.countDocuments({ workspace: wsId, status: 'done' }) : Task.countDocuments({ status: 'done' }),
-    wsId ? Task.countDocuments({ workspace: wsId, status: 'in_progress' }) : Task.countDocuments({ status: 'in_progress' }),
-    wsId
-      ? Task.countDocuments({
-          workspace: wsId,
-          dueDate: { $lt: now },
-          status: { $ne: 'done' }
-        })
-      : Task.countDocuments({
-          dueDate: { $lt: now },
-          status: { $ne: 'done' }
-        }),
+      ? Task.countDocuments({ assignee: userId })
+      : Task.countDocuments(taskQuery),
+    Task.countDocuments({ ...taskQuery, status: 'done' }),
+    Task.countDocuments({ ...taskQuery, status: 'in_progress' }),
+    Task.countDocuments({
+      ...taskQuery,
+      dueDate: { $lt: now },
+      status: { $ne: 'done' }
+    }),
     wsId ? WorkspaceMember.countDocuments({ workspace: wsId, status: 'active' }) : WorkspaceMember.countDocuments({ status: 'active' })
   ]);
 
@@ -68,9 +78,7 @@ export const getManagerDashboardStats = async (workspaceId, user) => {
 };
 
 export const getManagerAssignedProjects = async (workspaceId, user) => {
-  const wsId = workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)
-    ? new mongoose.Types.ObjectId(workspaceId)
-    : null;
+  const wsId = await resolveWorkspaceId(workspaceId, user);
   const userId = user?._id && mongoose.Types.ObjectId.isValid(user._id)
     ? new mongoose.Types.ObjectId(user._id)
     : null;
@@ -163,16 +171,14 @@ export const getManagerAssignedProjects = async (workspaceId, user) => {
 };
 
 export const getManagerTaskOverview = async (workspaceId, user) => {
-  let wsId = workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)
-    ? new mongoose.Types.ObjectId(workspaceId)
+  const wsId = await resolveWorkspaceId(workspaceId, user);
+  const userId = user?._id && mongoose.Types.ObjectId.isValid(user._id)
+    ? new mongoose.Types.ObjectId(user._id)
     : null;
-  if (!wsId) {
-    const { Workspace } = await import('../../../models/Workspace.js');
-    const defaultWs = await Workspace.findOne({ isActive: true });
-    if (defaultWs) wsId = defaultWs._id;
-  }
 
-  const matchFilter = wsId ? { workspace: wsId } : {};
+  const matchFilter = wsId
+    ? (userId ? { $or: [{ workspace: wsId }, { assignee: userId }] } : { workspace: wsId })
+    : (userId ? { assignee: userId } : {});
 
   const agg = await Task.aggregate([
     ...(Object.keys(matchFilter).length ? [{ $match: matchFilter }] : []),
@@ -199,20 +205,16 @@ export const getManagerTaskOverview = async (workspaceId, user) => {
 };
 
 export const getManagerRecentTasks = async (workspaceId, user, limit = 10) => {
-  const wsId = workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)
-    ? new mongoose.Types.ObjectId(workspaceId)
+  const wsId = await resolveWorkspaceId(workspaceId, user);
+  const userObjectId = user?._id && mongoose.Types.ObjectId.isValid(user._id)
+    ? new mongoose.Types.ObjectId(user._id)
     : null;
 
-  let filter = wsId
-    ? {
-        $or: [
-          { workspace: wsId },
-          ...(user?._id && mongoose.Types.ObjectId.isValid(user._id)
-            ? [{ assignee: new mongoose.Types.ObjectId(user._id) }]
-            : [])
-        ]
-      }
-    : {};
+  const orConditions = [];
+  if (wsId) orConditions.push({ workspace: wsId });
+  if (userObjectId) orConditions.push({ assignee: userObjectId });
+
+  let filter = orConditions.length > 0 ? { $or: orConditions } : {};
 
   let tasks = await Task.find(filter)
     .populate('assignee', 'name email avatar')
@@ -221,6 +223,16 @@ export const getManagerRecentTasks = async (workspaceId, user, limit = 10) => {
     .populate('list', 'name')
     .sort({ updatedAt: -1 })
     .limit(limit);
+
+  if (tasks.length === 0 && userObjectId) {
+    tasks = await Task.find({ assignee: userObjectId })
+      .populate('assignee', 'name email avatar')
+      .populate('project', 'name key status')
+      .populate('board', 'name')
+      .populate('list', 'name')
+      .sort({ updatedAt: -1 })
+      .limit(limit);
+  }
 
   if (tasks.length === 0) {
     tasks = await Task.find({})
@@ -267,15 +279,25 @@ export const getManagerRecentTasks = async (workspaceId, user, limit = 10) => {
 };
 
 export const getManagerOverdueTasks = async (workspaceId, user) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
+  const wsId = await resolveWorkspaceId(workspaceId, user);
+  const userObjectId = user?._id && mongoose.Types.ObjectId.isValid(user._id)
+    ? new mongoose.Types.ObjectId(user._id)
+    : null;
   const now = new Date();
 
-  const tasks = await Task.find({
-    workspace: wsId,
+  const orConditions = [];
+  if (wsId) orConditions.push({ workspace: wsId });
+  if (userObjectId) orConditions.push({ assignee: userObjectId });
+
+  const filter = {
     dueDate: { $lt: now },
     status: { $ne: 'done' }
-  })
+  };
+  if (orConditions.length > 0) {
+    filter.$or = orConditions;
+  }
+
+  const tasks = await Task.find(filter)
     .populate('assignee', 'name email avatar')
     .populate('project', 'name key')
     .populate('board', 'name')
@@ -305,10 +327,10 @@ export const getManagerOverdueTasks = async (workspaceId, user) => {
 };
 
 export const getManagerRecentActivities = async (workspaceId, user, limit = 10) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
+  const wsId = await resolveWorkspaceId(workspaceId, user);
+  const filter = wsId ? { workspace: wsId } : {};
 
-  const activities = await Activity.find({ workspace: wsId })
+  const activities = await Activity.find(filter)
     .populate('user', 'name email avatar role')
     .sort({ createdAt: -1 })
     .limit(limit);
@@ -337,8 +359,8 @@ export const getManagerRecentActivities = async (workspaceId, user, limit = 10) 
 };
 
 export const getManagerTeamPerformance = async (workspaceId, user) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
+  const wsId = await resolveWorkspaceId(workspaceId, user);
+  if (!wsId) return [];
   const now = new Date();
 
   // Get active members in workspace
@@ -418,17 +440,27 @@ export const getManagerTeamPerformance = async (workspaceId, user) => {
 };
 
 export const getManagerUpcomingDeadlines = async (workspaceId, user, days = 7) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
+  const wsId = await resolveWorkspaceId(workspaceId, user);
+  const userObjectId = user?._id && mongoose.Types.ObjectId.isValid(user._id)
+    ? new mongoose.Types.ObjectId(user._id)
+    : null;
   const now = new Date();
   const maxDate = new Date();
   maxDate.setDate(now.getDate() + days);
 
-  const tasks = await Task.find({
-    workspace: wsId,
+  const orConditions = [];
+  if (wsId) orConditions.push({ workspace: wsId });
+  if (userObjectId) orConditions.push({ assignee: userObjectId });
+
+  const filter = {
     status: { $ne: 'done' },
     dueDate: { $gte: now, $lte: maxDate }
-  })
+  };
+  if (orConditions.length > 0) {
+    filter.$or = orConditions;
+  }
+
+  const tasks = await Task.find(filter)
     .populate('assignee', 'name email avatar')
     .populate('project', 'name key')
     .populate('board', 'name')
@@ -470,7 +502,7 @@ export const getManagerDashboardOverview = async (workspaceId, user) => {
     getManagerDashboardStats(workspaceId, user),
     getManagerTaskOverview(workspaceId, user),
     getManagerAssignedProjects(workspaceId, user),
-    getManagerRecentTasks(workspaceId, user, 5),
+    getManagerRecentTasks(workspaceId, user, 10),
     getManagerOverdueTasks(workspaceId, user),
     getManagerUpcomingDeadlines(workspaceId, user, 7),
     getManagerRecentActivities(workspaceId, user, 8)
