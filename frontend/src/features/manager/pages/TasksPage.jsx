@@ -251,24 +251,38 @@ const TasksPage = () => {
 
   useEffect(() => {
     let active = true;
-    Promise.all([
+    Promise.allSettled([
       managerService.getTasks(),
       managerService.getProjects(),
-      managerService.getTeamMembers().catch(() => [])
+      managerService.getTeamMembers()
     ])
-      .then(([taskData, projectData, teamData]) => {
+      .then(([taskResult, projectResult, teamResult]) => {
         if (!active) return;
-        setTasks(taskData.map(toTaskView));
-        setProjects(projectData);
-        if (Array.isArray(teamData) && teamData.length > 0) {
-          setTeamMembers(teamData);
+        if (taskResult.status === "fulfilled" && Array.isArray(taskResult.value)) {
+          setTasks(taskResult.value.map(toTaskView));
+          setUserItem("manager_tasks", taskResult.value);
+        } else {
+          const scoped = getScopedManagerTasks();
+          if (scoped.length > 0) setTasks(scoped.map(toTaskView));
         }
-        setNewTask((current) => ({
-          ...current,
-          projectId: current.projectId || projectData[0]?.id || "",
-        }));
+
+        if (projectResult.status === "fulfilled" && Array.isArray(projectResult.value)) {
+          setProjects(projectResult.value);
+          setNewTask((current) => ({
+            ...current,
+            projectId: current.projectId || projectResult.value[0]?.id || "",
+          }));
+        } else {
+          setProjects(getUserItem("manager_projects", []));
+        }
+
+        if (teamResult.status === "fulfilled" && Array.isArray(teamResult.value) && teamResult.value.length > 0) {
+          setTeamMembers(teamResult.value);
+        } else {
+          setTeamMembers(getUserItem("manager_team", []));
+        }
       })
-      .catch((requestError) => {
+      .catch(() => {
         if (active) {
           const scoped = getScopedManagerTasks();
           setTasks(scoped.map(toTaskView));
@@ -312,22 +326,34 @@ const TasksPage = () => {
 
   const distinctAssignees = useMemo(() => {
     const assignees = new Map();
-    tasks.forEach((task) => {
-      if (task.assigneeId && task.assignee !== "Unassigned") {
-        assignees.set(task.assigneeId, task.assignee);
+    // Include all workspace team members
+    (teamMembers || []).forEach((member) => {
+      const uId = member.userId || member.id || member._id;
+      if (uId && member.name) {
+        assignees.set(String(uId), { id: String(uId), name: member.name });
       }
     });
-    return Array.from(assignees, ([id, name]) => ({ id, name }));
-  }, [tasks]);
+    // Also include from tasks in case of external/ad-hoc assignees
+    (tasks || []).forEach((task) => {
+      const aId = task.assigneeId || (task.assignee && typeof task.assignee === "object" ? (task.assignee.id || task.assignee._id) : null);
+      const aName = typeof task.assignee === "string" ? task.assignee : (task.assignee?.name || task.assigneeName);
+      if (aId && aName && aName !== "Unassigned") {
+        assignees.set(String(aId), { id: String(aId), name: aName });
+      } else if (aName && aName !== "Unassigned") {
+        assignees.set(aName, { id: aName, name: aName });
+      }
+    });
+    return Array.from(assignees.values());
+  }, [tasks, teamMembers]);
 
   // Filtered tasks
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
       const matchesSearch =
         searchQuery.trim() === "" ||
-        task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        task.project.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        task.assignee.toLowerCase().includes(searchQuery.toLowerCase());
+        (task.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (task.project || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (task.assignee || "").toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus =
         statusFilter === "All" ||
@@ -338,7 +364,11 @@ const TasksPage = () => {
         projectFilter === "All" || task.projectId === projectFilter || task.project === projectFilter;
 
       const matchesAssignee =
-        assigneeFilter === "All" || task.assigneeId === assigneeFilter;
+        assigneeFilter === "All" ||
+        task.assigneeId === assigneeFilter ||
+        String(task.assigneeId) === String(assigneeFilter) ||
+        task.assignee === assigneeFilter ||
+        (task.assignee && typeof task.assignee === "object" && (task.assignee.name === assigneeFilter || task.assignee.id === assigneeFilter || task.assignee._id === assigneeFilter));
 
       const matchesPriority =
         priorityFilter === "All" || task.priority === priorityFilter;
@@ -350,10 +380,10 @@ const TasksPage = () => {
   // Dynamic summary stats
   const summaryStats = useMemo(() => {
     const total = tasks.length;
-    const inProgress = tasks.filter((t) => t.status === "In Progress").length;
-    const inReview = tasks.filter((t) => t.status === "In Review").length;
-    const completed = tasks.filter((t) => t.status === "Completed" || t.status === "Done").length;
-    const highPriority = tasks.filter((t) => t.priority === "High").length;
+    const inProgress = tasks.filter((t) => t.status === "In Progress" || t.status === "in_progress").length;
+    const inReview = tasks.filter((t) => t.status === "In Review" || t.status === "review").length;
+    const completed = tasks.filter((t) => t.status === "Completed" || t.status === "Done" || t.status === "done").length;
+    const highPriority = tasks.filter((t) => t.priority === "High" || t.priority === "high").length;
     return { total, inProgress, inReview, completed, highPriority };
   }, [tasks]);
 
@@ -1247,7 +1277,7 @@ const TasksPage = () => {
                   >
                     <option value="">Unassigned</option>
                     {(projectMembers.length > 0 ? projectMembers : teamMembers).map((member) => {
-                      const mId = member.id || member._id || member.userId;
+                      const mId = member.userId || member.id || member._id;
                       const roleTag = member.workspaceRole || member.role ? ` (${member.workspaceRole || member.role})` : '';
                       return (
                         <option key={mId} value={mId}>

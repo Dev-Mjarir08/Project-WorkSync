@@ -270,11 +270,15 @@ export const Sidebar = ({ activeItem = "", mobileOpen = false, setMobileOpen = (
   const accentColor = isEmployee ? "teal" : "blue";
 
   const sprintTasks = isEmployee ? getUserItem("employee_tasks", []) : getUserItem("manager_tasks", []);
-  const totalSprintTasks = Array.isArray(sprintTasks) && sprintTasks.length > 0 ? sprintTasks.length : (isEmployee ? 21 : 30);
-  const completedSprintTasks = Array.isArray(sprintTasks) && sprintTasks.length > 0
-    ? sprintTasks.filter((t) => t.status === "Completed" || t.status === "done").length
-    : (isEmployee ? 18 : 22);
-  const sprintPercent = Math.round((completedSprintTasks / totalSprintTasks) * 100);
+  const hasSprintTasks = Array.isArray(sprintTasks) && sprintTasks.length > 0;
+  const totalSprintTasks = hasSprintTasks ? sprintTasks.length : 0;
+  const completedSprintTasks = hasSprintTasks
+    ? sprintTasks.filter((t) => {
+        const s = (t.status || "").toLowerCase();
+        return s === "completed" || s === "done";
+      }).length
+    : 0;
+  const sprintPercent = totalSprintTasks > 0 ? Math.round((completedSprintTasks / totalSprintTasks) * 100) : 0;
 
   const renderContent = () => (
     <div className="flex h-full flex-col justify-between overflow-hidden bg-white text-slate-700">
@@ -298,7 +302,7 @@ export const Sidebar = ({ activeItem = "", mobileOpen = false, setMobileOpen = (
 
         <div className="mt-4 rounded-xl border border-slate-200/80 bg-slate-50/80 p-3">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-slate-800">{isEmployee ? "My Sprint Tasks" : "Sprint 4 Active"}</span>
+            <span className="font-semibold text-slate-800">{isEmployee ? "My Sprint Tasks" : "Deliverables Progress"}</span>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-200">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
               On Track

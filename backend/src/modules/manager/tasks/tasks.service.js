@@ -3,9 +3,39 @@ import { Task } from '../../../models/Task.js';
 import { Board } from '../../../models/Board.js';
 import { List } from '../../../models/List.js';
 import { Project } from '../../../models/Project.js';
+import { User } from '../../../models/User.js';
+import { WorkspaceMember } from '../../../models/WorkspaceMember.js';
 import { Activity } from '../../../models/Activity.js';
 import { ApiError } from '../../../utils/ApiError.js';
 import { createNotification } from '../../../utils/createNotification.js';
+
+const resolveAssigneeUserId = async (rawAssignee) => {
+  if (!rawAssignee) return null;
+  if (typeof rawAssignee === 'object' && rawAssignee._id) {
+    rawAssignee = rawAssignee._id.toString();
+  }
+  if (typeof rawAssignee === 'object' && rawAssignee.id) {
+    rawAssignee = rawAssignee.id.toString();
+  }
+  if (mongoose.Types.ObjectId.isValid(rawAssignee)) {
+    const user = await User.findById(rawAssignee).select('_id');
+    if (user) return user._id;
+
+    const member = await WorkspaceMember.findById(rawAssignee).select('user');
+    if (member?.user) return member.user;
+  }
+  if (typeof rawAssignee === 'string' && rawAssignee.trim()) {
+    const user = await User.findOne({
+      $or: [
+        { email: rawAssignee.trim() },
+        { name: rawAssignee.trim() },
+        { name: { $regex: new RegExp(`^${rawAssignee.trim()}$`, 'i') } }
+      ]
+    }).select('_id');
+    if (user) return user._id;
+  }
+  return null;
+};
 
 export const getTasks = async (workspaceId, query = {}, user) => {
   const wsId = workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)
@@ -46,8 +76,13 @@ export const getTasks = async (workspaceId, query = {}, user) => {
   if (query.projectId && mongoose.Types.ObjectId.isValid(query.projectId)) {
     filter.project = new mongoose.Types.ObjectId(query.projectId);
   }
-  if (query.assigneeId && mongoose.Types.ObjectId.isValid(query.assigneeId)) {
-    filter.assignee = new mongoose.Types.ObjectId(query.assigneeId);
+  if (query.assigneeId) {
+    const resolved = await resolveAssigneeUserId(query.assigneeId);
+    if (resolved) {
+      filter.assignee = resolved;
+    } else if (mongoose.Types.ObjectId.isValid(query.assigneeId)) {
+      filter.assignee = new mongoose.Types.ObjectId(query.assigneeId);
+    }
   }
   if (query.onlyMine === 'true' && userObjectId) {
     filter.assignee = userObjectId;
@@ -174,6 +209,8 @@ export const createTask = async (workspaceId, data, actorUser) => {
     }
   }
 
+  const cleanAssignee = await resolveAssigneeUserId(data.assigneeId || data.assignee);
+
   const task = await Task.create({
     workspace: workspaceId,
     title: cleanTitle,
@@ -181,7 +218,7 @@ export const createTask = async (workspaceId, data, actorUser) => {
     board: boardId,
     list: listId,
     project: projectId || null,
-    assignee: data.assigneeId || data.assignee || null,
+    assignee: cleanAssignee || null,
     status: data.status || 'todo',
     priority: data.priority || 'medium',
     dueDate: data.dueDate || null,
@@ -201,16 +238,15 @@ export const createTask = async (workspaceId, data, actorUser) => {
     details: `Created in board ${boardId}`
   }).catch(() => {});
 
-  const cleanAssignee = data.assigneeId || data.assignee;
-  if (cleanAssignee && mongoose.Types.ObjectId.isValid(cleanAssignee)) {
+  if (cleanAssignee) {
     await createNotification({
       recipient: cleanAssignee,
       workspace: workspaceId,
       sender: actorUser?._id,
       title: 'New Task Assigned',
-      message: `You were assigned to task "${cleanTitle}"`,
+      message: `You have been assigned task "${cleanTitle}"`,
       type: 'task',
-      link: '/tasks'
+      metadata: { taskId: task._id.toString() }
     }).catch(() => {});
   }
 
@@ -304,8 +340,10 @@ export const updateTask = async (workspaceId, taskId, data, actorUser) => {
 
   if (data.title !== undefined) task.title = data.title.trim();
   if (data.description !== undefined) task.description = data.description;
-  if (data.assignee !== undefined) task.assignee = data.assignee || null;
-  if (data.assigneeId !== undefined) task.assignee = data.assigneeId || null;
+  if (data.assignee !== undefined || data.assigneeId !== undefined) {
+    const rawAssignee = data.assigneeId !== undefined ? data.assigneeId : data.assignee;
+    task.assignee = await resolveAssigneeUserId(rawAssignee);
+  }
   if (data.priority !== undefined) task.priority = data.priority;
   if (data.status !== undefined) task.status = data.status;
   if (data.dueDate !== undefined) task.dueDate = data.dueDate;

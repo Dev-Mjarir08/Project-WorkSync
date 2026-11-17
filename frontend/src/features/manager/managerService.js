@@ -59,6 +59,8 @@ export const managerService = {
   getDashboard: async () => {
     try {
       const data = await request("/dashboard");
+      if (Array.isArray(data?.myProjects)) setUserItem("manager_projects", data.myProjects);
+      if (Array.isArray(data?.recentTasks)) setUserItem("manager_tasks", data.recentTasks);
       return data;
     } catch {
       return {
@@ -89,7 +91,9 @@ export const managerService = {
   getProjects: async () => {
     try {
       const data = await request("/projects");
-      return Array.isArray(data?.projects) ? data.projects : (data || []);
+      const list = Array.isArray(data?.projects) ? data.projects : (Array.isArray(data) ? data : []);
+      setUserItem("manager_projects", list);
+      return list;
     } catch {
       return getUserItem("manager_projects", []);
     }
@@ -201,7 +205,11 @@ export const managerService = {
       });
       const query = params.size ? `?${params.toString()}` : "";
       const data = await request(`/tasks${query}`);
-      return Array.isArray(data?.tasks) ? data.tasks : (data || []);
+      const taskList = Array.isArray(data?.tasks) ? data.tasks : (Array.isArray(data) ? data : []);
+      if (!query || Object.keys(filters).length === 0) {
+        setUserItem("manager_tasks", taskList);
+      }
+      return taskList;
     } catch {
       let tasks = getUserItem("manager_tasks", []);
       if (filters.status && filters.status !== "all" && filters.status !== "All") {
@@ -310,7 +318,9 @@ export const managerService = {
   getTeamMembers: async () => {
     try {
       const data = await request("/team");
-      return Array.isArray(data?.members) ? data.members : [];
+      const list = Array.isArray(data?.members) ? data.members : (Array.isArray(data) ? data : []);
+      setUserItem("manager_team", list);
+      return list;
     } catch {
       return getUserItem("manager_team", []);
     }

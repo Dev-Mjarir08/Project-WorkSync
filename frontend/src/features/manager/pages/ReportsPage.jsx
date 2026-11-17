@@ -45,7 +45,7 @@ const sprintVelocityData = [
   { sprint: "Sprint 1", planned: 30, completed: 24, velocity: 24, rate: 80, dates: "Sep 02 - Sep 16" },
   { sprint: "Sprint 2", planned: 35, completed: 28, velocity: 28, rate: 80, dates: "Sep 16 - Sep 30" },
   { sprint: "Sprint 3", planned: 38, completed: 31, velocity: 31, rate: 81.5, dates: "Sep 30 - Oct 14" },
-  { sprint: "Sprint 4 (Active)", planned: 42, completed: 34, velocity: 34, rate: 81.0, dates: "Oct 14 - Oct 28", current: true },
+  { sprint: "Active Sprint (Current Cycle)", planned: 42, completed: 34, velocity: 34, rate: 81.0, dates: "Current Sprint Cycle", current: true },
 ];
 
 const defaultBurndownDays = [
@@ -528,7 +528,7 @@ const healthStyles = {
 
 const ReportsPage = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [timeframe, setTimeframe] = useState("Sprint 4 (Active: Oct 14 - Oct 28)");
+  const [timeframe, setTimeframe] = useState("Current Active Cycle");
   const [selectedProject, setSelectedProject] = useState("All Projects");
   const [selectedDepartment, setSelectedDepartment] = useState("All Departments");
   const [activeTab, setActiveTab] = useState("overview"); // 'overview', 'velocity', 'team', 'deliverables'
@@ -547,6 +547,7 @@ const ReportsPage = () => {
   const [liveProjectsReport, setLiveProjectsReport] = useState([]);
   const [liveTeamPerformance, setLiveTeamPerformance] = useState([]);
   const [liveVelocityData, setLiveVelocityData] = useState([]);
+  const [liveDeliverables, setLiveDeliverables] = useState([]);
 
   const fetchLiveReports = async () => {
     try {
@@ -692,16 +693,51 @@ const ReportsPage = () => {
       }
       setLiveTeamPerformance(formattedTeam);
 
-      // Dynamic Velocity computation from tasks
+      // Dynamic Velocity & Deliverables computation from live tasks
       if (Array.isArray(liveTasks) && liveTasks.length > 0) {
         const completedTotal = liveTasks.filter(t => (t.status || "").toLowerCase() === "done" || (t.status || "").toLowerCase() === "completed").length;
         const total = liveTasks.length;
         const vData = [
           { sprint: "Sprint 1", planned: Math.max(5, Math.round(total * 0.4)), completed: Math.max(4, Math.round(completedTotal * 0.3)), velocity: Math.max(4, Math.round(completedTotal * 0.3)), rate: 80, dates: "Sprint cycle 1" },
           { sprint: "Sprint 2", planned: Math.max(8, Math.round(total * 0.6)), completed: Math.max(6, Math.round(completedTotal * 0.6)), velocity: Math.max(6, Math.round(completedTotal * 0.6)), rate: 85, dates: "Sprint cycle 2" },
-          { sprint: "Sprint 3 (Active)", planned: total, completed: completedTotal, velocity: completedTotal, rate: total > 0 ? Math.round((completedTotal / total) * 100) : 100, dates: "Current Active Sprint", current: true }
+          { sprint: "Current Cycle (Active)", planned: total, completed: completedTotal, velocity: completedTotal, rate: total > 0 ? Math.round((completedTotal / total) * 100) : 100, dates: "Current Active Sprint", current: true }
         ];
         setLiveVelocityData(vData);
+
+        const mappedDeliverables = liveTasks.map((t, idx) => {
+          const assigneeName = typeof t.assignee === 'string'
+            ? t.assignee
+            : (t.assignee?.name || t.assigneeName || 'Unassigned');
+          const initials = assigneeName === 'Unassigned'
+            ? '—'
+            : assigneeName.split(/\s+/).map(p => p[0]).join('').slice(0, 2).toUpperCase();
+          const s = (t.status || '').toLowerCase();
+          const isDone = s === 'done' || s === 'completed';
+          const isInProgress = s.includes('progress');
+          const isInReview = s.includes('review');
+          const status = isDone ? 'Completed' : (isInProgress ? 'In Progress' : (isInReview ? 'In Review' : 'To Do'));
+          const isOverdue = t.dueDate && new Date(t.dueDate) < new Date() && !isDone;
+          const health = isDone ? 'Completed' : (isOverdue ? 'At Risk' : (isInProgress ? 'On Track' : 'On Time'));
+
+          return {
+            id: t.id || t._id || `task-${idx + 1}`,
+            title: t.title || 'Deliverable',
+            project: t.project?.name || t.projectName || (typeof t.project === 'string' ? t.project : 'General Initiative'),
+            projectId: t.project?.id || t.project?._id || 'proj-gen',
+            category: 'Delivery',
+            assignee: assigneeName,
+            role: t.assignee?.role || 'Team Contributor',
+            avatar: initials,
+            status,
+            priority: t.priority ? (t.priority[0].toUpperCase() + t.priority.slice(1)) : 'Medium',
+            dueDate: t.dueDate ? new Date(t.dueDate).toLocaleDateString(undefined, { month: 'short', day: '2-digit' }) : 'No due date',
+            estHours: 8,
+            actualHours: isDone ? 7 : (isInProgress ? 4 : 0),
+            cycleTime: isDone ? '1.8 days' : 'In Progress',
+            health
+          };
+        });
+        setLiveDeliverables(mappedDeliverables);
       }
     } catch (e) {
       console.error("Live reports sync:", e);
@@ -715,6 +751,7 @@ const ReportsPage = () => {
   const activeProjects = liveProjectsReport.length > 0 ? liveProjectsReport : projectsReport;
   const activeTeam = liveTeamPerformance.length > 0 ? liveTeamPerformance : teamPerformanceReport;
   const activeVelocity = liveVelocityData.length > 0 ? liveVelocityData : sprintVelocityData;
+  const activeDeliverables = liveDeliverables.length > 0 ? liveDeliverables : deliverablesList;
 
   // Show auto-dismissing toast
   const triggerToast = (msg) => {
@@ -809,7 +846,7 @@ const ReportsPage = () => {
 
   // Filter deliverables table
   const filteredDeliverables = useMemo(() => {
-    return deliverablesList.filter((item) => {
+    return activeDeliverables.filter((item) => {
       const matchesSearch =
         item.title.toLowerCase().includes(tableSearch.toLowerCase()) ||
         item.assignee.toLowerCase().includes(tableSearch.toLowerCase()) ||
@@ -820,16 +857,30 @@ const ReportsPage = () => {
 
       return matchesSearch && matchesStatus && matchesProject;
     });
-  }, [tableSearch, statusFilter, selectedProject]);
+  }, [activeDeliverables, tableSearch, statusFilter, selectedProject]);
 
   // Aggregate metrics
-  const totalTasksCount = deliverablesList.length;
-  const completedTasksCount = deliverablesList.filter((t) => t.status === "Completed").length;
-  const inProgressTasksCount = deliverablesList.filter((t) => t.status === "In Progress").length;
-  const inReviewTasksCount = deliverablesList.filter((t) => t.status === "In Review").length;
-  const atRiskTasksCount = deliverablesList.filter((t) => t.health === "At Risk" || t.health === "1d Delayed").length;
+  const totalTasksCount = activeDeliverables.length;
+  const completedTasksCount = activeDeliverables.filter((t) => t.status === "Completed" || t.status === "Done").length;
+  const inProgressTasksCount = activeDeliverables.filter((t) => t.status === "In Progress").length;
+  const inReviewTasksCount = activeDeliverables.filter((t) => t.status === "In Review").length;
+  const atRiskTasksCount = activeDeliverables.filter((t) => t.health === "At Risk" || t.health === "1d Delayed").length;
 
-  const completionPercentage = Math.round((completedTasksCount / totalTasksCount) * 100);
+  const completionPercentage = totalTasksCount > 0
+    ? Math.round((completedTasksCount / totalTasksCount) * 100)
+    : (activeVelocity[activeVelocity.length - 1]?.rate || 0);
+
+  const completedPct = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
+  const inProgressPct = totalTasksCount > 0 ? Math.round((inProgressTasksCount / totalTasksCount) * 100) : 0;
+  const inReviewPct = totalTasksCount > 0 ? Math.round((inReviewTasksCount / totalTasksCount) * 100) : 0;
+  const atRiskPct = totalTasksCount > 0 ? Math.max(0, 100 - completedPct - inProgressPct - inReviewPct) : 0;
+
+  const onTimeTasksCount = Math.max(0, totalTasksCount - atRiskTasksCount);
+  const onTimePercentage = totalTasksCount > 0 ? Math.round((onTimeTasksCount / totalTasksCount) * 100) : 95;
+
+  const totalTeamCount = activeTeam.length;
+  const atRiskTeamCount = activeTeam.filter(m => m.status === "Heavy Load" || m.status === "Attention").length;
+  const teamUtilizationPct = totalTeamCount > 0 ? Math.round(activeTeam.reduce((acc, m) => acc + (m.capacity || 75), 0) / totalTeamCount) : 75;
 
   // SVG dimensions for Burndown Chart
   const burndownWidth = 540;
@@ -950,7 +1001,7 @@ const ReportsPage = () => {
             <div className="mt-4 rounded-xl border border-slate-200/80 bg-slate-50/60 p-3.5">
               <p className="text-xs font-semibold text-slate-800">Manager Sprint Audit Note</p>
               <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
-                This item is part of Sprint 4 priority goals. Velocity was benchmarked across the team's standard cycle time. Verification tests passed in staging environment.
+                This item is part of the active sprint priority goals. Velocity was benchmarked across the team's standard cycle time. Verification tests passed in staging environment.
               </p>
             </div>
 
@@ -989,7 +1040,7 @@ const ReportsPage = () => {
             <div>
               <div className="flex items-center gap-2">
                 <span className="rounded-lg bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 border border-blue-200">
-                  Sprint 4 Metrics
+                  Active Sprint Metrics
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -1016,12 +1067,10 @@ const ReportsPage = () => {
                   }}
                   className="appearance-none rounded-xl border border-slate-200 bg-white py-2 pl-3.5 pr-8 text-xs font-semibold text-slate-700 shadow-xs hover:border-slate-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
                 >
-                  <option value="Sprint 4 (Active: Oct 14 - Oct 28)">Sprint 4 (Current Cycle)</option>
-                  <option value="Sprint 3 (Sep 30 - Oct 14)">Sprint 3 (Completed)</option>
-                  <option value="Sprint 2 (Sep 16 - Sep 30)">Sprint 2 (Completed)</option>
-                  <option value="Sprint 1 (Sep 02 - Sep 16)">Sprint 1 (Completed)</option>
+                  <option value="Current Active Cycle">Current Active Cycle</option>
+                  <option value="Previous Sprint Cycle">Previous Sprint Cycle</option>
                   <option value="Last 30 Days">Last 30 Days</option>
-                  <option value="Q4 2026 Overview">Q4 2026 Full Quarter</option>
+                  <option value="Quarter Overview">Quarter Overview</option>
                 </select>
                 <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               </div>
@@ -1095,7 +1144,7 @@ const ReportsPage = () => {
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-slate-600 leading-relaxed max-w-3xl">
-                    Active sprint is currently <strong>{activeVelocity[activeVelocity.length - 1]?.rate || 80}% complete</strong> with {activeVelocity[activeVelocity.length - 1]?.completed || 0} of {activeVelocity[activeVelocity.length - 1]?.planned || 0} deliverables completed. Team capacity and throughput are pacing on schedule.
+                    Active sprint is currently <strong>{completionPercentage}% complete</strong> with {completedTasksCount} of {totalTasksCount} deliverables completed. Team capacity and throughput are pacing on schedule.
                   </p>
                 </div>
               </div>
@@ -1121,7 +1170,7 @@ const ReportsPage = () => {
                     Sprint Completion
                   </p>
                   <p className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                    {activeVelocity[activeVelocity.length - 1]?.rate || 80}%
+                    {completionPercentage}%
                   </p>
                 </div>
                 <div className="rounded-xl p-2.5 bg-blue-50 text-blue-600 border border-blue-100">
@@ -1130,13 +1179,13 @@ const ReportsPage = () => {
               </div>
               <div className="mt-3.5 space-y-1.5">
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-500">{activeVelocity[activeVelocity.length - 1]?.completed || 0} of {activeVelocity[activeVelocity.length - 1]?.planned || 0} Deliverables</span>
+                  <span className="text-slate-500">{completedTasksCount} of {totalTasksCount} Deliverables</span>
                   <span className="font-bold text-emerald-600 flex items-center gap-0.5">
                     <ArrowUpRight size={12} /> Live
                   </span>
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full rounded-full bg-blue-600" style={{ width: `${activeVelocity[activeVelocity.length - 1]?.rate || 80}%` }}></div>
+                  <div className="h-full rounded-full bg-blue-600" style={{ width: `${completionPercentage}%` }}></div>
                 </div>
               </div>
             </div>
@@ -1149,7 +1198,7 @@ const ReportsPage = () => {
                     Avg Cycle Time
                   </p>
                   <p className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                    2.8 <span className="text-base font-semibold text-slate-500">days</span>
+                    {completedTasksCount > 0 ? "1.8" : "—"} {completedTasksCount > 0 && <span className="text-base font-semibold text-slate-500">days</span>}
                   </p>
                 </div>
                 <div className="rounded-xl p-2.5 bg-emerald-50 text-emerald-600 border border-emerald-100">
@@ -1159,7 +1208,7 @@ const ReportsPage = () => {
               <div className="mt-3.5 flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-500">
                 <span>Turnaround to Done</span>
                 <span className="font-bold text-emerald-600 flex items-center gap-0.5">
-                  <ArrowDownRight size={12} /> -0.8d faster
+                  <ArrowDownRight size={12} /> {completedTasksCount > 0 ? "-0.5d faster" : "Optimal"}
                 </span>
               </div>
             </div>
@@ -1172,7 +1221,7 @@ const ReportsPage = () => {
                     On-Time Delivery
                   </p>
                   <p className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                    94.2%
+                    {onTimePercentage}%
                   </p>
                 </div>
                 <div className="rounded-xl p-2.5 bg-purple-50 text-purple-600 border border-purple-100">
@@ -1180,7 +1229,7 @@ const ReportsPage = () => {
                 </div>
               </div>
               <div className="mt-3.5 flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-500">
-                <span>48 of 51 On Schedule</span>
+                <span>{onTimeTasksCount} of {totalTasksCount} On Schedule</span>
                 <span className="font-semibold text-purple-700">Target 90%</span>
               </div>
             </div>
@@ -1193,7 +1242,7 @@ const ReportsPage = () => {
                     Team Utilization
                   </p>
                   <p className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                    78%
+                    {teamUtilizationPct}%
                   </p>
                 </div>
                 <div className="rounded-xl p-2.5 bg-amber-50 text-amber-600 border border-amber-100">
@@ -1201,8 +1250,8 @@ const ReportsPage = () => {
                 </div>
               </div>
               <div className="mt-3.5 flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-500">
-                <span>8 Active Engineers</span>
-                <span className="font-semibold text-amber-700">2 At Risk</span>
+                <span>{totalTeamCount} Active {totalTeamCount === 1 ? "Contributor" : "Contributors"}</span>
+                <span className="font-semibold text-amber-700">{atRiskTeamCount} At Risk</span>
               </div>
             </div>
           </section>
@@ -1272,9 +1321,9 @@ const ReportsPage = () => {
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-4 border-b border-slate-100">
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-slate-900">Sprint 4 Burndown Trajectory</h3>
+                        <h3 className="text-sm font-bold text-slate-900">Sprint Burndown Trajectory</h3>
                         <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
-                          Day 9 of 11
+                          Current Cycle
                         </span>
                       </div>
                       <p className="mt-0.5 text-xs text-slate-500">
@@ -1407,9 +1456,9 @@ const ReportsPage = () => {
                   <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-500">
                     <span className="flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-                      Projected Completion: <strong>Oct 27 (1 day ahead)</strong>
+                      Projected Completion: <strong>On Schedule</strong>
                     </span>
-                    <span>Remaining to burn: <strong>8 Story Points</strong></span>
+                    <span>Remaining to burn: <strong>{totalTasksCount - completedTasksCount} Deliverables</strong></span>
                   </div>
                 </div>
 
@@ -1434,7 +1483,7 @@ const ReportsPage = () => {
                             stroke="#f1f5f9"
                             strokeWidth="18"
                           />
-                          {/* Completed: 52% */}
+                          {/* Completed */}
                           <circle
                             cx="80"
                             cy="80"
@@ -1442,11 +1491,11 @@ const ReportsPage = () => {
                             fill="transparent"
                             stroke="#10b981"
                             strokeWidth="18"
-                            strokeDasharray={`${(52 / 100) * 390} 390`}
+                            strokeDasharray={`${(completedPct / 100) * 390} 390`}
                             strokeDashoffset="0"
                             className="transition-all duration-500"
                           />
-                          {/* In Progress: 26% */}
+                          {/* In Progress */}
                           <circle
                             cx="80"
                             cy="80"
@@ -1454,11 +1503,11 @@ const ReportsPage = () => {
                             fill="transparent"
                             stroke="#3b82f6"
                             strokeWidth="18"
-                            strokeDasharray={`${(26 / 100) * 390} 390`}
-                            strokeDashoffset={`-${(52 / 100) * 390}`}
+                            strokeDasharray={`${(inProgressPct / 100) * 390} 390`}
+                            strokeDashoffset={`-${(completedPct / 100) * 390}`}
                             className="transition-all duration-500"
                           />
-                          {/* In Review: 14% */}
+                          {/* In Review */}
                           <circle
                             cx="80"
                             cy="80"
@@ -1466,11 +1515,11 @@ const ReportsPage = () => {
                             fill="transparent"
                             stroke="#a855f7"
                             strokeWidth="18"
-                            strokeDasharray={`${(14 / 100) * 390} 390`}
-                            strokeDashoffset={`-${((52 + 26) / 100) * 390}`}
+                            strokeDasharray={`${(inReviewPct / 100) * 390} 390`}
+                            strokeDashoffset={`-${((completedPct + inProgressPct) / 100) * 390}`}
                             className="transition-all duration-500"
                           />
-                          {/* Blocked/At Risk: 8% */}
+                          {/* Blocked/At Risk */}
                           <circle
                             cx="80"
                             cy="80"
@@ -1478,8 +1527,8 @@ const ReportsPage = () => {
                             fill="transparent"
                             stroke="#f43f5e"
                             strokeWidth="18"
-                            strokeDasharray={`${(8 / 100) * 390} 390`}
-                            strokeDashoffset={`-${((52 + 26 + 14) / 100) * 390}`}
+                            strokeDasharray={`${(atRiskPct / 100) * 390} 390`}
+                            strokeDashoffset={`-${((completedPct + inProgressPct + inReviewPct) / 100) * 390}`}
                             className="transition-all duration-500"
                           />
                         </svg>
@@ -1501,7 +1550,7 @@ const ReportsPage = () => {
                           <span className="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
                           <span className="text-slate-600 font-medium">Completed</span>
                         </div>
-                        <span className="font-bold text-slate-800">{completedTasksCount} (52%)</span>
+                        <span className="font-bold text-slate-800">{completedTasksCount} ({completedPct}%)</span>
                       </div>
 
                       <div className="flex items-center justify-between">
@@ -1509,7 +1558,7 @@ const ReportsPage = () => {
                           <span className="h-2.5 w-2.5 rounded-full bg-blue-500"></span>
                           <span className="text-slate-600 font-medium">In Progress</span>
                         </div>
-                        <span className="font-bold text-slate-800">{inProgressTasksCount} (26%)</span>
+                        <span className="font-bold text-slate-800">{inProgressTasksCount} ({inProgressPct}%)</span>
                       </div>
 
                       <div className="flex items-center justify-between">
@@ -1517,7 +1566,7 @@ const ReportsPage = () => {
                           <span className="h-2.5 w-2.5 rounded-full bg-purple-500"></span>
                           <span className="text-slate-600 font-medium">In Review / QA</span>
                         </div>
-                        <span className="font-bold text-slate-800">{inReviewTasksCount} (14%)</span>
+                        <span className="font-bold text-slate-800">{inReviewTasksCount} ({inReviewPct}%)</span>
                       </div>
 
                       <div className="flex items-center justify-between">
@@ -1525,7 +1574,7 @@ const ReportsPage = () => {
                           <span className="h-2.5 w-2.5 rounded-full bg-rose-500"></span>
                           <span className="text-slate-600 font-medium">At Risk / Delayed</span>
                         </div>
-                        <span className="font-bold text-rose-600">{atRiskTasksCount} (8%)</span>
+                        <span className="font-bold text-rose-600">{atRiskTasksCount} ({atRiskPct}%)</span>
                       </div>
                     </div>
                   </div>
@@ -1701,7 +1750,7 @@ const ReportsPage = () => {
                       <Target size={16} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-900">Sprint 5 Target Forecast</p>
+                      <p className="text-xs font-bold text-slate-900">Upcoming Sprint Target Forecast</p>
                       <p className="text-[11px] text-slate-500">
                         Based on the rolling 3-sprint velocity average of 31 points, target 38 - 42 story points for next cycle.
                       </p>
@@ -1997,7 +2046,7 @@ const ReportsPage = () => {
               {/* Table Footer info */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-3 border-t border-slate-100 text-xs text-slate-500">
                 <span>
-                  Showing <strong>{filteredDeliverables.length}</strong> of {deliverablesList.length} total deliverables
+                  Showing <strong>{filteredDeliverables.length}</strong> of {totalTasksCount} total deliverables
                 </span>
                 <span className="text-[11px]">
                   Click on any row to inspect audit trail and effort breakdown.
