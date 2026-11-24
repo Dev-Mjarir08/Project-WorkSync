@@ -41,463 +41,15 @@ import managerService from "../managerService.js";
 // DATASETS & BENCHMARKS
 // ==========================================
 
-const sprintVelocityData = [
-  { sprint: "Sprint 1", planned: 30, completed: 24, velocity: 24, rate: 80, dates: "Sep 02 - Sep 16" },
-  { sprint: "Sprint 2", planned: 35, completed: 28, velocity: 28, rate: 80, dates: "Sep 16 - Sep 30" },
-  { sprint: "Sprint 3", planned: 38, completed: 31, velocity: 31, rate: 81.5, dates: "Sep 30 - Oct 14" },
-  { sprint: "Active Sprint (Current Cycle)", planned: 42, completed: 34, velocity: 34, rate: 81.0, dates: "Current Sprint Cycle", current: true },
-];
+const sprintVelocityData = [];
 
-const defaultBurndownDays = [
-  { day: "Day 1", ideal: 42, actual: 42 },
-  { day: "Day 2", ideal: 37.8, actual: 41 },
-  { day: "Day 3", ideal: 33.6, actual: 38 },
-  { day: "Day 4", ideal: 29.4, actual: 32 },
-  { day: "Day 5", ideal: 25.2, actual: 26 },
-  { day: "Day 6", ideal: 21.0, actual: 21 },
-  { day: "Day 7", ideal: 16.8, actual: 17 },
-  { day: "Day 8", ideal: 12.6, actual: 12 },
-  { day: "Day 9", ideal: 8.4, actual: 8 },
-  { day: "Day 10", ideal: 4.2, actual: null },
-  { day: "Day 11", ideal: 0, actual: null },
-];
+const defaultBurndownDays = [];
 
-const projectsReport = [
-  {
-    id: "proj-1",
-    name: "WorkSync Web App",
-    category: "Core Platform",
-    progress: 72,
-    totalTasks: 25,
-    completedTasks: 18,
-    inProgressTasks: 5,
-    blockedTasks: 2,
-    velocity: 16,
-    budgetHours: 240,
-    loggedHours: 182,
-    status: "On Track",
-    statusBadge: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    lead: "Devanshi Sharma",
-  },
-  {
-    id: "proj-2",
-    name: "Mobile Companion App",
-    category: "Mobile",
-    progress: 45,
-    totalTasks: 20,
-    completedTasks: 9,
-    inProgressTasks: 7,
-    blockedTasks: 4,
-    velocity: 8,
-    budgetHours: 200,
-    loggedHours: 110,
-    status: "At Risk",
-    statusBadge: "bg-rose-50 text-rose-700 border-rose-200",
-    lead: "Vikram Malhotra",
-  },
-  {
-    id: "proj-3",
-    name: "Real-Time Sync Engine",
-    category: "Infrastructure",
-    progress: 85,
-    totalTasks: 14,
-    completedTasks: 12,
-    inProgressTasks: 2,
-    blockedTasks: 0,
-    velocity: 12,
-    budgetHours: 150,
-    loggedHours: 128,
-    status: "Ahead",
-    statusBadge: "bg-blue-50 text-blue-700 border-blue-200",
-    lead: "Ayan Mukherjee",
-  },
-  {
-    id: "proj-4",
-    name: "Enterprise Security Audit",
-    category: "Security",
-    progress: 100,
-    totalTasks: 16,
-    completedTasks: 16,
-    inProgressTasks: 0,
-    blockedTasks: 0,
-    velocity: 14,
-    budgetHours: 120,
-    loggedHours: 116,
-    status: "Completed",
-    statusBadge: "bg-slate-100 text-slate-700 border-slate-200",
-    lead: "Devanshi Sharma",
-  },
-  {
-    id: "proj-5",
-    name: "Client Onboarding Portal",
-    category: "Product",
-    progress: 30,
-    totalTasks: 10,
-    completedTasks: 3,
-    inProgressTasks: 3,
-    blockedTasks: 4,
-    velocity: 4,
-    budgetHours: 90,
-    loggedHours: 32,
-    status: "On Hold",
-    statusBadge: "bg-amber-50 text-amber-700 border-amber-200",
-    lead: "Rouhan Siddiqui",
-  },
-  {
-    id: "proj-6",
-    name: "Analytics & Reporting Hub",
-    category: "Internal Tooling",
-    progress: 65,
-    totalTasks: 20,
-    completedTasks: 13,
-    inProgressTasks: 5,
-    blockedTasks: 2,
-    velocity: 11,
-    budgetHours: 160,
-    loggedHours: 104,
-    status: "On Track",
-    statusBadge: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    lead: "Amit Verma",
-  },
-];
+const projectsReport = [];
 
-const teamPerformanceReport = [
-  {
-    id: "tm-1",
-    name: "Devanshi Sharma",
-    role: "Engineering Manager",
-    dept: "Engineering",
-    avatar: "DS",
-    color: "from-blue-600 to-indigo-600",
-    assigned: 4,
-    completed: 3,
-    inProgress: 1,
-    storyPoints: 12,
-    efficiency: 94,
-    hoursLogged: 36.5,
-    capacity: 70,
-    status: "Optimal",
-  },
-  {
-    id: "tm-2",
-    name: "Ayan Mukherjee",
-    role: "Fullstack Admin",
-    dept: "Engineering",
-    avatar: "AM",
-    color: "from-cyan-500 to-blue-600",
-    assigned: 6,
-    completed: 5,
-    inProgress: 1,
-    storyPoints: 18,
-    efficiency: 96,
-    hoursLogged: 42.0,
-    capacity: 92,
-    status: "Heavy Load",
-  },
-  {
-    id: "tm-3",
-    name: "Rouhan Siddiqui",
-    role: "Frontend Dev",
-    dept: "Engineering",
-    avatar: "RS",
-    color: "from-emerald-500 to-teal-600",
-    assigned: 5,
-    completed: 4,
-    inProgress: 1,
-    storyPoints: 14,
-    efficiency: 89,
-    hoursLogged: 38.0,
-    capacity: 78,
-    status: "Optimal",
-  },
-  {
-    id: "tm-4",
-    name: "Priya Patel",
-    role: "UI Designer",
-    dept: "Product & Design",
-    avatar: "PP",
-    color: "from-violet-500 to-purple-600",
-    assigned: 4,
-    completed: 3,
-    inProgress: 1,
-    storyPoints: 10,
-    efficiency: 92,
-    hoursLogged: 32.0,
-    capacity: 65,
-    status: "Available",
-  },
-  {
-    id: "tm-5",
-    name: "Vikram Malhotra",
-    role: "Mobile Engineer",
-    dept: "Mobile",
-    avatar: "VM",
-    color: "from-amber-500 to-orange-600",
-    assigned: 5,
-    completed: 2,
-    inProgress: 2,
-    storyPoints: 15,
-    efficiency: 72,
-    hoursLogged: 39.0,
-    capacity: 88,
-    status: "Attention",
-  },
-  {
-    id: "tm-6",
-    name: "Sneha Desai",
-    role: "QA Lead",
-    dept: "Quality Assurance",
-    avatar: "SD",
-    color: "from-rose-500 to-pink-600",
-    assigned: 6,
-    completed: 5,
-    inProgress: 1,
-    storyPoints: 16,
-    efficiency: 95,
-    hoursLogged: 37.5,
-    capacity: 75,
-    status: "Optimal",
-  },
-  {
-    id: "tm-7",
-    name: "Amit Verma",
-    role: "Backend Developer",
-    dept: "Engineering",
-    avatar: "AV",
-    color: "from-teal-500 to-emerald-600",
-    assigned: 5,
-    completed: 4,
-    inProgress: 1,
-    storyPoints: 15,
-    efficiency: 88,
-    hoursLogged: 40.0,
-    capacity: 82,
-    status: "Optimal",
-  },
-  {
-    id: "tm-8",
-    name: "Karan Mehta",
-    role: "Frontend Developer",
-    dept: "Engineering",
-    avatar: "KM",
-    color: "from-indigo-500 to-blue-600",
-    assigned: 4,
-    completed: 3,
-    inProgress: 1,
-    storyPoints: 11,
-    efficiency: 86,
-    hoursLogged: 33.0,
-    capacity: 68,
-    status: "Available",
-  },
-];
+const teamPerformanceReport = [];
 
-const deliverablesList = [
-  {
-    id: "task-101",
-    title: "Implement WebSocket connection and live presence sync",
-    project: "WorkSync Web App",
-    projectId: "proj-1",
-    assignee: "Ayan Mukherjee",
-    role: "Fullstack Admin",
-    avatar: "AM",
-    priority: "High",
-    status: "Completed",
-    cycleTime: "2.4 days",
-    estHours: 24,
-    actualHours: 21,
-    dueDate: "Oct 18, 2026",
-    health: "On Time",
-    category: "Backend",
-  },
-  {
-    id: "task-102",
-    title: "Design light theme SaaS workspace layout and card tokens",
-    project: "WorkSync Web App",
-    projectId: "proj-1",
-    assignee: "Priya Patel",
-    role: "UI Designer",
-    avatar: "PP",
-    priority: "Medium",
-    status: "Completed",
-    cycleTime: "3.1 days",
-    estHours: 16,
-    actualHours: 15,
-    dueDate: "Oct 20, 2026",
-    health: "On Time",
-    category: "Design",
-  },
-  {
-    id: "task-103",
-    title: "Build Kanban board column state and status transition handlers",
-    project: "WorkSync Web App",
-    projectId: "proj-1",
-    assignee: "Rouhan Siddiqui",
-    role: "Frontend Dev",
-    avatar: "RS",
-    priority: "High",
-    status: "In Progress",
-    cycleTime: "Ongoing",
-    estHours: 20,
-    actualHours: 14,
-    dueDate: "Oct 26, 2026",
-    health: "On Track",
-    category: "Frontend",
-  },
-  {
-    id: "task-104",
-    title: "Configure role-based access control and manager route guards",
-    project: "WorkSync Web App",
-    projectId: "proj-1",
-    assignee: "Devanshi Sharma",
-    role: "Engineering Manager",
-    avatar: "DS",
-    priority: "High",
-    status: "Completed",
-    cycleTime: "1.8 days",
-    estHours: 18,
-    actualHours: 16,
-    dueDate: "Oct 22, 2026",
-    health: "Ahead",
-    category: "Security",
-  },
-  {
-    id: "task-105",
-    title: "Push notifications service for iOS background task updates",
-    project: "Mobile Companion App",
-    projectId: "proj-2",
-    assignee: "Vikram Malhotra",
-    role: "Mobile Engineer",
-    avatar: "VM",
-    priority: "High",
-    status: "In Progress",
-    cycleTime: "Ongoing",
-    estHours: 28,
-    actualHours: 26,
-    dueDate: "Oct 27, 2026",
-    health: "At Risk",
-    category: "Mobile",
-  },
-  {
-    id: "task-106",
-    title: "Offline SQLite database caching and optimistic UI reconciliation",
-    project: "Mobile Companion App",
-    projectId: "proj-2",
-    assignee: "Vikram Malhotra",
-    role: "Mobile Engineer",
-    avatar: "VM",
-    priority: "Medium",
-    status: "In Review",
-    cycleTime: "4.2 days",
-    estHours: 22,
-    actualHours: 25,
-    dueDate: "Oct 24, 2026",
-    health: "1d Delayed",
-    category: "Mobile",
-  },
-  {
-    id: "task-107",
-    title: "Automated test suite for sprint burndown calculations",
-    project: "Real-Time Sync Engine",
-    projectId: "proj-3",
-    assignee: "Sneha Desai",
-    role: "QA Lead",
-    avatar: "SD",
-    priority: "Medium",
-    status: "Completed",
-    cycleTime: "2.0 days",
-    estHours: 14,
-    actualHours: 12,
-    dueDate: "Oct 21, 2026",
-    health: "Ahead",
-    category: "QA",
-  },
-  {
-    id: "task-108",
-    title: "High-concurrency Redis lock coordinator for multi-tab edits",
-    project: "Real-Time Sync Engine",
-    projectId: "proj-3",
-    assignee: "Amit Verma",
-    role: "Backend Developer",
-    avatar: "AV",
-    priority: "High",
-    status: "Completed",
-    cycleTime: "3.5 days",
-    estHours: 26,
-    actualHours: 24,
-    dueDate: "Oct 23, 2026",
-    health: "On Time",
-    category: "Backend",
-  },
-  {
-    id: "task-109",
-    title: "SOC2 compliance audit checklist verification & log export",
-    project: "Enterprise Security Audit",
-    projectId: "proj-4",
-    assignee: "Devanshi Sharma",
-    role: "Engineering Manager",
-    avatar: "DS",
-    priority: "High",
-    status: "Completed",
-    cycleTime: "1.5 days",
-    estHours: 16,
-    actualHours: 14,
-    dueDate: "Oct 15, 2026",
-    health: "Completed",
-    category: "Security",
-  },
-  {
-    id: "task-110",
-    title: "Client portal onboarding wizard steps and validation schema",
-    project: "Client Onboarding Portal",
-    projectId: "proj-5",
-    assignee: "Karan Mehta",
-    role: "Frontend Developer",
-    avatar: "KM",
-    priority: "Medium",
-    status: "In Progress",
-    cycleTime: "Ongoing",
-    estHours: 18,
-    actualHours: 12,
-    dueDate: "Oct 29, 2026",
-    health: "On Track",
-    category: "Frontend",
-  },
-  {
-    id: "task-111",
-    title: "Interactive reports filter controls and CSV export engine",
-    project: "Analytics & Reporting Hub",
-    projectId: "proj-6",
-    assignee: "Rouhan Siddiqui",
-    role: "Frontend Dev",
-    avatar: "RS",
-    priority: "High",
-    status: "Completed",
-    cycleTime: "2.1 days",
-    estHours: 20,
-    actualHours: 18,
-    dueDate: "Oct 25, 2026",
-    health: "Ahead",
-    category: "Frontend",
-  },
-  {
-    id: "task-112",
-    title: "End-to-end regression testing on cross-browser chart rendering",
-    project: "Analytics & Reporting Hub",
-    projectId: "proj-6",
-    assignee: "Sneha Desai",
-    role: "QA Lead",
-    avatar: "SD",
-    priority: "Medium",
-    status: "Completed",
-    cycleTime: "1.9 days",
-    estHours: 12,
-    actualHours: 11,
-    dueDate: "Oct 26, 2026",
-    health: "On Time",
-    category: "QA",
-  },
-];
+const deliverablesList = [];
 
 // Priority and status color styles
 const priorityStyles = {
@@ -561,8 +113,13 @@ const ReportsPage = () => {
         managerService.getTeamMembers().catch(() => [])
       ]);
 
-      if (burndownRes?.burndown && Array.isArray(burndownRes.burndown) && burndownRes.burndown.length > 0) {
-        setBurndownDays(burndownRes.burndown);
+      const rawPoints = burndownRes?.burndownPoints || burndownRes?.burndown;
+      if (Array.isArray(rawPoints) && rawPoints.length > 0) {
+        setBurndownDays(rawPoints.map(p => ({
+          day: p.day,
+          ideal: p.idealRemaining !== undefined ? p.idealRemaining : p.ideal,
+          actual: p.actualRemaining !== undefined ? p.actualRemaining : p.actual
+        })));
       } else if (Array.isArray(liveTasks) && liveTasks.length > 0) {
         const total = liveTasks.length;
         const done = liveTasks.filter((t) => (t.status || "").toLowerCase() === "done" || (t.status || "").toLowerCase() === "completed").length;
@@ -574,6 +131,8 @@ const ReportsPage = () => {
           actual: i < 5 ? Math.max(remaining, Math.round(total - (total - remaining) * (i / 4))) : (i === 5 ? remaining : null)
         }));
         setBurndownDays(dynamicBurndown);
+      } else {
+        setBurndownDays([]);
       }
 
       if (prodRes?.weeks) {
@@ -890,9 +449,9 @@ const ReportsPage = () => {
   const burndownPlotWidth = burndownWidth - burndownPadding.left - burndownPadding.right;
   const burndownPlotHeight = burndownHeight - burndownPadding.top - burndownPadding.bottom;
 
-  const maxPoints = 42;
-  const getX = (idx, total) => burndownPadding.left + (idx / (total - 1)) * burndownPlotWidth;
-  const getY = (val) => burndownPadding.top + (1 - val / maxPoints) * burndownPlotHeight;
+  const maxPoints = Math.max(10, ...burndownDays.map((d) => Math.max(d.ideal || 0, d.actual || 0)), totalTasksCount);
+  const getX = (idx, total) => burndownPadding.left + (total > 1 ? (idx / (total - 1)) * burndownPlotWidth : burndownPlotWidth / 2);
+  const getY = (val) => burndownPadding.top + (1 - (val || 0) / (maxPoints || 1)) * burndownPlotHeight;
 
   // Ideal path string
   const idealPath = burndownDays
@@ -1345,7 +904,15 @@ const ReportsPage = () => {
 
                   {/* SVG Burndown Graph */}
                   <div className="mt-4 relative">
-                    <svg viewBox={`0 0 ${burndownWidth} ${burndownHeight}`} className="w-full h-48 sm:h-56 select-none overflow-visible">
+                    {burndownDays.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-48 sm:h-56 text-center text-slate-400">
+                        <TrendingUp size={32} className="mb-2 text-slate-300 stroke-1" />
+                        <p className="text-xs font-semibold text-slate-600">No burndown data recorded yet</p>
+                        <p className="text-[11px] text-slate-400 mt-1 max-w-sm">Active sprint deliverables will plot the trajectory curve as tasks are completed.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <svg viewBox={`0 0 ${burndownWidth} ${burndownHeight}`} className="w-full h-48 sm:h-56 select-none overflow-visible">
                       <defs>
                         <linearGradient id="burndownGrad" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#2563eb" stopOpacity="0.22" />
@@ -1354,28 +921,31 @@ const ReportsPage = () => {
                       </defs>
 
                       {/* Horizontal Grid lines */}
-                      {[0, 10, 20, 30, 40].map((val) => (
-                        <g key={val}>
-                          <line
-                            x1={burndownPadding.left}
-                            y1={getY(val)}
-                            x2={burndownWidth - burndownPadding.right}
-                            y2={getY(val)}
-                            stroke="#f1f5f9"
-                            strokeWidth="1"
-                          />
-                          <text
-                            x={burndownPadding.left - 8}
-                            y={getY(val) + 3}
-                            textAnchor="end"
-                            fontSize="9"
-                            fill="#94a3b8"
-                            fontWeight="600"
-                          >
-                            {val}pt
-                          </text>
-                        </g>
-                      ))}
+                      {[0, 0.25, 0.5, 0.75, 1].map((frac) => {
+                        const val = Math.round(maxPoints * frac);
+                        return (
+                          <g key={frac}>
+                            <line
+                              x1={burndownPadding.left}
+                              y1={getY(val)}
+                              x2={burndownWidth - burndownPadding.right}
+                              y2={getY(val)}
+                              stroke="#f1f5f9"
+                              strokeWidth="1"
+                            />
+                            <text
+                              x={burndownPadding.left - 8}
+                              y={getY(val) + 3}
+                              textAnchor="end"
+                              fontSize="9"
+                              fill="#94a3b8"
+                              fontWeight="600"
+                            >
+                              {val}pt
+                            </text>
+                          </g>
+                        );
+                      })}
 
                       {/* Ideal trajectory dashed line */}
                       <path
@@ -1438,7 +1008,7 @@ const ReportsPage = () => {
                     </svg>
 
                     {/* Hover Info Tooltip Badge */}
-                    {hoveredBurndownDay !== null && (
+                    {hoveredBurndownDay !== null && burndownDays[hoveredBurndownDay] && (
                       <div className="absolute top-2 right-4 rounded-xl border border-slate-200 bg-white/95 px-3 py-1.5 shadow-md backdrop-blur-xs text-xs">
                         <span className="font-bold text-slate-800">
                           {burndownDays[hoveredBurndownDay].day}:
@@ -1447,9 +1017,11 @@ const ReportsPage = () => {
                           {burndownDays[hoveredBurndownDay].actual} pts remaining
                         </span>{" "}
                         <span className="text-slate-400 text-[10px]">
-                          (Ideal: {burndownDays[hoveredBurndownDay].ideal.toFixed(1)} pts)
+                          (Ideal: {burndownDays[hoveredBurndownDay].ideal?.toFixed(1) || 0} pts)
                         </span>
                       </div>
+                    )}
+                    </>
                     )}
                   </div>
 
@@ -1682,67 +1254,75 @@ const ReportsPage = () => {
                 </div>
 
                 {/* Velocity Bar Columns */}
-                <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
-                  {activeVelocity.map((sprint, idx) => {
-                    const isHovered = hoveredVelocitySprint === idx;
+                {activeVelocity.length === 0 ? (
+                  <div className="mt-6 flex flex-col items-center justify-center h-48 text-center text-slate-400">
+                    <TrendingUp size={32} className="mb-2 text-slate-300 stroke-1" />
+                    <p className="text-xs font-semibold text-slate-600">No sprint velocity history recorded yet</p>
+                    <p className="text-[11px] text-slate-400 mt-1 max-w-sm">Velocity metrics will populate automatically as sprint iterations are delivered.</p>
+                  </div>
+                ) : (
+                  <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+                    {activeVelocity.map((sprint, idx) => {
+                      const isHovered = hoveredVelocitySprint === idx;
 
-                    return (
-                      <div
-                        key={sprint.sprint}
-                        onMouseEnter={() => setHoveredVelocitySprint(idx)}
-                        onMouseLeave={() => setHoveredVelocitySprint(null)}
-                        className={`rounded-2xl border p-4 transition-all duration-200 ${
-                          sprint.current
-                            ? "border-blue-300 bg-blue-50/40 shadow-xs"
-                            : isHovered
-                            ? "border-slate-300 bg-slate-50"
-                            : "border-slate-200/80 bg-white"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-800">{sprint.sprint}</span>
-                          {sprint.current && (
-                            <span className="rounded-full bg-blue-100 px-2 py-0.2 text-[9px] font-bold text-blue-700">
-                              ACTIVE
-                            </span>
-                          )}
-                        </div>
-                        <p className="mt-0.5 text-[10px] text-slate-400">{sprint.dates}</p>
+                      return (
+                        <div
+                          key={sprint.sprint}
+                          onMouseEnter={() => setHoveredVelocitySprint(idx)}
+                          onMouseLeave={() => setHoveredVelocitySprint(null)}
+                          className={`rounded-2xl border p-4 transition-all duration-200 ${
+                            sprint.current
+                              ? "border-blue-300 bg-blue-50/40 shadow-xs"
+                              : isHovered
+                              ? "border-slate-300 bg-slate-50"
+                              : "border-slate-200/80 bg-white"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-800">{sprint.sprint}</span>
+                            {sprint.current && (
+                              <span className="rounded-full bg-blue-100 px-2 py-0.2 text-[9px] font-bold text-blue-700">
+                                ACTIVE
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-0.5 text-[10px] text-slate-400">{sprint.dates}</p>
 
-                        {/* Bar comparison */}
-                        <div className="mt-4 flex items-end gap-2 h-36 justify-center pb-2 border-b border-slate-100">
-                          {/* Planned Bar */}
-                          <div className="flex flex-col items-center gap-1">
-                            <span className="text-[10px] font-semibold text-slate-400">{sprint.planned}</span>
-                            <div
-                              className="w-7 rounded-t-lg bg-slate-200 transition-all duration-300"
-                              style={{ height: `${(sprint.planned / 45) * 110}px` }}
-                            ></div>
-                            <span className="text-[9px] text-slate-400">Plan</span>
+                          {/* Bar comparison */}
+                          <div className="mt-4 flex items-end gap-2 h-36 justify-center pb-2 border-b border-slate-100">
+                            {/* Planned Bar */}
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="text-[10px] font-semibold text-slate-400">{sprint.planned}</span>
+                              <div
+                                className="w-7 rounded-t-lg bg-slate-200 transition-all duration-300"
+                                style={{ height: `${(sprint.planned / 45) * 110}px` }}
+                              ></div>
+                              <span className="text-[9px] text-slate-400">Plan</span>
+                            </div>
+
+                            {/* Completed Bar */}
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="text-[10px] font-extrabold text-blue-600">{sprint.completed}</span>
+                              <div
+                                className={`w-7 rounded-t-lg transition-all duration-300 ${
+                                  sprint.current ? "bg-gradient-to-t from-blue-600 to-indigo-500" : "bg-blue-600"
+                                }`}
+                                style={{ height: `${(sprint.completed / 45) * 110}px` }}
+                              ></div>
+                              <span className="text-[9px] font-semibold text-blue-700">Done</span>
+                            </div>
                           </div>
 
-                          {/* Completed Bar */}
-                          <div className="flex flex-col items-center gap-1">
-                            <span className="text-[10px] font-extrabold text-blue-600">{sprint.completed}</span>
-                            <div
-                              className={`w-7 rounded-t-lg transition-all duration-300 ${
-                                sprint.current ? "bg-gradient-to-t from-blue-600 to-indigo-500" : "bg-blue-600"
-                              }`}
-                              style={{ height: `${(sprint.completed / 45) * 110}px` }}
-                            ></div>
-                            <span className="text-[9px] font-semibold text-blue-700">Done</span>
+                          {/* Efficiency Stat */}
+                          <div className="mt-3 flex items-center justify-between text-xs">
+                            <span className="text-slate-500 text-[11px]">Sprint Yield</span>
+                            <span className="font-extrabold text-slate-900">{sprint.rate}%</span>
                           </div>
                         </div>
-
-                        {/* Efficiency Stat */}
-                        <div className="mt-3 flex items-center justify-between text-xs">
-                          <span className="text-slate-500 text-[11px]">Sprint Yield</span>
-                          <span className="font-extrabold text-slate-900">{sprint.rate}%</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
@@ -1752,12 +1332,14 @@ const ReportsPage = () => {
                     <div>
                       <p className="text-xs font-bold text-slate-900">Upcoming Sprint Target Forecast</p>
                       <p className="text-[11px] text-slate-500">
-                        Based on the rolling 3-sprint velocity average of 31 points, target 38 - 42 story points for next cycle.
+                        {totalTasksCount > 0
+                          ? `Based on active velocity and team capacity, target ${Math.round(totalTasksCount * 1.2)} deliverables for the next sprint iteration.`
+                          : "Create and assign workspace deliverables to generate rolling velocity forecast recommendations."}
                       </p>
                     </div>
                   </div>
                   <span className="rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 border border-slate-200 shadow-xs self-start sm:self-auto">
-                    Forecast: 40 Story Points
+                    Forecast: {totalTasksCount > 0 ? `${Math.round(totalTasksCount * 1.2)} Deliverables` : "0 Deliverables"}
                   </span>
                 </div>
 
@@ -1778,16 +1360,16 @@ const ReportsPage = () => {
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] text-slate-400 uppercase font-semibold">Average Throughput</span>
-                      <p className="text-sm font-bold text-slate-900">{productivityData?.averageThroughput || 8.5} tasks / week</p>
+                      <p className="text-sm font-bold text-slate-900">{productivityData?.averageThroughput !== undefined ? productivityData.averageThroughput : 0} tasks / week</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {(productivityData?.weeks || [
-                      { label: "Week 1", created: 12, completed: 10, throughputRate: 83 },
-                      { label: "Week 2", created: 15, completed: 14, throughputRate: 93 },
-                      { label: "Week 3", created: 11, completed: 9, throughputRate: 82 },
-                      { label: "Week 4", created: 14, completed: 12, throughputRate: 86 },
+                    {(productivityData?.weeks && productivityData.weeks.length > 0 ? productivityData.weeks : [
+                      { label: "Week 1", created: 0, completed: 0, throughputRate: 0 },
+                      { label: "Week 2", created: 0, completed: 0, throughputRate: 0 },
+                      { label: "Week 3", created: 0, completed: 0, throughputRate: 0 },
+                      { label: "Week 4", created: 0, completed: 0, throughputRate: 0 },
                     ]).map((w, idx) => (
                       <div key={idx} className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-center">
                         <span className="text-xs font-bold text-slate-800">{w.label}</span>

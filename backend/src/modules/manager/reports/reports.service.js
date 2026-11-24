@@ -31,16 +31,16 @@ export const getReportsOverview = async (workspaceId) => {
         $group: {
           _id: null,
           totalTasks: { $sum: 1 },
-          completedTasks: { $sum: { $cond: [{ $eq: ['$status', 'done'] }, 1, 0] } },
-          inProgressTasks: { $sum: { $cond: [{ $eq: ['$status', 'in_progress'] }, 1, 0] } },
-          reviewTasks: { $sum: { $cond: [{ $eq: ['$status', 'review'] }, 1, 0] } },
-          todoTasks: { $sum: { $cond: [{ $eq: ['$status', 'todo'] }, 1, 0] } },
+          completedTasks: { $sum: { $cond: [{ $in: ['$status', ['done', 'completed', 'Done', 'Completed']] }, 1, 0] } },
+          inProgressTasks: { $sum: { $cond: [{ $in: ['$status', ['in_progress', 'InProgress', 'In Progress']] }, 1, 0] } },
+          reviewTasks: { $sum: { $cond: [{ $in: ['$status', ['review', 'in_review', 'In Review']] }, 1, 0] } },
+          todoTasks: { $sum: { $cond: [{ $in: ['$status', ['todo', 'pending', 'To Do', 'Pending']] }, 1, 0] } },
           overdueTasks: {
             $sum: {
               $cond: [
                 {
                   $and: [
-                    { $ne: ['$status', 'done'] },
+                    { $nin: ['$status', ['done', 'completed', 'Done', 'Completed']] },
                     { $lt: ['$dueDate', new Date()] }
                   ]
                 },
@@ -72,7 +72,7 @@ export const getReportsOverview = async (workspaceId) => {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const tasksCompletedLast7Days = await Task.countDocuments({
     workspace: wsObjectId,
-    status: 'done',
+    status: { $in: ['done', 'completed', 'Done', 'Completed'] },
     updatedAt: { $gte: sevenDaysAgo }
   });
 
@@ -119,14 +119,14 @@ export const getProjectReports = async (workspaceId, query = {}) => {
       $group: {
         _id: '$project',
         totalTasks: { $sum: 1 },
-        completedTasks: { $sum: { $cond: [{ $eq: ['$status', 'done'] }, 1, 0] } },
-        inProgressTasks: { $sum: { $cond: [{ $eq: ['$status', 'in_progress'] }, 1, 0] } },
+        completedTasks: { $sum: { $cond: [{ $in: ['$status', ['done', 'completed', 'Done', 'Completed']] }, 1, 0] } },
+        inProgressTasks: { $sum: { $cond: [{ $in: ['$status', ['in_progress', 'InProgress', 'In Progress']] }, 1, 0] } },
         overdueTasks: {
           $sum: {
             $cond: [
               {
                 $and: [
-                  { $ne: ['$status', 'done'] },
+                  { $nin: ['$status', ['done', 'completed', 'Done', 'Completed']] },
                   { $lt: ['$dueDate', new Date()] }
                 ]
               },
@@ -218,7 +218,7 @@ export const getCompletedTaskReports = async (workspaceId, query = {}) => {
 
   const completedTasks = await Task.find({
     workspace: wsObjectId,
-    status: 'done'
+    status: { $in: ['done', 'completed', 'Done', 'Completed'] }
   })
     .populate('assignee', 'name email avatar')
     .populate('project', 'title name')
@@ -257,7 +257,7 @@ export const getOverdueTaskReports = async (workspaceId, query = {}) => {
 
   const overdueTasks = await Task.find({
     workspace: wsObjectId,
-    status: { $ne: 'done' },
+    status: { $nin: ['done', 'completed', 'Done', 'Completed'] },
     dueDate: { $lt: now }
   })
     .populate('assignee', 'name email avatar')
@@ -306,14 +306,14 @@ export const getTeamPerformanceReports = async (workspaceId) => {
       $group: {
         _id: '$assignee',
         totalTasks: { $sum: 1 },
-        completedTasks: { $sum: { $cond: [{ $eq: ['$status', 'done'] }, 1, 0] } },
-        inProgressTasks: { $sum: { $cond: [{ $eq: ['$status', 'in_progress'] }, 1, 0] } },
+        completedTasks: { $sum: { $cond: [{ $in: ['$status', ['done', 'completed', 'Done', 'Completed']] }, 1, 0] } },
+        inProgressTasks: { $sum: { $cond: [{ $in: ['$status', ['in_progress', 'InProgress', 'In Progress']] }, 1, 0] } },
         overdueTasks: {
           $sum: {
             $cond: [
               {
                 $and: [
-                  { $ne: ['$status', 'done'] },
+                  { $nin: ['$status', ['done', 'completed', 'Done', 'Completed']] },
                   { $lt: ['$dueDate', new Date()] }
                 ]
               },
@@ -379,7 +379,7 @@ export const getWorkloadReports = async (workspaceId) => {
   const tasks = await Task.find({
     workspace: wsObjectId,
     assignee: { $in: memberUserIds },
-    status: { $ne: 'done' }
+    status: { $nin: ['done', 'completed', 'Done', 'Completed'] }
   });
 
   const standardCapacity = 8;
@@ -411,7 +411,11 @@ export const getWorkloadReports = async (workspaceId) => {
 };
 
 export const getProductivityReports = async (workspaceId, query = {}) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
+  if (!workspaceId) {
+    const ws = await Workspace.findOne({ isActive: true }).select('_id');
+    if (ws?._id) workspaceId = ws._id.toString();
+    else return { averageThroughput: 0, weeks: [], productivityTrends: [] };
+  }
   const wsObjectId = new mongoose.Types.ObjectId(workspaceId);
 
   // Productivity metrics across the last 4 weeks
@@ -427,22 +431,31 @@ export const getProductivityReports = async (workspaceId, query = {}) => {
       }),
       Task.countDocuments({
         workspace: wsObjectId,
-        status: 'done',
+        status: { $in: ['done', 'completed'] },
         updatedAt: { $gte: start, $lte: end }
       })
     ]);
 
     weeks.push({
+      label: `Week ${4 - w}`,
       weekLabel: `Week -${w}`,
       startDate: start.toISOString().split('T')[0],
       endDate: end.toISOString().split('T')[0],
+      created: createdCount,
+      completed: completedCount,
       tasksCreated: createdCount,
       tasksCompleted: completedCount,
+      throughputRate: createdCount > 0 ? Math.round((completedCount / createdCount) * 100) : (completedCount > 0 ? 100 : 0),
       throughputRatio: createdCount > 0 ? Number((completedCount / createdCount).toFixed(2)) : 1.0
     });
   }
 
+  const totalCompleted = weeks.reduce((acc, w) => acc + w.completed, 0);
+  const averageThroughput = Number((totalCompleted / 4).toFixed(1));
+
   return {
+    averageThroughput,
+    weeks,
     productivityTrends: weeks
   };
 };
@@ -475,7 +488,11 @@ export const getActivityReports = async (workspaceId, query = {}) => {
 };
 
 export const getBurndownReports = async (workspaceId, query = {}) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
+  if (!workspaceId) {
+    const ws = await Workspace.findOne({ isActive: true }).select('_id');
+    if (ws?._id) workspaceId = ws._id.toString();
+    else return { totalScope: 0, completedTasks: 0, remainingTasks: 0, burndownPoints: [], burndown: [] };
+  }
   const wsObjectId = new mongoose.Types.ObjectId(workspaceId);
 
   const matchFilter = { workspace: wsObjectId };
@@ -485,7 +502,7 @@ export const getBurndownReports = async (workspaceId, query = {}) => {
 
   const tasks = await Task.find(matchFilter).lean();
   const totalScope = tasks.length;
-  const completedTasks = tasks.filter((t) => t.status === 'done').length;
+  const completedTasks = tasks.filter((t) => t.status === 'done' || t.status === 'completed').length;
   const remainingTasks = totalScope - completedTasks;
 
   // Calculate standard 10-day sprint burndown curve
@@ -493,25 +510,29 @@ export const getBurndownReports = async (workspaceId, query = {}) => {
   const idealStep = totalScope > 0 ? totalScope / (days - 1) : 0;
   const burndownPoints = [];
 
-  for (let i = 0; i < days; i++) {
-    const ideal = Math.max(0, Math.round(totalScope - idealStep * i));
-    // Simulated realistic actual progression towards current remaining
-    const actual = i === days - 1
-      ? remainingTasks
-      : Math.max(remainingTasks, Math.round(totalScope - (totalScope - remainingTasks) * (i / (days - 1))));
+  if (totalScope > 0) {
+    for (let i = 0; i < days; i++) {
+      const ideal = Math.max(0, Math.round(totalScope - idealStep * i));
+      const actual = i === days - 1
+        ? remainingTasks
+        : Math.max(remainingTasks, Math.round(totalScope - (totalScope - remainingTasks) * (i / (days - 1))));
 
-    burndownPoints.push({
-      day: `Day ${i + 1}`,
-      idealRemaining: ideal,
-      actualRemaining: actual
-    });
+      burndownPoints.push({
+        day: `Day ${i + 1}`,
+        idealRemaining: ideal,
+        actualRemaining: actual,
+        ideal,
+        actual
+      });
+    }
   }
 
   return {
     totalScope,
     completedTasks,
     remainingTasks,
-    burndownPoints
+    burndownPoints,
+    burndown: burndownPoints
   };
 };
 

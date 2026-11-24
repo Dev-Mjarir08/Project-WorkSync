@@ -475,7 +475,15 @@ export const superAdminService = {
       const res = await fetch(`${API_BASE_URL}/workspaces?${params.toString()}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const json = await res.json();
-        return json.data;
+        const beList = Array.isArray(json.data?.workspaces) ? json.data.workspaces : [];
+        if (beList.length > 0) {
+          const normalized = beList.map(w => ({ ...w, id: w.id || w._id, _id: w._id || w.id }));
+          setUserItem('workspaces', normalized);
+          return {
+            workspaces: normalized,
+            totalCount: json.data?.totalCount || normalized.length
+          };
+        }
       }
     } catch (e) {}
 
@@ -506,7 +514,19 @@ export const superAdminService = {
       });
       if (res.ok) {
         const json = await res.json();
-        return json.data?.workspace || json.data;
+        const created = json.data?.workspace || json.data;
+        if (created) {
+          const workspaces = getUserItem('workspaces', []);
+          const normalized = {
+            ...created,
+            id: created.id || created._id,
+            _id: created._id || created.id
+          };
+          workspaces.unshift(normalized);
+          setUserItem('workspaces', workspaces);
+          recordScopedAudit('WORKSPACE_PROVISIONED', `Created workspace "${normalized.name}" on ${normalized.plan} plan`, normalized.slug);
+          return normalized;
+        }
       }
     } catch (e) {}
 
@@ -536,6 +556,25 @@ export const superAdminService = {
   },
 
   getWorkspaceById: async (workspaceId) => {
+    if (isObjectId(workspaceId)) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}`, {
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const ws = json.data?.workspace || json.data;
+          if (ws) {
+            return {
+              ...ws,
+              id: ws.id || ws._id,
+              _id: ws._id || ws.id
+            };
+          }
+        }
+      } catch (e) {}
+    }
+
     const workspaces = getUserItem('workspaces', []);
     const ws = workspaces.find((w) => w.id === workspaceId || w._id === workspaceId || w.slug === workspaceId);
     if (!ws) throw new Error('Workspace not found');
@@ -543,11 +582,26 @@ export const superAdminService = {
   },
 
   updateWorkspace: async (workspaceId, updateData) => {
+    let serverWs = null;
+    if (isObjectId(workspaceId)) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}`, {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(updateData)
+        });
+        if (res.ok) {
+          const json = await res.json();
+          serverWs = json.data?.workspace || json.data;
+        }
+      } catch (e) {}
+    }
+
     const workspaces = getUserItem('workspaces', []);
-    const updated = workspaces.map((w) => (w.id === workspaceId || w._id === workspaceId ? { ...w, ...updateData } : w));
+    const updated = workspaces.map((w) => (w.id === workspaceId || w._id === workspaceId ? { ...w, ...updateData, ...(serverWs || {}) } : w));
     setUserItem('workspaces', updated);
     recordScopedAudit('WORKSPACE_UPDATED', `Updated workspace settings for ID ${workspaceId}`);
-    return updated.find((w) => w.id === workspaceId || w._id === workspaceId);
+    return serverWs || updated.find((w) => w.id === workspaceId || w._id === workspaceId);
   },
 
   updateWorkspaceStatus: async (workspaceId, statusData = {}) => {
@@ -557,8 +611,27 @@ export const superAdminService = {
   toggleWorkspaceStatus: async (workspaceId) => {
     const workspaces = getUserItem('workspaces', []);
     const target = workspaces.find((w) => w.id === workspaceId || w._id === workspaceId);
+    const newStatus = target?.status === 'Active' ? 'Archived' : 'Active';
+
+    if (isObjectId(workspaceId)) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/status`, {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ status: newStatus, isActive: newStatus === 'Active' })
+        });
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.message || 'Failed to update workspace status');
+        }
+      } catch (e) {
+        if (e.message && !e.message.includes('fetch')) throw e;
+      }
+    }
+
     if (target) {
-      target.status = target.status === 'Active' ? 'Suspended' : 'Active';
+      target.status = newStatus;
+      target.isActive = newStatus === 'Active';
       setUserItem('workspaces', workspaces);
       recordScopedAudit('WORKSPACE_STATUS_TOGGLED', `Changed workspace status to ${target.status}`);
     }
@@ -566,6 +639,21 @@ export const superAdminService = {
   },
 
   deleteWorkspace: async (workspaceId) => {
+    if (isObjectId(workspaceId)) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.message || 'Failed to delete workspace on server');
+        }
+      } catch (e) {
+        if (e.message && !e.message.includes('fetch')) throw e;
+      }
+    }
+
     const workspaces = getUserItem('workspaces', []);
     const target = workspaces.find((w) => w.id === workspaceId || w._id === workspaceId);
     const filtered = workspaces.filter((w) => w.id !== workspaceId && w._id !== workspaceId);
@@ -574,10 +662,92 @@ export const superAdminService = {
     return { success: true };
   },
 
-  getWorkspaceMembers: async () => [],
-  getWorkspaceBoards: async () => [],
-  getWorkspaceActivities: async () => [],
-  getWorkspaceAnalytics: async () => ({ adoption: 0, activeTasks: 0 }),
+  getWorkspaceMembers: async (workspaceId) => {
+    if (isObjectId(workspaceId)) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/members`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          return json.data?.members || json.data || [];
+        }
+      } catch (e) {}
+    }
+    return [];
+  },
+
+  getWorkspaceBoards: async (workspaceId) => {
+    if (isObjectId(workspaceId)) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/boards`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          return json.data || { boards: [] };
+        }
+      } catch (e) {}
+    }
+    return { boards: [] };
+  },
+
+  getWorkspaceActivities: async (workspaceId, limit = 20) => {
+    if (isObjectId(workspaceId)) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/activities?limit=${limit}`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          return json.data || [];
+        }
+      } catch (e) {}
+    }
+    return [];
+  },
+
+  getWorkspaceAnalytics: async (workspaceId) => {
+    if (isObjectId(workspaceId)) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/analytics`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          return json.data || { adoption: 0, activeTasks: 0 };
+        }
+      } catch (e) {}
+    }
+    return { adoption: 0, activeTasks: 0 };
+  },
+
+  addWorkspaceMember: async (workspaceId, memberData) => {
+    if (isObjectId(workspaceId)) {
+      const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/members`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(memberData)
+      });
+      if (res.ok) {
+        const json = await res.json();
+        return json.data?.member || json.data;
+      }
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to add member to workspace');
+    }
+    return { success: true };
+  },
+
+  createWorkspaceProject: async (workspaceId, projectData) => {
+    if (isObjectId(workspaceId)) {
+      const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/projects`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(projectData)
+      });
+      if (res.ok) {
+        const json = await res.json();
+        return json.data?.project || json.data;
+      }
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to create project in workspace');
+    }
+    return { success: true };
+  },
+
   getAllAdmins: async () => [],
   assignWorkspaceAdmin: async () => ({ success: true }),
   getWorkspaceAdmins: async () => [],

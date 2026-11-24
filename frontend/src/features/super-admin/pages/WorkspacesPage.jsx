@@ -299,7 +299,7 @@ export const WorkspacesPage = () => {
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => navigate(`/super-admin/workspaces/${ws.id}`)}
+                    onClick={() => navigate(`/super-admin/workspaces/${ws.id || ws._id}`)}
                     className="px-2.5 py-1 rounded-lg bg-indigo-600/15 hover:bg-indigo-600/25 border border-indigo-500/30 text-xs text-indigo-300 font-medium transition-colors flex items-center gap-1"
                     title="Inspect workspace details & boards"
                   >
@@ -307,13 +307,13 @@ export const WorkspacesPage = () => {
                     <ExternalLink className="h-3 w-3" />
                   </button>
                   <button
-                    onClick={() => handleToggleStatus(ws.id, ws.status)}
+                    onClick={() => handleToggleStatus(ws.id || ws._id, ws.status)}
                     className="px-2.5 py-1 rounded-lg border border-slate-700 hover:border-slate-600 text-xs text-slate-300 transition-colors"
                   >
                     {ws.status === 'Active' ? 'Archive' : 'Activate'}
                   </button>
                   <button
-                    onClick={() => handleDelete(ws.id, ws.name)}
+                    onClick={() => handleDelete(ws.id || ws._id, ws.name)}
                     className="p-1.5 rounded-lg border border-slate-700 hover:border-rose-500/50 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />

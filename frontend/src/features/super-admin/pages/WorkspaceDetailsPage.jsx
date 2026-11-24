@@ -59,16 +59,22 @@ export const WorkspaceDetailsPage = () => {
 
   const reloadWorkspace = async () => {
     try {
-      const [ws, usersRes] = await Promise.all([
+      const [ws, usersRes, membersRes, boardsRes] = await Promise.all([
         superAdminService.getWorkspaceById(workspaceId),
-        superAdminService.getUsers()
+        superAdminService.getUsers(),
+        superAdminService.getWorkspaceMembers(workspaceId).catch(() => []),
+        superAdminService.getWorkspaceBoards(workspaceId).catch(() => ({ boards: [] }))
       ]);
       if (ws) {
+        const membersList = Array.isArray(membersRes) && membersRes.length > 0 ? membersRes : (ws.members || []);
+        const boardsList = Array.isArray(boardsRes?.boards) && boardsRes.boards.length > 0 ? boardsRes.boards : (ws.boards || []);
         setWorkspace({
           ...ws,
           storageQuota: ws.plan === 'Enterprise' ? 20 : ws.plan === 'Pro' ? 10 : 5,
-          members: ws.members || [],
-          boards: ws.boards || []
+          members: membersList,
+          boards: boardsList,
+          membersCount: membersList.length || ws.membersCount || 1,
+          boardsCount: boardsList.length || ws.boardsCount || 0
         });
         setEditForm({
           name: ws.name,
@@ -167,41 +173,66 @@ export const WorkspaceDetailsPage = () => {
     setTimeout(() => setCopiedSlug(false), 2000);
   };
 
-  const handleToggleStatus = (newStatus) => {
-    setWorkspace(prev => ({
-      ...prev,
-      status: newStatus
-    }));
-    showToast(`Workspace status updated to ${newStatus}`);
+  const handleToggleStatus = async (newStatus) => {
+    try {
+      await superAdminService.toggleWorkspaceStatus(workspaceId);
+      setWorkspace(prev => ({
+        ...prev,
+        status: newStatus
+      }));
+      showToast(`Workspace status updated to ${newStatus}`);
+    } catch (err) {
+      showToast(err.message || 'Failed to update workspace status');
+    }
   };
 
-  const handlePlanChange = (newPlan) => {
-    setWorkspace(prev => ({
-      ...prev,
-      plan: newPlan
-    }));
-    showToast(`Workspace tier updated to ${newPlan}`);
+  const handlePlanChange = async (newPlan) => {
+    try {
+      await superAdminService.updateWorkspace(workspaceId, { plan: newPlan });
+      setWorkspace(prev => ({
+        ...prev,
+        plan: newPlan
+      }));
+      showToast(`Workspace tier updated to ${newPlan}`);
+    } catch (err) {
+      showToast(err.message || 'Failed to update workspace tier');
+    }
   };
 
-  const handleSaveEdit = (e) => {
+  const handleSaveEdit = async (e) => {
     e.preventDefault();
-    setWorkspace(prev => ({
-      ...prev,
-      name: editForm.name,
-      description: editForm.description,
-      plan: editForm.plan,
-      storageQuota: editForm.storageQuota
-    }));
-    setShowEditModal(false);
-    showToast('Workspace attributes updated successfully');
+    try {
+      const updated = await superAdminService.updateWorkspace(workspaceId, {
+        name: editForm.name,
+        description: editForm.description,
+        plan: editForm.plan
+      });
+      setWorkspace(prev => ({
+        ...prev,
+        name: editForm.name,
+        description: editForm.description,
+        plan: editForm.plan,
+        storageQuota: editForm.storageQuota,
+        ...(updated || {})
+      }));
+      setShowEditModal(false);
+      showToast('Workspace attributes updated successfully');
+    } catch (err) {
+      showToast(err.message || 'Failed to update workspace attributes');
+    }
   };
 
-  const handleDelete = () => {
-    setShowDeleteModal(false);
-    showToast(`Workspace "${workspace.name}" decommissioned`);
-    setTimeout(() => {
-      navigate('/super-admin/workspaces');
-    }, 1200);
+  const handleDelete = async () => {
+    try {
+      await superAdminService.deleteWorkspace(workspaceId);
+      setShowDeleteModal(false);
+      showToast(`Workspace "${workspace?.name || 'Tenant'}" decommissioned successfully`);
+      setTimeout(() => {
+        navigate('/super-admin/workspaces');
+      }, 1000);
+    } catch (err) {
+      showToast(err.message || 'Failed to delete workspace');
+    }
   };
 
   const storagePercentage = Math.round((workspace.storageUsed / workspace.storageQuota) * 100);

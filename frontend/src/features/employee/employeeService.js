@@ -125,10 +125,44 @@ export const employeeService = {
       Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
       const q = params.size ? `?${params.toString()}` : "";
       const data = await request(`/tasks${q}`);
-      return Array.isArray(data?.tasks) ? data.tasks : (data || []);
+      const rawList = Array.isArray(data?.tasks) ? data.tasks : (Array.isArray(data) ? data : []);
+      if (rawList.length > 0) {
+        const normalized = rawList.map((t) => {
+          const s = (t.status || 'todo').toLowerCase().trim();
+          let displayStatus = 'Pending';
+          if (s === 'done' || s === 'completed') displayStatus = 'Completed';
+          else if (s === 'in_progress' || s === 'inprogress' || s === 'in progress') displayStatus = 'In Progress';
+          else if (s === 'review' || s === 'inreview' || s === 'in review') displayStatus = 'In Progress';
+          else displayStatus = 'Pending';
+
+          const p = (t.priority || 'medium').toLowerCase().trim();
+          let displayPriority = 'Medium';
+          if (p === 'urgent' || p === 'high') displayPriority = 'High';
+          else if (p === 'low') displayPriority = 'Low';
+
+          const pName = typeof t.project === 'object' && t.project?.name
+            ? t.project.name
+            : (typeof t.project === 'string' && t.project ? t.project : 'General Work');
+
+          return {
+            ...t,
+            id: t.id || t._id,
+            _id: t._id || t.id,
+            title: t.title || 'Untitled Task',
+            project: pName,
+            status: displayStatus,
+            priority: displayPriority,
+            rawStatus: t.status,
+            dueDate: t.dueDate ? (new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : 'No due date'
+          };
+        });
+        setUserItem('employee_tasks', normalized);
+        return normalized;
+      }
     } catch {
-      return getUserItem("employee_tasks", []);
+      // Offline fallback
     }
+    return getUserItem('employee_tasks', []);
   },
 
   createTask: async (task) => {

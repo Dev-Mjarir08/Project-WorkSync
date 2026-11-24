@@ -54,12 +54,12 @@ export const getManagerDashboardStats = async (workspaceId, user) => {
     userId
       ? Task.countDocuments({ assignee: userId })
       : Task.countDocuments(taskQuery),
-    Task.countDocuments({ ...taskQuery, status: 'done' }),
-    Task.countDocuments({ ...taskQuery, status: 'in_progress' }),
+    Task.countDocuments({ ...taskQuery, status: { $in: ['done', 'completed', 'Done', 'Completed'] } }),
+    Task.countDocuments({ ...taskQuery, status: { $in: ['in_progress', 'InProgress', 'In Progress'] } }),
     Task.countDocuments({
       ...taskQuery,
       dueDate: { $lt: now },
-      status: { $ne: 'done' }
+      status: { $nin: ['done', 'completed', 'Done', 'Completed'] }
     }),
     wsId ? WorkspaceMember.countDocuments({ workspace: wsId, status: 'active' }) : WorkspaceMember.countDocuments({ status: 'active' })
   ]);
@@ -119,7 +119,7 @@ export const getManagerAssignedProjects = async (workspaceId, user) => {
         _id: '$project',
         totalTasks: { $sum: 1 },
         completedTasks: {
-          $sum: { $cond: [{ $eq: ['$status', 'done'] }, 1, 0] }
+          $sum: { $cond: [{ $in: ['$status', ['done', 'completed', 'Done', 'Completed']] }, 1, 0] }
         }
       }
     }

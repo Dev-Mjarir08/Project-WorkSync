@@ -376,20 +376,10 @@ export const managerService = {
       return await request(`/reports/burndown${q}`);
     } catch {
       return {
-        totalScope: 42,
-        remainingTasks: 18,
-        burndown: [
-          { day: "Day 1", ideal: 42, actual: 42 },
-          { day: "Day 2", ideal: 37.8, actual: 41 },
-          { day: "Day 3", ideal: 33.6, actual: 38 },
-          { day: "Day 4", ideal: 29.4, actual: 32 },
-          { day: "Day 5", ideal: 25.2, actual: 26 },
-          { day: "Day 6", ideal: 21.0, actual: 21 },
-          { day: "Day 7", ideal: 16.8, actual: 17 },
-          { day: "Day 8", ideal: 12.6, actual: 12 },
-          { day: "Day 9", ideal: 8.4, actual: 8 },
-          { day: "Day 10", ideal: 0, actual: null },
-        ]
+        totalScope: 0,
+        remainingTasks: 0,
+        burndownPoints: [],
+        burndown: []
       };
     }
   },
@@ -402,13 +392,8 @@ export const managerService = {
       return await request(`/reports/productivity${q}`);
     } catch {
       return {
-        averageThroughput: 8.5,
-        weeks: [
-          { label: "Week 1", created: 12, completed: 10, throughputRate: 83 },
-          { label: "Week 2", created: 15, completed: 14, throughputRate: 93 },
-          { label: "Week 3", created: 11, completed: 9, throughputRate: 82 },
-          { label: "Week 4", created: 14, completed: 12, throughputRate: 86 },
-        ]
+        averageThroughput: 0,
+        weeks: []
       };
     }
   },

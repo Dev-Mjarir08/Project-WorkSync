@@ -124,15 +124,31 @@ export const assignTaskToMember = async (workspaceId, data, actorUser) => {
 
   const prevAssignee = task.assignee;
   task.assignee = targetUser._id;
+  const targetWsId = task.workspace || (workspaceId && mongoose.Types.ObjectId.isValid(workspaceId) ? workspaceId : null);
+  if (targetWsId) {
+    task.workspace = targetWsId;
+  }
   if (data.priority) task.priority = data.priority.toLowerCase();
   if (data.dueDate) task.dueDate = data.dueDate;
   if (data.status) task.status = data.status.toLowerCase();
 
   await task.save();
 
-  await Activity.create({
+  if (targetWsId) {
+    const isMember = await WorkspaceMember.findOne({ workspace: targetWsId, user: targetUser._id });
+    if (!isMember) {
+      await WorkspaceMember.create({
+        workspace: targetWsId,
+        user: targetUser._id,
+        role: targetUser.role || 'member',
+        status: 'active'
+      }).catch(() => {});
+    }
+  }
+
+  Activity.create({
     user: actorUser._id,
-    workspace: workspaceId,
+    workspace: targetWsId || workspaceId,
     action: 'task_assigned',
     type: 'task',
     entityType: 'Task',
@@ -144,18 +160,18 @@ export const assignTaskToMember = async (workspaceId, data, actorUser) => {
       assigneeId: targetUser._id.toString(),
       prevAssigneeId: prevAssignee ? prevAssignee.toString() : null
     }
-  });
+  }).catch(() => {});
 
   if (targetUser._id.toString() !== actorUser._id.toString()) {
-    await Notification.create({
+    Notification.create({
       recipient: targetUser._id,
       sender: actorUser._id,
-      workspace: workspaceId,
+      workspace: targetWsId || workspaceId,
       title: 'Task Assigned',
       message: `You were assigned to task "${task.title}" by ${actorUser.name}`,
       type: 'task',
       metadata: { taskId: task._id.toString() }
-    });
+    }).catch(() => {});
   }
 
   const populatedTask = await Task.findById(task._id)

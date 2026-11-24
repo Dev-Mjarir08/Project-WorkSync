@@ -424,6 +424,48 @@ const TasksPage = () => {
       .catch((requestError) => setError(requestError.message || "Unable to update task status."));
   };
 
+  const handleAssigneeChange = async (taskId, newAssigneeId) => {
+    const targetAssignee = distinctAssignees.find((a) => a.id === newAssigneeId);
+    const newName = targetAssignee ? targetAssignee.name : (newAssigneeId || "Unassigned");
+    const newAvatar = newName === "Unassigned" ? "—" : newName.split(/\s+/).map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+
+    setTasks((currentTasks) =>
+      currentTasks.map((task) =>
+        task.id === taskId || task._id === taskId
+          ? {
+              ...task,
+              assignee: newName,
+              assigneeId: newAssigneeId,
+              assigneeAvatar: newAvatar,
+              assigneeName: newName
+            }
+          : task
+      )
+    );
+
+    setSelectedTaskDetails((prev) =>
+      prev && (prev.id === taskId || prev._id === taskId)
+        ? {
+            ...prev,
+            assignee: newName,
+            assigneeId: newAssigneeId,
+            assigneeAvatar: newAvatar,
+            assigneeName: newName
+          }
+        : prev
+    );
+
+    try {
+      await managerService.assignTask(taskId, {
+        memberId: newAssigneeId,
+        assigneeId: newAssigneeId,
+        assignee: newName
+      });
+    } catch (err) {
+      console.warn("Assignee update error:", err);
+    }
+  };
+
   const handleCreateTaskSubmit = async (e) => {
     e.preventDefault();
     if (!newTask.title.trim()) return;
@@ -984,14 +1026,22 @@ const TasksPage = () => {
                 <span className="text-[10px] font-semibold text-slate-400 uppercase">Assignee</span>
                 <div className="flex items-center gap-2 mt-1.5">
                   <div
-                    className={`flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr ${selectedTaskDetails.assigneeColor} text-[9px] font-bold text-white shadow-xs`}
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr ${selectedTaskDetails.assigneeColor} text-[9px] font-bold text-white shadow-xs`}
                   >
                     {selectedTaskDetails.assigneeAvatar}
                   </div>
-                  <div>
-                    <p className="font-semibold text-slate-800">{selectedTaskDetails.assignee}</p>
-                    <p className="text-[10px] text-slate-500">{selectedTaskDetails.assigneeRole}</p>
-                  </div>
+                  <select
+                    value={selectedTaskDetails.assigneeId || selectedTaskDetails.assignee || ""}
+                    onChange={(e) => handleAssigneeChange(selectedTaskDetails.id || selectedTaskDetails._id, e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-white py-1 px-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">Unassigned</option>
+                    {distinctAssignees.map((assignee) => (
+                      <option key={assignee.id} value={assignee.id}>
+                        {assignee.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

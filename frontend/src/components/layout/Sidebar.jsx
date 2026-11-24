@@ -269,7 +269,23 @@ export const Sidebar = ({ activeItem = "", mobileOpen = false, setMobileOpen = (
   const navSections = isEmployee ? employeeNavSections : managerNavSections;
   const accentColor = isEmployee ? "teal" : "blue";
 
-  const sprintTasks = isEmployee ? getUserItem("employee_tasks", []) : getUserItem("manager_tasks", []);
+  const [sprintTasks, setSprintTasks] = useState(() =>
+    isEmployee ? getUserItem("employee_tasks", []) : getUserItem("manager_tasks", [])
+  );
+
+  useEffect(() => {
+    const syncTasks = () => {
+      setSprintTasks(isEmployee ? getUserItem("employee_tasks", []) : getUserItem("manager_tasks", []));
+    };
+    syncTasks();
+    window.addEventListener("storage", syncTasks);
+    window.addEventListener("tasks_updated", syncTasks);
+    return () => {
+      window.removeEventListener("storage", syncTasks);
+      window.removeEventListener("tasks_updated", syncTasks);
+    };
+  }, [isEmployee]);
+
   const hasSprintTasks = Array.isArray(sprintTasks) && sprintTasks.length > 0;
   const totalSprintTasks = hasSprintTasks ? sprintTasks.length : 0;
   const completedSprintTasks = hasSprintTasks

@@ -41,6 +41,10 @@ export const setUserItem = (baseKey, value) => {
   try {
     const key = getUserScopedKey(baseKey);
     localStorage.setItem(key, JSON.stringify(value));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(new Event("tasks_updated"));
+    }
   } catch (err) {
     console.error(`Error saving ${baseKey} to user storage:`, err);
   }

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Plus,
   Search,
@@ -18,6 +18,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { getUserItem, setUserItem } from "../../../utils/userStorage.js";
+import { employeeService } from "../employeeService.js";
+import { useConfirm } from "../../../context/ConfirmContext.jsx";
 
 const initialTasks = [];
 
@@ -89,6 +91,7 @@ function SectionHeading({ icon: Icon, title, description, action }) {
 }
 
 export default function TasksPage() {
+  const confirm = useConfirm();
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -98,16 +101,29 @@ export default function TasksPage() {
   const [newTaskDueDate, setNewTaskDueDate] = useState("Nov 05");
   const [tasks, setTasks] = useState(() => getUserItem("employee_tasks", []));
 
+  useEffect(() => {
+    let mounted = true;
+    employeeService.getTasks().then((live) => {
+      if (!mounted) return;
+      if (Array.isArray(live) && live.length > 0) {
+        setTasks(live);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const stats = useMemo(() => {
     const total = tasks.length;
     const completed = tasks.filter(
-      (task) => task.status === "Completed"
+      (task) => task.status === "Completed" || (task.status || '').toLowerCase() === "done"
     ).length;
     const inProgress = tasks.filter(
-      (task) => task.status === "In Progress"
+      (task) => task.status === "In Progress" || (task.status || '').toLowerCase().includes("progress")
     ).length;
     const pending = tasks.filter(
-      (task) => task.status === "Pending"
+      (task) => task.status === "Pending" || (task.status || '').toLowerCase() === "todo"
     ).length;
 
     return {
@@ -121,58 +137,109 @@ export default function TasksPage() {
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
+      const s = (task.status || '').toLowerCase();
+      const isCompleted = task.status === "Completed" || s === "done";
+      const isInProgress = task.status === "In Progress" || s.includes("progress");
+      const isPending = task.status === "Pending" || s === "todo";
+
       const matchesFilter =
         filter === "all" ||
-        (filter === "completed" && task.status === "Completed") ||
-        (filter === "in-progress" && task.status === "In Progress") ||
-        (filter === "pending" && task.status === "Pending");
+        (filter === "completed" && isCompleted) ||
+        (filter === "in-progress" && isInProgress) ||
+        (filter === "pending" && isPending);
 
       const query = searchQuery.toLowerCase().trim();
 
       const matchesSearch =
-        task.title.toLowerCase().includes(query) ||
-        task.project.toLowerCase().includes(query) ||
-        task.priority.toLowerCase().includes(query);
+        (task.title || '').toLowerCase().includes(query) ||
+        (task.project || '').toLowerCase().includes(query) ||
+        (task.priority || '').toLowerCase().includes(query);
 
       return matchesFilter && matchesSearch;
     });
   }, [tasks, filter, searchQuery]);
 
-  const toggleTaskStatus = (id) => {
+  const toggleTaskStatus = async (id) => {
+    const current = tasks.find((t) => t.id === id || t._id === id);
+    if (!current) return;
+
+    if (current.status === "Completed" || (current.status || '').toLowerCase() === "done") {
+      return; // Locked! Cannot edit completed task
+    }
+
+    const isConfirmed = await confirm({
+      title: "Complete Task",
+      message: "Is this task completed? Once completed, this task will be locked and cannot be edited.",
+      confirmText: "Yes, Complete",
+      cancelText: "Cancel"
+    });
+    if (!isConfirmed) return;
+
     setTasks((currentTasks) => {
       const updated = currentTasks.map((task) => {
-        if (task.id !== id) return task;
+        if (task.id !== id && task._id !== id) return task;
 
         return {
           ...task,
-          status:
-            task.status === "Completed" ? "In Progress" : "Completed",
+          status: "Completed",
+          progress: 100
         };
       });
       setUserItem("employee_tasks", updated);
       return updated;
     });
+
+    try {
+      await employeeService.updateTaskStatus(id, "done");
+    } catch (e) {}
   };
 
-  const handleAddTask = (event) => {
+  const handleAddTask = async (event) => {
     event.preventDefault();
 
     if (!newTaskTitle.trim()) return;
 
-    const newTask = {
-      id: Date.now(),
+    const payload = {
       title: newTaskTitle.trim(),
       project: newTaskProject.trim() || "General",
       priority: newTaskPriority,
-      status: "Pending",
+      status: "todo",
       dueDate: newTaskDueDate.trim() || "No date",
     };
 
-    setTasks((currentTasks) => {
-      const updated = [newTask, ...currentTasks];
-      setUserItem("employee_tasks", updated);
-      return updated;
-    });
+    try {
+      const created = await employeeService.createTask(payload);
+      const newTask = {
+        id: created?.id || created?._id || Date.now(),
+        _id: created?._id || created?.id || Date.now(),
+        title: created?.title || payload.title,
+        project: payload.project,
+        priority: payload.priority,
+        status: "Pending",
+        dueDate: payload.dueDate,
+      };
+
+      setTasks((currentTasks) => {
+        const updated = [newTask, ...currentTasks];
+        setUserItem("employee_tasks", updated);
+        return updated;
+      });
+    } catch {
+      const newTask = {
+        id: Date.now(),
+        title: payload.title,
+        project: payload.project,
+        priority: payload.priority,
+        status: "Pending",
+        dueDate: payload.dueDate,
+      };
+
+      setTasks((currentTasks) => {
+        const updated = [newTask, ...currentTasks];
+        setUserItem("employee_tasks", updated);
+        return updated;
+      });
+    }
 
     setNewTaskTitle("");
     setNewTaskProject("");

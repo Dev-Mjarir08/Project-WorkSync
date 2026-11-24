@@ -77,6 +77,7 @@ export const TasksPage = () => {
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
   const [assignModalTask, setAssignModalTask] = useState(null);
   const [draggedTaskId, setDraggedTaskId] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
@@ -176,15 +177,16 @@ export const TasksPage = () => {
 
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
-    if (!newTaskForm.title.trim()) return;
+    if (!newTaskForm.title.trim() || isSubmittingTask) return;
 
+    setIsSubmittingTask(true);
     try {
       await createTask(newTaskForm);
       setShowCreateModal(false);
       setNewTaskForm({
         title: '',
         description: '',
-        workspaceId: workspacesList[0]?.id || '',
+        workspaceId: workspacesList[0]?.id || workspacesList[0]?._id || '',
         boardId: '',
         projectId: '',
         assigneeId: '',
@@ -194,6 +196,8 @@ export const TasksPage = () => {
       });
     } catch (err) {
       console.error('Failed to create task:', err);
+    } finally {
+      setIsSubmittingTask(false);
     }
   };
 
@@ -730,9 +734,17 @@ export const TasksPage = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-lg shadow-indigo-600/25"
+                  disabled={isSubmittingTask}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs font-bold text-white shadow-lg shadow-indigo-600/25 flex items-center gap-2"
                 >
-                  Create & Assign
+                  {isSubmittingTask ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Creating...</span>
+                    </>
+                  ) : (
+                    <span>Create & Assign</span>
+                  )}
                 </button>
               </div>
             </form>

@@ -108,6 +108,7 @@ export const getAllWorkspaces = async (query = {}, actorUser) => {
 
   const workspaces = rawWorkspaces.map(w => ({
     id: w._id.toString(),
+    _id: w._id.toString(),
     name: w.name,
     slug: w.slug,
     description: w.description || '',
@@ -206,6 +207,7 @@ export const getWorkspaceById = async (workspaceIdentifier) => {
 
   return {
     id: ws._id.toString(),
+    _id: ws._id.toString(),
     name: ws.name,
     slug: ws.slug,
     description: ws.description || '',
@@ -250,6 +252,7 @@ export const updateWorkspace = async (workspaceIdentifier, updateData, actorAdmi
 
   return {
     id: ws._id.toString(),
+    _id: ws._id.toString(),
     name: ws.name,
     slug: ws.slug,
     description: ws.description,
@@ -286,6 +289,7 @@ export const updateWorkspaceStatus = async (workspaceIdentifier, { status, isAct
 
   return {
     id: ws._id.toString(),
+    _id: ws._id.toString(),
     name: ws.name,
     status: ws.status,
     isActive: ws.isActive

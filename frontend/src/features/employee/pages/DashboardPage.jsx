@@ -130,9 +130,9 @@ export default function DashboardPage() {
   // Dynamic Calculated Stats based on current tasks state
   const statsComputed = useMemo(() => {
     const total = tasks.length;
-    const completed = tasks.filter((t) => t.status === "Completed").length;
-    const inProgress = tasks.filter((t) => t.status === "In Progress").length;
-    const overdue = tasks.filter((t) => t.priority === "High" && t.status !== "Completed").length;
+    const completed = tasks.filter((t) => t.status === "Completed" || (t.status || '').toLowerCase() === "done").length;
+    const inProgress = tasks.filter((t) => t.status === "In Progress" || (t.status || '').toLowerCase().includes("progress") || (t.status || '').toLowerCase().includes("review")).length;
+    const overdue = tasks.filter((t) => ((t.priority || '').toLowerCase() === "high" || (t.priority || '').toLowerCase() === "urgent") && t.status !== "Completed" && (t.status || '').toLowerCase() !== "done").length;
 
     return [
       {

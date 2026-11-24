@@ -2,11 +2,42 @@ import mongoose from 'mongoose';
 import { Task } from '../../../models/Task.js';
 import { Board } from '../../../models/Board.js';
 import { Workspace } from '../../../models/Workspace.js';
+import { WorkspaceMember } from '../../../models/WorkspaceMember.js';
 import { Project } from '../../../models/Project.js';
 import { User } from '../../../models/User.js';
 import { AuditLog } from '../../../models/AuditLog.js';
 import { ApiError } from '../../../utils/ApiError.js';
 import { createNotification } from '../../../utils/createNotification.js';
+
+const resolveAssigneeUserId = async (rawAssignee) => {
+  if (!rawAssignee) return null;
+  if (typeof rawAssignee === 'object' && rawAssignee._id) {
+    rawAssignee = rawAssignee._id.toString();
+  }
+  if (typeof rawAssignee === 'object' && rawAssignee.id) {
+    rawAssignee = rawAssignee.id.toString();
+  }
+  if (rawAssignee === 'unassigned') return null;
+
+  if (mongoose.Types.ObjectId.isValid(rawAssignee)) {
+    const user = await User.findById(rawAssignee).select('_id');
+    if (user) return user._id;
+
+    const member = await WorkspaceMember.findById(rawAssignee).select('user');
+    if (member?.user) return member.user;
+  }
+  if (typeof rawAssignee === 'string' && rawAssignee.trim()) {
+    const user = await User.findOne({
+      $or: [
+        { email: rawAssignee.trim().toLowerCase() },
+        { name: rawAssignee.trim() },
+        { name: { $regex: new RegExp(`^${rawAssignee.trim()}$`, 'i') } }
+      ]
+    }).select('_id');
+    if (user) return user._id;
+  }
+  return null;
+};
 
 const recordAudit = async ({ action, details, actor, target = '', targetId = '' }) => {
   try {
@@ -157,11 +188,37 @@ export const createTask = async (data, actorAdmin) => {
     throw new ApiError(400, 'Task title is required');
   }
 
+  const resolvedAssigneeId = await resolveAssigneeUserId(data.assigneeId || data.assignee || data.userId);
+
   let workspaceId = data.workspaceId || data.workspace;
+  if (!workspaceId || !mongoose.Types.ObjectId.isValid(workspaceId)) {
+    // If assignee provided, prioritize assignee's workspace
+    if (resolvedAssigneeId) {
+      const member = await WorkspaceMember.findOne({ user: resolvedAssigneeId, status: 'active' }).select('workspace');
+      if (member?.workspace) {
+        workspaceId = member.workspace;
+      }
+    }
+  }
+
   if (!workspaceId || !mongoose.Types.ObjectId.isValid(workspaceId)) {
     const defaultWs = await Workspace.findOne({ isActive: true });
     if (!defaultWs) throw new ApiError(400, 'No active workspace available to create task');
     workspaceId = defaultWs._id;
+  }
+
+  // Ensure the assignee is enrolled as a member of the workspace so they have access
+  if (resolvedAssigneeId && workspaceId) {
+    const isMember = await WorkspaceMember.findOne({ workspace: workspaceId, user: resolvedAssigneeId });
+    if (!isMember) {
+      const u = await User.findById(resolvedAssigneeId).select('role');
+      await WorkspaceMember.create({
+        workspace: workspaceId,
+        user: resolvedAssigneeId,
+        role: u?.role || 'member',
+        status: 'active'
+      }).catch(() => {});
+    }
   }
 
   let boardId = data.boardId || data.board;
@@ -187,17 +244,12 @@ export const createTask = async (data, actorAdmin) => {
     listId = null;
   }
 
-  let assigneeId = data.assigneeId || data.assignee || data.userId;
-  if (!assigneeId || !mongoose.Types.ObjectId.isValid(assigneeId) || assigneeId === 'unassigned') {
-    assigneeId = null;
-  }
-
   const task = await Task.create({
     workspace: workspaceId,
     board: boardId,
     project: projectId,
     list: listId,
-    assignee: assigneeId,
+    assignee: resolvedAssigneeId || null,
     title: data.title.trim(),
     description: data.description || '',
     status: data.status ? data.status.toLowerCase() : 'todo',
@@ -206,32 +258,27 @@ export const createTask = async (data, actorAdmin) => {
     order: data.order !== undefined ? Number(data.order) : 0
   });
 
-  if (boardId) {
-    await Board.findByIdAndUpdate(boardId, { $inc: { tasksCount: 1 } }).catch(() => {});
-  }
-  if (workspaceId) {
-    await Workspace.findByIdAndUpdate(workspaceId, { $inc: { tasksCount: 1 } }).catch(() => {});
-  }
-
-  if (assigneeId) {
-    await createNotification({
-      recipient: assigneeId,
+  // Non-blocking side effects
+  Promise.all([
+    boardId ? Board.findByIdAndUpdate(boardId, { $inc: { tasksCount: 1 } }) : null,
+    workspaceId ? Workspace.findByIdAndUpdate(workspaceId, { $inc: { tasksCount: 1 } }) : null,
+    resolvedAssigneeId ? createNotification({
+      recipient: resolvedAssigneeId,
       workspace: workspaceId,
       sender: actorAdmin?._id,
       title: 'New Task Assigned',
       message: `You were assigned to task "${task.title}"`,
       type: 'task',
       link: '/tasks'
-    }).catch(() => {});
-  }
-
-  await recordAudit({
-    action: 'Task Created',
-    details: `Super Admin created task "${task.title}"`,
-    actor: actorAdmin,
-    target: task.title,
-    targetId: task._id.toString()
-  });
+    }) : null,
+    recordAudit({
+      action: 'Task Created',
+      details: `Super Admin created task "${task.title}"`,
+      actor: actorAdmin,
+      target: task.title,
+      targetId: task._id.toString()
+    })
+  ]).catch(() => {});
 
   const populated = await Task.findById(task._id)
     .populate('assignee', 'name email avatar role')
@@ -326,16 +373,39 @@ export const assignTask = async (taskId, assigneeId, actorAdmin) => {
   const task = await Task.findById(taskId);
   if (!task) throw new ApiError(404, 'Task not found');
 
-  task.assignee = assigneeId || null;
+  const resolvedAssigneeId = await resolveAssigneeUserId(assigneeId);
+  task.assignee = resolvedAssigneeId || null;
   await task.save();
 
-  await recordAudit({
+  if (resolvedAssigneeId && task.workspace) {
+    const isMember = await WorkspaceMember.findOne({ workspace: task.workspace, user: resolvedAssigneeId });
+    if (!isMember) {
+      const u = await User.findById(resolvedAssigneeId).select('role');
+      await WorkspaceMember.create({
+        workspace: task.workspace,
+        user: resolvedAssigneeId,
+        role: u?.role || 'member',
+        status: 'active'
+      }).catch(() => {});
+    }
+    createNotification({
+      recipient: resolvedAssigneeId,
+      workspace: task.workspace,
+      sender: actorAdmin?._id,
+      title: 'Task Assigned',
+      message: `You were assigned to task "${task.title}"`,
+      type: 'task',
+      link: '/tasks'
+    }).catch(() => {});
+  }
+
+  recordAudit({
     action: 'Task Assignee Updated',
-    details: assigneeId ? `Assigned task "${task.title}" to user ${assigneeId}` : `Unassigned task "${task.title}"`,
+    details: resolvedAssigneeId ? `Assigned task "${task.title}" to user ${resolvedAssigneeId}` : `Unassigned task "${task.title}"`,
     actor: actorAdmin,
     target: task.title,
     targetId: task._id.toString()
-  });
+  }).catch(() => {});
 
   const populated = await Task.findById(task._id)
     .populate('assignee', 'name email avatar role')

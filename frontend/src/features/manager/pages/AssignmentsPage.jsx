@@ -131,18 +131,34 @@ export default function AssignmentsPage() {
     );
   }
 
-  function saveAssignment() {
+  async function saveAssignment() {
     if (!editingTask || !selectedEmployee) return;
+
+    const assignedName = selectedEmployee;
+    const memberObj = teamList.find(
+      (m) => m.name === assignedName || m.email === assignedName || m.id === assignedName || m._id === assignedName
+    );
+    const memberId = memberObj?._id || memberObj?.id || memberObj?.user?._id || assignedName;
 
     setAssignments((current) => {
       const updated = current.map((task) =>
         task.id === editingTask.id
-          ? { ...task, assignee: selectedEmployee }
+          ? { ...task, assignee: assignedName }
           : task
       );
       setUserItem("manager_assignments", updated);
       return updated;
     });
+
+    try {
+      await managerService.assignTask(editingTask.id, {
+        memberId,
+        assigneeId: memberId,
+        assignee: assignedName
+      });
+    } catch (e) {
+      console.warn("Backend assignment failed, preserved local assignment:", e);
+    }
 
     setEditingTask(null);
     setSelectedEmployee("");

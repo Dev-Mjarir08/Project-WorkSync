@@ -38,6 +38,7 @@ const formatDate = (value) => (
 
 const TasksPage = () => {
   const [boards, setBoards] = useState([]);
+  const [tasksList, setTasksList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -49,19 +50,35 @@ const TasksPage = () => {
   const [dateTo, setDateTo] = useState('');
 
   useEffect(() => {
-    try {
-      setBoards(adminService.getBoards());
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Tasks could not be loaded.');
-    } finally {
+    let mounted = true;
+    Promise.all([
+      adminService.getBoards(),
+      adminService.getTasks()
+    ]).then(([bList, tList]) => {
+      if (!mounted) return;
+      setBoards(Array.isArray(bList) ? bList : []);
+      setTasksList(Array.isArray(tList) ? tList : []);
       setIsLoading(false);
-    }
+    }).catch((loadError) => {
+      if (!mounted) return;
+      setError(loadError instanceof Error ? loadError.message : 'Tasks could not be loaded.');
+      setIsLoading(false);
+    });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const tasks = useMemo(
-    () => boards.flatMap((board) => board.tasks.map((task) => ({ ...task, board }))),
-    [boards]
-  );
+  const tasks = useMemo(() => {
+    const fromBoards = (Array.isArray(boards) ? boards : []).flatMap((board) =>
+      Array.isArray(board.tasks) ? board.tasks.map((task) => ({ ...task, board })) : []
+    );
+    if (fromBoards.length > 0) return fromBoards;
+    return (Array.isArray(tasksList) ? tasksList : []).map((t) => ({
+      ...t,
+      board: t.board || { id: 'default', title: 'General Board', workspace: 'Default Workspace' }
+    }));
+  }, [boards, tasksList]);
   const assignees = useMemo(
     () => [...new Map(
       tasks
