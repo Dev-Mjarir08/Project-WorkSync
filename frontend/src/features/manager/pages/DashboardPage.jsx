@@ -33,8 +33,6 @@ import { managerService } from "../managerService.js";
 import { useConfirm } from "../../../context/ConfirmContext.jsx";
 import TopTaskTimelineKanban from "../../boards/components/TopTaskTimelineKanban.jsx";
 
-const DASHBOARD_API_URL = "http://localhost:8081/api/v1/manager/dashboard";
-
 const statusStyles = {
   "In Progress": "bg-blue-50 text-blue-700 border-blue-200",
   Completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -166,22 +164,26 @@ export const DashboardPage = () => {
 
   const loadLiveDashboard = useCallback(async () => {
     try {
-      const [dashData, liveTasks, tm] = await Promise.all([
+      const [dashData, liveTasks, tm, projs] = await Promise.all([
         managerService.getDashboard().catch(() => null),
         managerService.getTasks().catch(() => null),
-        managerService.getTeamMembers().catch(() => null)
+        managerService.getTeamMembers().catch(() => null),
+        managerService.getProjects().catch(() => null)
       ]);
 
-      if (dashData?.myProjects && Array.isArray(dashData.myProjects)) {
-        setProjects(dashData.myProjects);
-        setUserItem("manager_projects", dashData.myProjects);
+      const activeProjects = (Array.isArray(dashData?.myProjects) && dashData.myProjects.length > 0)
+        ? dashData.myProjects
+        : (Array.isArray(projs) && projs.length > 0 ? projs : []);
+      if (activeProjects.length > 0) {
+        setProjects(activeProjects);
+        setUserItem("manager_projects", activeProjects);
       }
 
       if (Array.isArray(liveTasks) && liveTasks.length > 0) {
         const norm = liveTasks.map(normalizeTask);
         setTasks(norm);
         setUserItem("manager_tasks", norm);
-      } else if (dashData?.recentTasks && Array.isArray(dashData.recentTasks)) {
+      } else if (dashData?.recentTasks && Array.isArray(dashData.recentTasks) && dashData.recentTasks.length > 0) {
         const norm = dashData.recentTasks.map(normalizeTask);
         setTasks(norm);
         setUserItem("manager_tasks", norm);
@@ -195,9 +197,12 @@ export const DashboardPage = () => {
         setUserItem("manager_activities", dashData.recentActivities);
       }
 
-      if (Array.isArray(tm) && tm.length > 0) {
-        setTeamMembersData(tm);
-        setUserItem("manager_team", tm);
+      const members = Array.isArray(tm) && tm.length > 0
+        ? tm
+        : (Array.isArray(dashData?.teamPerformance) ? dashData.teamPerformance : []);
+      if (members.length > 0) {
+        setTeamMembersData(members);
+        setUserItem("manager_team", members);
       }
     } catch (e) {
       console.error("Dashboard refresh error:", e);
@@ -256,7 +261,13 @@ export const DashboardPage = () => {
   // Live Backend API Fetch with Graceful Local Fallback
   useEffect(() => {
     loadLiveDashboard();
-  }, [token, loadLiveDashboard]);
+    window.addEventListener("storage", loadLiveDashboard);
+    window.addEventListener("tasks_updated", loadLiveDashboard);
+    return () => {
+      window.removeEventListener("storage", loadLiveDashboard);
+      window.removeEventListener("tasks_updated", loadLiveDashboard);
+    };
+  }, [loadLiveDashboard]);
 
   // Derived Metrics
   const stats = useMemo(() => {
@@ -474,6 +485,39 @@ export const DashboardPage = () => {
               </button>
             </div>
           </div>
+
+          {/* Top 4 KPI Metric Summary Cards */}
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+            {metricCards.map((card, idx) => {
+              const IconComponent = card.icon;
+              return (
+                <div
+                  key={idx}
+                  className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs transition hover:shadow-sm"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                        {card.title}
+                      </p>
+                      <p className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                        {card.value}
+                      </p>
+                    </div>
+                    <div className={`rounded-xl p-2.5 ${card.iconBg}`}>
+                      <IconComponent size={20} />
+                    </div>
+                  </div>
+                  <div className="mt-3.5 flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-500">
+                    <span className="truncate">{card.subtitle}</span>
+                    <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold border ${card.badgeColor}`}>
+                      {card.badge}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </section>
 
           {/* Top Task Timeline & Kanban Board */}
           <TopTaskTimelineKanban
