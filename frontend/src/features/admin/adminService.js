@@ -75,10 +75,11 @@ const adminService = {
     try {
       const query = new URLSearchParams(params).toString();
       const data = await request(`/tasks${query ? `?${query}` : ''}`);
-      if (Array.isArray(data?.tasks)) {
-        return data.tasks;
+      const list = Array.isArray(data?.tasks) ? data.tasks : (Array.isArray(data) ? data : []);
+      if (!query || Object.keys(params).length === 0) {
+        setUserItem('admin_tasks', list);
       }
-      if (Array.isArray(data)) return data;
+      return list;
     } catch {}
     return getUserItem('admin_tasks', []);
   },
@@ -90,6 +91,10 @@ const adminService = {
     const tasks = getUserItem('admin_tasks', []);
     const filtered = tasks.filter((t) => t.id !== taskId && t._id !== taskId);
     setUserItem('admin_tasks', filtered);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('tasks_updated'));
+      window.dispatchEvent(new Event('storage'));
+    }
     return { success: true };
   },
 

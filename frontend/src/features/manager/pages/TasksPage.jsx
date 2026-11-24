@@ -251,50 +251,65 @@ const TasksPage = () => {
 
   useEffect(() => {
     let active = true;
-    Promise.allSettled([
-      managerService.getTasks(),
-      managerService.getProjects(),
-      managerService.getTeamMembers()
-    ])
-      .then(([taskResult, projectResult, teamResult]) => {
-        if (!active) return;
-        if (taskResult.status === "fulfilled" && Array.isArray(taskResult.value)) {
-          setTasks(taskResult.value.map(toTaskView));
-          setUserItem("manager_tasks", taskResult.value);
-        } else {
-          const scoped = getScopedManagerTasks();
-          if (scoped.length > 0) setTasks(scoped.map(toTaskView));
-        }
 
-        if (projectResult.status === "fulfilled" && Array.isArray(projectResult.value)) {
-          setProjects(projectResult.value);
-          setNewTask((current) => ({
-            ...current,
-            projectId: current.projectId || projectResult.value[0]?.id || "",
-          }));
-        } else {
-          setProjects(getUserItem("manager_projects", []));
-        }
+    const loadData = () => {
+      Promise.allSettled([
+        managerService.getTasks(),
+        managerService.getProjects(),
+        managerService.getTeamMembers()
+      ])
+        .then(([taskResult, projectResult, teamResult]) => {
+          if (!active) return;
+          if (taskResult.status === "fulfilled" && Array.isArray(taskResult.value)) {
+            setTasks(taskResult.value.map(toTaskView));
+            setUserItem("manager_tasks", taskResult.value);
+          } else {
+            const scoped = getScopedManagerTasks();
+            if (scoped.length > 0) setTasks(scoped.map(toTaskView));
+          }
 
-        if (teamResult.status === "fulfilled" && Array.isArray(teamResult.value) && teamResult.value.length > 0) {
-          setTeamMembers(teamResult.value);
-        } else {
-          setTeamMembers(getUserItem("manager_team", []));
-        }
-      })
-      .catch(() => {
-        if (active) {
-          const scoped = getScopedManagerTasks();
-          setTasks(scoped.map(toTaskView));
-          setProjects(getUserItem("manager_projects", []));
-          setError("");
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+          if (projectResult.status === "fulfilled" && Array.isArray(projectResult.value)) {
+            setProjects(projectResult.value);
+            setNewTask((current) => ({
+              ...current,
+              projectId: current.projectId || projectResult.value[0]?.id || "",
+            }));
+          } else {
+            setProjects(getUserItem("manager_projects", []));
+          }
+
+          if (teamResult.status === "fulfilled" && Array.isArray(teamResult.value) && teamResult.value.length > 0) {
+            setTeamMembers(teamResult.value);
+          } else {
+            setTeamMembers(getUserItem("manager_team", []));
+          }
+        })
+        .catch(() => {
+          if (active) {
+            const scoped = getScopedManagerTasks();
+            setTasks(scoped.map(toTaskView));
+            setProjects(getUserItem("manager_projects", []));
+            setError("");
+          }
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    };
+
+    loadData();
+
+    const handleUpdate = () => {
+      loadData();
+    };
+
+    window.addEventListener("tasks_updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+
     return () => {
       active = false;
+      window.removeEventListener("tasks_updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
     };
   }, []);
 

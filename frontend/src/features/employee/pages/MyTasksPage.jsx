@@ -103,14 +103,28 @@ export default function TasksPage() {
 
   useEffect(() => {
     let mounted = true;
-    employeeService.getTasks().then((live) => {
-      if (!mounted) return;
-      if (Array.isArray(live) && live.length > 0) {
-        setTasks(live);
-      }
-    });
+    const loadLive = () => {
+      employeeService.getTasks().then((live) => {
+        if (!mounted) return;
+        if (Array.isArray(live)) {
+          setTasks(live);
+        }
+      });
+    };
+
+    loadLive();
+
+    const handleUpdate = () => {
+      loadLive();
+    };
+
+    window.addEventListener("tasks_updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+
     return () => {
       mounted = false;
+      window.removeEventListener("tasks_updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
     };
   }, []);
 

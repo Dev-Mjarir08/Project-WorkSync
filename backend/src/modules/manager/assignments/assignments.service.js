@@ -1,10 +1,24 @@
 import mongoose from 'mongoose';
 import { Task } from '../../../models/Task.js';
 import { User } from '../../../models/User.js';
+import { Workspace } from '../../../models/Workspace.js';
 import { WorkspaceMember } from '../../../models/WorkspaceMember.js';
 import { Activity } from '../../../models/Activity.js';
 import { Notification } from '../../../models/Notification.js';
 import { ApiError } from '../../../utils/ApiError.js';
+
+const resolveWs = async (workspaceId, taskId = null) => {
+  if (workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)) {
+    const exists = await Workspace.findOne({ _id: workspaceId, isActive: true }).select('_id');
+    if (exists) return exists._id;
+  }
+  if (taskId && mongoose.Types.ObjectId.isValid(taskId)) {
+    const existing = await Task.findById(taskId).select('workspace');
+    if (existing?.workspace) return existing.workspace;
+  }
+  const defaultWs = await Workspace.findOne({ isActive: true }).select('_id');
+  return defaultWs?._id || null;
+};
 
 const formatAssignment = (t) => ({
   id: t._id.toString(),
@@ -50,10 +64,8 @@ const formatAssignment = (t) => ({
 });
 
 export const getAssignments = async (workspaceId, query = {}, user) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
-
-  const filter = { workspace: wsId };
+  const wsId = await resolveWs(workspaceId);
+  const filter = wsId ? { workspace: wsId } : {};
 
   if (query.status && query.status !== 'all') {
     filter.status = query.status.toLowerCase();
@@ -87,16 +99,17 @@ export const getAssignments = async (workspaceId, query = {}, user) => {
 };
 
 export const assignTaskToMember = async (workspaceId, data, actorUser) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
   const taskId = data.taskId || data.id;
   const targetId = data.memberId || data.assigneeId || data.userId || data.assignee || data.name;
 
   if (!taskId) throw new ApiError(400, 'Task ID is required for assignment');
   if (!targetId) throw new ApiError(400, 'Member/Assignee ID is required');
 
+  const wsId = await resolveWs(workspaceId, taskId);
+
   let task = null;
-  if (workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)) {
-    task = await Task.findOne({ _id: taskId, workspace: workspaceId });
+  if (wsId) {
+    task = await Task.findOne({ _id: taskId, workspace: wsId });
   }
   if (!task && mongoose.Types.ObjectId.isValid(taskId)) {
     task = await Task.findById(taskId);
@@ -124,7 +137,7 @@ export const assignTaskToMember = async (workspaceId, data, actorUser) => {
 
   const prevAssignee = task.assignee;
   task.assignee = targetUser._id;
-  const targetWsId = task.workspace || (workspaceId && mongoose.Types.ObjectId.isValid(workspaceId) ? workspaceId : null);
+  const targetWsId = task.workspace || wsId;
   if (targetWsId) {
     task.workspace = targetWsId;
   }
@@ -147,14 +160,14 @@ export const assignTaskToMember = async (workspaceId, data, actorUser) => {
   }
 
   Activity.create({
-    user: actorUser._id,
-    workspace: targetWsId || workspaceId,
+    user: actorUser?._id,
+    workspace: targetWsId || wsId,
     action: 'task_assigned',
     type: 'task',
     entityType: 'Task',
     entityId: task._id,
     entityName: task.title,
-    description: `${actorUser.name} assigned task "${task.title}" to ${targetUser.name}`,
+    description: `${actorUser?.name || 'Manager'} assigned task "${task.title}" to ${targetUser.name}`,
     metadata: {
       taskId: task._id.toString(),
       assigneeId: targetUser._id.toString(),
@@ -162,11 +175,11 @@ export const assignTaskToMember = async (workspaceId, data, actorUser) => {
     }
   }).catch(() => {});
 
-  if (targetUser._id.toString() !== actorUser._id.toString()) {
+  if (actorUser && targetUser._id.toString() !== actorUser._id.toString()) {
     Notification.create({
       recipient: targetUser._id,
       sender: actorUser._id,
-      workspace: targetWsId || workspaceId,
+      workspace: targetWsId || wsId,
       title: 'Task Assigned',
       message: `You were assigned to task "${task.title}" by ${actorUser.name}`,
       type: 'task',
@@ -184,8 +197,11 @@ export const assignTaskToMember = async (workspaceId, data, actorUser) => {
 };
 
 export const getAssignmentById = async (workspaceId, assignmentId) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const task = await Task.findOne({ _id: assignmentId, workspace: workspaceId })
+  const wsId = await resolveWs(workspaceId, assignmentId);
+  const task = await Task.findOne({
+    _id: assignmentId,
+    ...(wsId ? { workspace: wsId } : {})
+  })
     .populate('assignee', 'name email avatar')
     .populate('project', 'name key status')
     .populate('board', 'name')
@@ -196,8 +212,11 @@ export const getAssignmentById = async (workspaceId, assignmentId) => {
 };
 
 export const updateAssignment = async (workspaceId, assignmentId, data, actorUser) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const task = await Task.findOne({ _id: assignmentId, workspace: workspaceId });
+  const wsId = await resolveWs(workspaceId, assignmentId);
+  const task = await Task.findOne({
+    _id: assignmentId,
+    ...(wsId ? { workspace: wsId } : {})
+  });
   if (!task) throw new ApiError(404, 'Assignment not found');
 
   if (data.memberId || data.assigneeId || data.userId || data.assignee) {
@@ -221,15 +240,15 @@ export const updateAssignment = async (workspaceId, assignmentId, data, actorUse
   await task.save();
 
   await Activity.create({
-    user: actorUser._id,
-    workspace: workspaceId,
+    user: actorUser?._id,
+    workspace: wsId || task.workspace,
     action: 'assignment_updated',
     type: 'task',
     entityType: 'Task',
     entityId: task._id,
     entityName: task.title,
-    description: `${actorUser.name} updated assignment for task "${task.title}"`
-  });
+    description: `${actorUser?.name || 'Manager'} updated assignment for task "${task.title}"`
+  }).catch(() => {});
 
   const populatedTask = await Task.findById(task._id)
     .populate('assignee', 'name email avatar')
@@ -241,23 +260,26 @@ export const updateAssignment = async (workspaceId, assignmentId, data, actorUse
 };
 
 export const removeAssignment = async (workspaceId, assignmentId, actorUser) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const task = await Task.findOne({ _id: assignmentId, workspace: workspaceId });
+  const wsId = await resolveWs(workspaceId, assignmentId);
+  const task = await Task.findOne({
+    _id: assignmentId,
+    ...(wsId ? { workspace: wsId } : {})
+  });
   if (!task) throw new ApiError(404, 'Assignment not found');
 
   task.assignee = null;
   await task.save();
 
   await Activity.create({
-    user: actorUser._id,
-    workspace: workspaceId,
+    user: actorUser?._id,
+    workspace: wsId || task.workspace,
     action: 'assignment_removed',
     type: 'task',
     entityType: 'Task',
     entityId: task._id,
     entityName: task.title,
-    description: `${actorUser.name} removed assignment for task "${task.title}"`
-  });
+    description: `${actorUser?.name || 'Manager'} removed assignment for task "${task.title}"`
+  }).catch(() => {});
 
   return { success: true, message: 'Assignment removed successfully' };
 };
@@ -271,7 +293,7 @@ export const unassignTask = async (workspaceId, taskId, actorUser) => {
 };
 
 export const getMemberAssignments = async (workspaceId, memberId) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
+  const wsId = await resolveWs(workspaceId);
   let targetUserId = memberId;
 
   if (mongoose.Types.ObjectId.isValid(memberId)) {
@@ -281,10 +303,10 @@ export const getMemberAssignments = async (workspaceId, memberId) => {
     }
   }
 
-  const tasks = await Task.find({
-    workspace: new mongoose.Types.ObjectId(workspaceId),
-    assignee: new mongoose.Types.ObjectId(targetUserId)
-  })
+  const query = { assignee: new mongoose.Types.ObjectId(targetUserId) };
+  if (wsId) query.workspace = new mongoose.Types.ObjectId(wsId);
+
+  const tasks = await Task.find(query)
     .populate('assignee', 'name email avatar')
     .populate('project', 'name key status')
     .populate('board', 'name')

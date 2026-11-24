@@ -8,12 +8,18 @@ export const setDashboardTasks = (tasks) => {
   setUserItem('admin_tasks', tasks);
 };
 
-export const getDashboardStats = () => {
-  const tasks = getDashboardTasks();
+export const getDashboardStats = (customTasks) => {
+  const tasks = Array.isArray(customTasks) ? customTasks : getDashboardTasks();
   const total = tasks.length;
-  const completed = tasks.filter((t) => t.status === 'Done' || t.status === 'completed').length;
-  const inProgress = tasks.filter((t) => t.status === 'In progress' || t.status === 'in_progress').length;
-  const open = total - completed;
+  const completed = tasks.filter((t) => {
+    const s = String(t.status || '').toLowerCase();
+    return s === 'done' || s === 'completed';
+  }).length;
+  const inProgress = tasks.filter((t) => {
+    const s = String(t.status || '').toLowerCase();
+    return s === 'in progress' || s === 'in_progress' || s === 'review';
+  }).length;
+  const open = Math.max(0, total - completed);
 
   return [
     {

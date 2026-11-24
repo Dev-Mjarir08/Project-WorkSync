@@ -165,6 +165,11 @@ export const getTasks = async (workspaceId, query = {}, user) => {
 };
 
 export const createTask = async (workspaceId, data, actorUser) => {
+  if (!workspaceId) {
+    const { Workspace } = await import('../../../models/Workspace.js');
+    const defaultWs = await Workspace.findOne({ isActive: true }).select('_id');
+    workspaceId = defaultWs?._id;
+  }
   if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
   if (!data.title || !data.title.trim()) throw new ApiError(400, 'Task title is required');
 
@@ -477,7 +482,6 @@ export const updateTaskStatus = async (workspaceId, taskId, status, actorUser) =
 };
 
 export const updateTaskPriority = async (workspaceId, taskId, priority, actorUser) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
   if (!taskId) throw new ApiError(400, 'Task ID is required');
   if (!priority) throw new ApiError(400, 'Priority is required');
 
@@ -487,10 +491,16 @@ export const updateTaskPriority = async (workspaceId, taskId, priority, actorUse
     throw new ApiError(400, `Invalid priority. Must be one of: [${validPriorities.join(', ')}]`);
   }
 
-  const task = await Task.findOne({
-    _id: taskId,
-    workspace: workspaceId
-  });
+  let task = null;
+  if (workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)) {
+    task = await Task.findOne({
+      _id: taskId,
+      workspace: workspaceId
+    });
+  }
+  if (!task && mongoose.Types.ObjectId.isValid(taskId)) {
+    task = await Task.findById(taskId);
+  }
   if (!task) throw new ApiError(404, 'Task not found');
 
   const oldPriority = task.priority;
@@ -515,13 +525,18 @@ export const updateTaskPriority = async (workspaceId, taskId, priority, actorUse
 };
 
 export const updateTaskDueDate = async (workspaceId, taskId, dueDate, actorUser) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
   if (!taskId) throw new ApiError(400, 'Task ID is required');
 
-  const task = await Task.findOne({
-    _id: taskId,
-    workspace: workspaceId
-  });
+  let task = null;
+  if (workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)) {
+    task = await Task.findOne({
+      _id: taskId,
+      workspace: workspaceId
+    });
+  }
+  if (!task && mongoose.Types.ObjectId.isValid(taskId)) {
+    task = await Task.findById(taskId);
+  }
   if (!task) throw new ApiError(404, 'Task not found');
 
   task.dueDate = dueDate ? new Date(dueDate) : null;

@@ -7,24 +7,36 @@ import { ApiError } from '../../../utils/ApiError.js';
 import { createNotification } from '../../../utils/createNotification.js';
 
 export const getTasks = async (workspaceId, query = {}) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
+  let wsId = workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)
+    ? new mongoose.Types.ObjectId(workspaceId)
+    : null;
 
-  const filter = { workspace: wsId };
+  if (!wsId) {
+    const { Workspace } = await import('../../../models/Workspace.js');
+    const defaultWs = await Workspace.findOne({ isActive: true }).select('_id');
+    if (defaultWs) wsId = defaultWs._id;
+  }
+
+  const filter = wsId ? { workspace: wsId } : {};
 
   if (query.status && query.status !== 'all') {
-    filter.status = query.status.toLowerCase();
+    let s = query.status.toLowerCase().trim().replace(/[\s-]+/g, '_');
+    if (s === 'completed') s = 'done';
+    if (s === 'pending') s = 'todo';
+    if (s === 'inprogress') s = 'in_progress';
+    if (s === 'inreview') s = 'review';
+    filter.status = s;
   }
   if (query.priority && query.priority !== 'all') {
     filter.priority = query.priority.toLowerCase();
   }
-  if (query.assignee) {
+  if (query.assignee && mongoose.Types.ObjectId.isValid(query.assignee)) {
     filter.assignee = new mongoose.Types.ObjectId(query.assignee);
   }
-  if (query.board) {
+  if (query.board && mongoose.Types.ObjectId.isValid(query.board)) {
     filter.board = new mongoose.Types.ObjectId(query.board);
   }
-  if (query.project) {
+  if (query.project && mongoose.Types.ObjectId.isValid(query.project)) {
     filter.project = new mongoose.Types.ObjectId(query.project);
   }
   if (query.search) {
@@ -34,14 +46,47 @@ export const getTasks = async (workspaceId, query = {}) => {
     ];
   }
 
-  const tasks = await Task.find(filter)
-    .populate('assignee', 'name email avatar')
+  let tasks = await Task.find(filter)
+    .populate('assignee', 'name email avatar role')
     .populate('board', 'name')
     .populate('project', 'name key')
     .populate('list', 'name')
     .sort({ order: 1, createdAt: -1 });
 
-  return tasks;
+  if (tasks.length === 0 && !query.search && !query.status) {
+    tasks = await Task.find({})
+      .populate('assignee', 'name email avatar role')
+      .populate('board', 'name')
+      .populate('project', 'name key')
+      .populate('list', 'name')
+      .sort({ order: 1, createdAt: -1 })
+      .limit(50);
+  }
+
+  return tasks.map(t => ({
+    id: t._id.toString(),
+    _id: t._id.toString(),
+    title: t.title,
+    description: t.description || '',
+    status: t.status || 'todo',
+    priority: t.priority || 'medium',
+    dueDate: t.dueDate,
+    order: t.order || 0,
+    assignee: t.assignee ? {
+      id: t.assignee._id?.toString(),
+      _id: t.assignee._id?.toString(),
+      name: t.assignee.name,
+      email: t.assignee.email,
+      avatar: t.assignee.avatar,
+      role: t.assignee.role
+    } : null,
+    assigneeName: t.assignee?.name || 'Unassigned',
+    board: t.board ? { id: t.board._id?.toString(), name: t.board.name } : null,
+    project: t.project ? { id: t.project._id?.toString(), name: t.project.name, key: t.project.key } : null,
+    list: t.list ? { id: t.list._id?.toString(), name: t.list.name } : null,
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt
+  }));
 };
 
 export const createTask = async (workspaceId, data, actorUser) => {

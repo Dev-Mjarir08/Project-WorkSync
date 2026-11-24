@@ -95,12 +95,25 @@ const DashboardPage = () => {
         setDashboardTasks(liveTasks);
       }
     }).catch(() => {});
+
+    const handleUpdate = () => {
+      adminService.getTasks().then((liveTasks) => {
+        if (Array.isArray(liveTasks) && liveTasks.length > 0) {
+          setDashboardTasks(liveTasks);
+        }
+      }).catch(() => {});
+    };
+    window.addEventListener('tasks_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
     return () => {
       mounted = false;
+      window.removeEventListener('tasks_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
     };
   }, []);
 
-  const dashboardStats = useMemo(() => getDashboardStats(), [dashboardTasks]);
+  const dashboardStats = useMemo(() => getDashboardStats(dashboardTasks), [dashboardTasks]);
 
   const memberById = useMemo(
     () => new Map((Array.isArray(boards) ? boards : []).flatMap((board) => [board.owner, ...(board.members || [])].filter(Boolean)).map((member) => [member.id, member])),

@@ -976,6 +976,10 @@ export const superAdminService = {
           };
           tasks.unshift(normalized);
           setUserItem('tasks', tasks);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('tasks_updated'));
+            window.dispatchEvent(new Event('storage'));
+          }
           recordScopedAudit('TASK_CREATED', `Created task "${created.title}" [${created.status || 'todo'}]`);
           return normalized;
         }
@@ -1000,6 +1004,10 @@ export const superAdminService = {
 
     tasks.unshift(newTask);
     setUserItem('tasks', tasks);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('tasks_updated'));
+      window.dispatchEvent(new Event('storage'));
+    }
     recordScopedAudit('TASK_CREATED', `Created task "${newTask.title}" [${newTask.status}]`);
     return newTask;
   },
@@ -1029,6 +1037,10 @@ export const superAdminService = {
     const tasks = getUserItem('tasks', []);
     const updated = tasks.map((t) => (t.id === taskId || t._id === taskId ? { ...t, ...updateData } : t));
     setUserItem('tasks', updated);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('tasks_updated'));
+      window.dispatchEvent(new Event('storage'));
+    }
     recordScopedAudit('TASK_UPDATED', `Updated task details for ID ${taskId}`);
     return updated.find((t) => t.id === taskId || t._id === taskId);
   },
@@ -1046,6 +1058,10 @@ export const superAdminService = {
     if (target) {
       target.status = status;
       setUserItem('tasks', tasks);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('tasks_updated'));
+        window.dispatchEvent(new Event('storage'));
+      }
       recordScopedAudit('TASK_STATUS_UPDATED', `Moved task "${target.title}" to "${status}"`);
     }
     return target;
@@ -1067,6 +1083,10 @@ export const superAdminService = {
       target.assigneeId = assigneeId;
       target.assigneeName = assignedUser?.name || 'Assigned Member';
       setUserItem('tasks', tasks);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('tasks_updated'));
+        window.dispatchEvent(new Event('storage'));
+      }
       recordScopedAudit('TASK_ASSIGNED', `Assigned task "${target.title}" to ${target.assigneeName}`);
     }
     return target;
@@ -1089,6 +1109,10 @@ export const superAdminService = {
     const target = tasks.find((t) => t.id === taskId || t._id === taskId);
     const filtered = tasks.filter((t) => t.id !== taskId && t._id !== taskId);
     setUserItem('tasks', filtered);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('tasks_updated'));
+      window.dispatchEvent(new Event('storage'));
+    }
     recordScopedAudit('TASK_DELETED', `Deleted task "${target?.title || taskId}"`);
     return { success: true, id: taskId };
   },

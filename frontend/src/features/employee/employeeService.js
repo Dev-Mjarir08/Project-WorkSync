@@ -126,39 +126,37 @@ export const employeeService = {
       const q = params.size ? `?${params.toString()}` : "";
       const data = await request(`/tasks${q}`);
       const rawList = Array.isArray(data?.tasks) ? data.tasks : (Array.isArray(data) ? data : []);
-      if (rawList.length > 0) {
-        const normalized = rawList.map((t) => {
-          const s = (t.status || 'todo').toLowerCase().trim();
-          let displayStatus = 'Pending';
-          if (s === 'done' || s === 'completed') displayStatus = 'Completed';
-          else if (s === 'in_progress' || s === 'inprogress' || s === 'in progress') displayStatus = 'In Progress';
-          else if (s === 'review' || s === 'inreview' || s === 'in review') displayStatus = 'In Progress';
-          else displayStatus = 'Pending';
+      const normalized = rawList.map((t) => {
+        const s = (t.status || 'todo').toLowerCase().trim();
+        let displayStatus = 'Pending';
+        if (s === 'done' || s === 'completed') displayStatus = 'Completed';
+        else if (s === 'in_progress' || s === 'inprogress' || s === 'in progress') displayStatus = 'In Progress';
+        else if (s === 'review' || s === 'inreview' || s === 'in review') displayStatus = 'In Progress';
+        else displayStatus = 'Pending';
 
-          const p = (t.priority || 'medium').toLowerCase().trim();
-          let displayPriority = 'Medium';
-          if (p === 'urgent' || p === 'high') displayPriority = 'High';
-          else if (p === 'low') displayPriority = 'Low';
+        const p = (t.priority || 'medium').toLowerCase().trim();
+        let displayPriority = 'Medium';
+        if (p === 'urgent' || p === 'high') displayPriority = 'High';
+        else if (p === 'low') displayPriority = 'Low';
 
-          const pName = typeof t.project === 'object' && t.project?.name
-            ? t.project.name
-            : (typeof t.project === 'string' && t.project ? t.project : 'General Work');
+        const pName = typeof t.project === 'object' && t.project?.name
+          ? t.project.name
+          : (typeof t.project === 'string' && t.project ? t.project : 'General Work');
 
-          return {
-            ...t,
-            id: t.id || t._id,
-            _id: t._id || t.id,
-            title: t.title || 'Untitled Task',
-            project: pName,
-            status: displayStatus,
-            priority: displayPriority,
-            rawStatus: t.status,
-            dueDate: t.dueDate ? (new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : 'No due date'
-          };
-        });
-        setUserItem('employee_tasks', normalized);
-        return normalized;
-      }
+        return {
+          ...t,
+          id: t.id || t._id,
+          _id: t._id || t.id,
+          title: t.title || 'Untitled Task',
+          project: pName,
+          status: displayStatus,
+          priority: displayPriority,
+          rawStatus: t.status,
+          dueDate: t.dueDate ? (new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : 'No due date'
+        };
+      });
+      setUserItem('employee_tasks', normalized);
+      return normalized;
     } catch {
       // Offline fallback
     }
@@ -168,6 +166,10 @@ export const employeeService = {
   createTask: async (task) => {
     try {
       const data = await request("/tasks", withBody("POST", task));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tasks_updated"));
+        window.dispatchEvent(new Event("storage"));
+      }
       return data?.task || data;
     } catch {
       const tasks = getUserItem("employee_tasks", []);
@@ -181,17 +183,30 @@ export const employeeService = {
       };
       tasks.unshift(newTask);
       setUserItem("employee_tasks", tasks);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tasks_updated"));
+        window.dispatchEvent(new Event("storage"));
+      }
       return newTask;
     }
   },
 
   updateTaskStatus: async (taskId, status) => {
     try {
-      return await request(`/tasks/${taskId}/status`, withBody("PATCH", { status }));
+      const res = await request(`/tasks/${taskId}/status`, withBody("PATCH", { status }));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tasks_updated"));
+        window.dispatchEvent(new Event("storage"));
+      }
+      return res;
     } catch {
       const tasks = getUserItem("employee_tasks", []);
-      const updated = tasks.map((t) => (t.id === taskId ? { ...t, status } : t));
+      const updated = tasks.map((t) => (t.id === taskId || t._id === taskId ? { ...t, status } : t));
       setUserItem("employee_tasks", updated);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tasks_updated"));
+        window.dispatchEvent(new Event("storage"));
+      }
       return { success: true };
     }
   },
@@ -199,12 +214,20 @@ export const employeeService = {
   moveTask: async (taskId, move) => {
     try {
       const data = await request(`/tasks/${taskId}/move`, withBody("PATCH", move));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tasks_updated"));
+        window.dispatchEvent(new Event("storage"));
+      }
       return data?.task || data;
     } catch {
       const tasks = getUserItem("employee_tasks", []);
-      const updated = tasks.map((t) => (t.id === taskId ? { ...t, ...move } : t));
+      const updated = tasks.map((t) => (t.id === taskId || t._id === taskId ? { ...t, ...move } : t));
       setUserItem("employee_tasks", updated);
-      return updated.find((t) => t.id === taskId);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tasks_updated"));
+        window.dispatchEvent(new Event("storage"));
+      }
+      return updated.find((t) => t.id === taskId || t._id === taskId);
     }
   },
 
@@ -215,6 +238,10 @@ export const employeeService = {
     const tasks = getUserItem("employee_tasks", []);
     const filtered = tasks.filter((t) => t.id !== taskId && t._id !== taskId);
     setUserItem("employee_tasks", filtered);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("tasks_updated"));
+      window.dispatchEvent(new Event("storage"));
+    }
     return { success: true };
   },
 

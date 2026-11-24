@@ -110,20 +110,34 @@ export default function DashboardPage() {
   // Fetch live tasks and dashboard on mount
   useEffect(() => {
     let mounted = true;
-    employeeService.getDashboard().then((dash) => {
-      if (!mounted) return;
-      if (Array.isArray(dash?.recentTasks) && dash.recentTasks.length > 0) {
-        setTasks(dash.recentTasks);
-      }
-    });
-    employeeService.getTasks().then((liveTasks) => {
-      if (!mounted) return;
-      if (Array.isArray(liveTasks) && liveTasks.length > 0) {
-        setTasks(liveTasks);
-      }
-    });
+    const loadLive = () => {
+      employeeService.getDashboard().then((dash) => {
+        if (!mounted) return;
+        if (Array.isArray(dash?.recentTasks) && dash.recentTasks.length > 0) {
+          setTasks(dash.recentTasks);
+        }
+      });
+      employeeService.getTasks().then((liveTasks) => {
+        if (!mounted) return;
+        if (Array.isArray(liveTasks) && liveTasks.length > 0) {
+          setTasks(liveTasks);
+        }
+      });
+    };
+
+    loadLive();
+
+    const handleUpdate = () => {
+      loadLive();
+    };
+
+    window.addEventListener("tasks_updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+
     return () => {
       mounted = false;
+      window.removeEventListener("tasks_updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
     };
   }, []);
 

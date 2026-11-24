@@ -43,44 +43,61 @@ export default function AssignmentsPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      managerService.getTasks().catch(() => []),
-      managerService.getTeamMembers().catch(() => [])
-    ]).then(([taskList, members]) => {
-      if (!active) return;
-      if (Array.isArray(taskList) && taskList.length > 0) {
-        const mapped = taskList.map(t => {
-          const assigneeName = typeof t.assignee === 'string' ? t.assignee : (t.assignee?.name || t.assigneeName || 'Unassigned');
-          const projectName = typeof t.project === 'string' ? t.project : (t.project?.name || t.projectName || 'General Initiative');
-          const statusMap = {
-            todo: 'To Do',
-            pending: 'To Do',
-            in_progress: 'In Progress',
-            review: 'In Review',
-            done: 'Completed',
-            completed: 'Completed'
-          };
-          return {
-            id: t.id || t._id,
-            title: t.title,
-            project: projectName,
-            assignee: assigneeName,
-            status: statusMap[t.status?.toLowerCase()] || t.status || 'To Do',
-            priority: (t.priority ? t.priority[0].toUpperCase() + t.priority.slice(1) : 'Medium'),
-            dueDate: t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date'
-          };
-        });
-        setAssignments(mapped);
-        setUserItem('manager_assignments', mapped);
-      }
-      if (Array.isArray(members) && members.length > 0) {
-        setTeamList(members);
-        const names = members.map(m => m.name);
-        setEmployees(names);
-        setUserItem('manager_team', members);
-      }
-    });
-    return () => { active = false; };
+
+    const loadLive = () => {
+      Promise.all([
+        managerService.getTasks().catch(() => []),
+        managerService.getTeamMembers().catch(() => [])
+      ]).then(([taskList, members]) => {
+        if (!active) return;
+        if (Array.isArray(taskList)) {
+          const mapped = taskList.map(t => {
+            const assigneeName = typeof t.assignee === 'string' ? t.assignee : (t.assignee?.name || t.assigneeName || 'Unassigned');
+            const projectName = typeof t.project === 'string' ? t.project : (t.project?.name || t.projectName || 'General Initiative');
+            const statusMap = {
+              todo: 'To Do',
+              pending: 'To Do',
+              in_progress: 'In Progress',
+              review: 'In Review',
+              done: 'Completed',
+              completed: 'Completed'
+            };
+            return {
+              id: t.id || t._id,
+              title: t.title,
+              project: projectName,
+              assignee: assigneeName,
+              status: statusMap[t.status?.toLowerCase()] || t.status || 'To Do',
+              priority: (t.priority ? t.priority[0].toUpperCase() + t.priority.slice(1) : 'Medium'),
+              dueDate: t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date'
+            };
+          });
+          setAssignments(mapped);
+          setUserItem('manager_assignments', mapped);
+        }
+        if (Array.isArray(members) && members.length > 0) {
+          setTeamList(members);
+          const names = members.map(m => m.name);
+          setEmployees(names);
+          setUserItem('manager_team', members);
+        }
+      });
+    };
+
+    loadLive();
+
+    const handleUpdate = () => {
+      loadLive();
+    };
+
+    window.addEventListener("tasks_updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+
+    return () => {
+      active = false;
+      window.removeEventListener("tasks_updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
   }, []);
 
   const counts = useMemo(

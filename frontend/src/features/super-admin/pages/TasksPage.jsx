@@ -110,12 +110,22 @@ export const TasksPage = () => {
 
   // Filter effect
   useEffect(() => {
-    loadTasks({
-      search,
-      workspace: workspaceFilter,
-      priority: priorityFilter,
-      assignee: assigneeFilter
-    });
+    const reload = () => {
+      loadTasks({
+        search,
+        workspace: workspaceFilter,
+        priority: priorityFilter,
+        assignee: assigneeFilter
+      });
+    };
+    reload();
+
+    window.addEventListener('tasks_updated', reload);
+    window.addEventListener('storage', reload);
+    return () => {
+      window.removeEventListener('tasks_updated', reload);
+      window.removeEventListener('storage', reload);
+    };
   }, [search, workspaceFilter, priorityFilter, assigneeFilter]);
 
   // Tasks grouped by status

@@ -222,6 +222,10 @@ export const managerService = {
   createTask: async (task) => {
     try {
       const data = await request("/tasks", withBody("POST", task));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tasks_updated"));
+        window.dispatchEvent(new Event("storage"));
+      }
       return data?.task || data;
     } catch {
       const tasks = getUserItem("manager_tasks", []);
@@ -238,17 +242,30 @@ export const managerService = {
       };
       tasks.unshift(newTask);
       setUserItem("manager_tasks", tasks);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tasks_updated"));
+        window.dispatchEvent(new Event("storage"));
+      }
       return newTask;
     }
   },
 
   updateTaskStatus: async (taskId, status) => {
     try {
-      return await request(`/tasks/${taskId}/status`, withBody("PATCH", { status }));
+      const res = await request(`/tasks/${taskId}/status`, withBody("PATCH", { status }));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tasks_updated"));
+        window.dispatchEvent(new Event("storage"));
+      }
+      return res;
     } catch {
       const tasks = getUserItem("manager_tasks", []);
-      const updated = tasks.map((t) => (t.id === taskId ? { ...t, status } : t));
+      const updated = tasks.map((t) => (t.id === taskId || t._id === taskId ? { ...t, status } : t));
       setUserItem("manager_tasks", updated);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tasks_updated"));
+        window.dispatchEvent(new Event("storage"));
+      }
       return { success: true };
     }
   },
@@ -256,12 +273,20 @@ export const managerService = {
   moveTask: async (taskId, move) => {
     try {
       const data = await request(`/tasks/${taskId}/move`, withBody("PATCH", move));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tasks_updated"));
+        window.dispatchEvent(new Event("storage"));
+      }
       return data?.task || data;
     } catch {
       const tasks = getUserItem("manager_tasks", []);
-      const updated = tasks.map((t) => (t.id === taskId ? { ...t, ...move } : t));
+      const updated = tasks.map((t) => (t.id === taskId || t._id === taskId ? { ...t, ...move } : t));
       setUserItem("manager_tasks", updated);
-      return updated.find((t) => t.id === taskId);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tasks_updated"));
+        window.dispatchEvent(new Event("storage"));
+      }
+      return updated.find((t) => t.id === taskId || t._id === taskId);
     }
   },
 
@@ -274,6 +299,10 @@ export const managerService = {
     const tasks = getUserItem("manager_tasks", []);
     const filtered = tasks.filter((t) => t.id !== taskId && t._id !== taskId);
     setUserItem("manager_tasks", filtered);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("tasks_updated"));
+      window.dispatchEvent(new Event("storage"));
+    }
     return { success: true };
   },
 
@@ -293,23 +322,40 @@ export const managerService = {
   assignTask: async (taskId, memberData) => {
     try {
       const data = await request(`/tasks/${taskId}/assign`, withBody("PATCH", memberData));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tasks_updated"));
+        window.dispatchEvent(new Event("storage"));
+      }
       return data?.task || data;
     } catch {
       const tasks = getUserItem("manager_tasks", []);
       const assigneeName = memberData.assignee || memberData.name || "Assigned Member";
-      const updated = tasks.map((t) => (t.id === taskId ? { ...t, assignee: assigneeName } : t));
+      const updated = tasks.map((t) => (t.id === taskId || t._id === taskId ? { ...t, assignee: assigneeName } : t));
       setUserItem("manager_tasks", updated);
-      return updated.find((t) => t.id === taskId);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tasks_updated"));
+        window.dispatchEvent(new Event("storage"));
+      }
+      return updated.find((t) => t.id === taskId || t._id === taskId);
     }
   },
 
   unassignTask: async (taskId) => {
     try {
-      return await request(`/tasks/${taskId}/unassign`, withBody("PATCH", {}));
+      const res = await request(`/tasks/${taskId}/unassign`, withBody("PATCH", {}));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tasks_updated"));
+        window.dispatchEvent(new Event("storage"));
+      }
+      return res;
     } catch {
       const tasks = getUserItem("manager_tasks", []);
-      const updated = tasks.map((t) => (t.id === taskId ? { ...t, assignee: "Unassigned" } : t));
+      const updated = tasks.map((t) => (t.id === taskId || t._id === taskId ? { ...t, assignee: "Unassigned" } : t));
       setUserItem("manager_tasks", updated);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tasks_updated"));
+        window.dispatchEvent(new Event("storage"));
+      }
       return { success: true };
     }
   },

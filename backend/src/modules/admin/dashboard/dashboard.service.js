@@ -7,16 +7,26 @@ import { Task } from '../../../models/Task.js';
 import { Activity } from '../../../models/Activity.js';
 import { ApiError } from '../../../utils/ApiError.js';
 
+const resolveWs = async (wsId) => {
+  if (wsId && mongoose.Types.ObjectId.isValid(wsId)) {
+    const exists = await Workspace.findOne({ _id: wsId, isActive: true }).select('_id');
+    if (exists) return exists._id;
+  }
+  const defaultWs = await Workspace.findOne({ isActive: true }).select('_id');
+  return defaultWs?._id || null;
+};
+
 export const getWorkspaceDashboardOverview = async (workspaceId) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
+  const wsId = await resolveWs(workspaceId);
+  if (!wsId) throw new ApiError(400, 'No active workspace found');
 
   const [stats, taskOverview, recentMembers, recentBoards, recentActivities, overdueTasks] = await Promise.all([
-    getWorkspaceDashboardStats(workspaceId),
-    getWorkspaceTaskOverview(workspaceId),
-    getWorkspaceRecentMembers(workspaceId, 5),
-    getWorkspaceRecentBoards(workspaceId, 5),
-    getWorkspaceRecentActivities(workspaceId, 10),
-    getWorkspaceOverdueTasks(workspaceId)
+    getWorkspaceDashboardStats(wsId),
+    getWorkspaceTaskOverview(wsId),
+    getWorkspaceRecentMembers(wsId, 5),
+    getWorkspaceRecentBoards(wsId, 5),
+    getWorkspaceRecentActivities(wsId, 10),
+    getWorkspaceOverdueTasks(wsId)
   ]);
 
   return {
@@ -30,8 +40,8 @@ export const getWorkspaceDashboardOverview = async (workspaceId) => {
 };
 
 export const getWorkspaceDashboardStats = async (workspaceId) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
+  const wsId = await resolveWs(workspaceId);
+  if (!wsId) throw new ApiError(400, 'No active workspace found');
 
   const [totalMembers, totalBoards, totalProjects, totalTasks] = await Promise.all([
     WorkspaceMember.countDocuments({ workspace: wsId, status: 'active' }),
@@ -49,8 +59,9 @@ export const getWorkspaceDashboardStats = async (workspaceId) => {
 };
 
 export const getWorkspaceMemberGrowth = async (workspaceId, days = 30) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
+  const wsId = await resolveWs(workspaceId);
+  if (!wsId) return { days, growth: [] };
+
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
@@ -77,8 +88,8 @@ export const getWorkspaceMemberGrowth = async (workspaceId, days = 30) => {
 };
 
 export const getWorkspaceTaskOverview = async (workspaceId) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
+  const wsId = await resolveWs(workspaceId);
+  if (!wsId) return { todo: 0, in_progress: 0, in_review: 0, done: 0, total: 0 };
 
   const tasksByStatus = await Task.aggregate([
     { $match: { workspace: wsId } },
@@ -94,9 +105,14 @@ export const getWorkspaceTaskOverview = async (workspaceId) => {
   };
 
   tasksByStatus.forEach(item => {
-    const statusKey = item._id ? item._id.toLowerCase().replace('-', '_') : 'todo';
+    const raw = item._id ? item._id.toLowerCase().replace(/[\s-]+/g, '_') : 'todo';
+    let statusKey = 'todo';
+    if (raw === 'done' || raw === 'completed') statusKey = 'done';
+    else if (raw === 'in_progress' || raw === 'inprogress') statusKey = 'in_progress';
+    else if (raw === 'review' || raw === 'in_review') statusKey = 'in_review';
+    
     if (overview[statusKey] !== undefined) {
-      overview[statusKey] = item.count;
+      overview[statusKey] += item.count;
     }
     overview.total += item.count;
   });
@@ -105,8 +121,8 @@ export const getWorkspaceTaskOverview = async (workspaceId) => {
 };
 
 export const getWorkspaceRecentMembers = async (workspaceId, limit = 5) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
+  const wsId = await resolveWs(workspaceId);
+  if (!wsId) return [];
 
   const members = await WorkspaceMember.find({ workspace: wsId })
     .populate('user', 'name email avatar')
@@ -126,8 +142,8 @@ export const getWorkspaceRecentMembers = async (workspaceId, limit = 5) => {
 };
 
 export const getWorkspaceRecentBoards = async (workspaceId, limit = 5) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
+  const wsId = await resolveWs(workspaceId);
+  if (!wsId) return [];
 
   const boards = await Board.find({ workspace: wsId, isArchived: false })
     .sort({ createdAt: -1 })
@@ -143,8 +159,8 @@ export const getWorkspaceRecentBoards = async (workspaceId, limit = 5) => {
 };
 
 export const getWorkspaceRecentActivities = async (workspaceId, limit = 10) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
+  const wsId = await resolveWs(workspaceId);
+  if (!wsId) return [];
 
   const activities = await Activity.find({ workspace: wsId })
     .populate('user', 'name email avatar')
@@ -163,8 +179,8 @@ export const getWorkspaceRecentActivities = async (workspaceId, limit = 10) => {
 };
 
 export const getWorkspaceOverdueTasks = async (workspaceId) => {
-  if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
-  const wsId = new mongoose.Types.ObjectId(workspaceId);
+  const wsId = await resolveWs(workspaceId);
+  if (!wsId) return { overdueCount: 0, tasks: [] };
   const now = new Date();
 
   const overdue = await Task.find({
