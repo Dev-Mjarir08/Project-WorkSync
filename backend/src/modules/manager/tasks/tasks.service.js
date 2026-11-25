@@ -38,9 +38,20 @@ const resolveAssigneeUserId = async (rawAssignee) => {
 };
 
 export const getTasks = async (workspaceId, query = {}, user) => {
-  const wsId = workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)
-    ? new mongoose.Types.ObjectId(workspaceId)
-    : null;
+  let activeWsId = null;
+  if (workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)) {
+    const exists = await Workspace.findOne({ _id: workspaceId, isActive: true }).select('_id');
+    if (exists) activeWsId = exists._id;
+  }
+  if (!activeWsId && user?._id) {
+    const member = await WorkspaceMember.findOne({ user: user._id, status: 'active' }).select('workspace');
+    if (member?.workspace) activeWsId = member.workspace;
+    else {
+      const defaultWs = await Workspace.findOne({ isActive: true }).select('_id');
+      if (defaultWs) activeWsId = defaultWs._id;
+    }
+  }
+
   const userObjectId = user?._id && mongoose.Types.ObjectId.isValid(user._id)
     ? new mongoose.Types.ObjectId(user._id)
     : null;
@@ -48,8 +59,8 @@ export const getTasks = async (workspaceId, query = {}, user) => {
   const filter = {};
   const orConditions = [];
 
-  if (wsId) {
-    orConditions.push({ workspace: wsId });
+  if (activeWsId) {
+    orConditions.push({ workspace: activeWsId });
   }
   if (userObjectId) {
     orConditions.push({ assignee: userObjectId });

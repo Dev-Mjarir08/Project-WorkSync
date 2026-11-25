@@ -1,33 +1,7 @@
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 import { ApiResponse } from '../../../utils/ApiResponse.js';
 import * as tasksService from './tasks.service.js';
-import { WorkspaceMember } from '../../../models/WorkspaceMember.js';
-import { Workspace } from '../../../models/Workspace.js';
-
-const getWorkspaceId = async (req) => {
-  const direct = (
-    req.workspace?._id?.toString() ||
-    req.params.workspaceId ||
-    req.headers['x-workspace-id'] ||
-    req.query.workspaceId ||
-    req.user?.workspaceId?.toString()
-  );
-  if (direct) return direct;
-
-  if (req.user?._id) {
-    const member = await WorkspaceMember.findOne({ user: req.user._id, status: 'active' }).select('workspace');
-    if (member?.workspace) return member.workspace.toString();
-
-    const ownerWs = await Workspace.findOne({
-      $or: [{ owner: req.user._id }, { createdBy: req.user._id }],
-      isActive: true
-    }).select('_id');
-    if (ownerWs?._id) return ownerWs._id.toString();
-  }
-
-  const defaultWs = await Workspace.findOne({ isActive: true }).select('_id');
-  return defaultWs?._id?.toString() || null;
-};
+import { getWorkspaceId } from '../../../utils/workspaceHelper.js';
 
 export const getTasks = asyncHandler(async (req, res) => {
   const wsId = await getWorkspaceId(req);

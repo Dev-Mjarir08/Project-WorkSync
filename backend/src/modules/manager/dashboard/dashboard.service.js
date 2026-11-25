@@ -9,7 +9,8 @@ import { ApiError } from '../../../utils/ApiError.js';
 
 const resolveWorkspaceId = async (workspaceId, user) => {
   if (workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)) {
-    return new mongoose.Types.ObjectId(workspaceId);
+    const exists = await Workspace.findOne({ _id: workspaceId, isActive: true }).select('_id');
+    if (exists) return exists._id;
   }
   if (user?._id) {
     const member = await WorkspaceMember.findOne({ user: user._id, status: 'active' }).select('workspace');
