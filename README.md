@@ -198,19 +198,22 @@ cd Project-WorkSync
 ```
 
 ### 2. Environment Configuration
-Create a `.env` file inside the `backend/` directory:
-```bash
-cp backend/.env.example backend/.env
-```
 
-Configure your environment variables:
+**Backend (`backend/.env`):**
 ```env
 PORT=8081
 NODE_ENV=development
 MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/worksync?retryWrites=true&w=majority
 JWT_SECRET=your_super_secret_jwt_key_here_worksync
 JWT_EXPIRES_IN=7d
-CLIENT_URL=http://localhost:5173
+CLIENT_URL=https://project-work-syncc.vercel.app
+SERVER_URL=https://project-work-sync-backend.vercel.app
+```
+
+**Frontend (`frontend/.env`):**
+```env
+VITE_API_URL=https://project-work-sync-backend.vercel.app
+VITE_CLIENT_URL=https://project-work-syncc.vercel.app
 ```
 
 ### 3. Install Dependencies
