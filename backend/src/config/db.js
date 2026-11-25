@@ -1,23 +1,38 @@
 import mongoose from 'mongoose';
 import { ENV } from './env.js';
 
+let cachedPromise = null;
+
 export const connectDB = async () => {
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+
+  if (cachedPromise) {
+    return cachedPromise;
+  }
+
   try {
-    const conn = await mongoose.connect(ENV.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
+    cachedPromise = mongoose.connect(ENV.MONGODB_URI, {
+      serverSelectionTimeoutMS: 8000,
       socketTimeoutMS: 45000,
       connectTimeoutMS: 10000,
       maxPoolSize: 15,
-      minPoolSize: 2,
+      minPoolSize: 1,
       maxIdleTimeMS: 30000,
       family: 4,
       autoIndex: false
     });
+    const conn = await cachedPromise;
     console.log(`✅ MongoDB Connected successfully: ${conn.connection.host} (Database: ${conn.connection.name})`);
     return conn;
   } catch (error) {
+    cachedPromise = null;
     console.error(`❌ MongoDB Connection Error: ${error.message}`);
-    process.exit(1);
+    if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+      process.exit(1);
+    }
+    throw error;
   }
 };
 
