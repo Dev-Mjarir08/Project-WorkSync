@@ -978,7 +978,6 @@ export const superAdminService = {
           setUserItem('tasks', tasks);
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new Event('tasks_updated'));
-            window.dispatchEvent(new Event('storage'));
           }
           recordScopedAudit('TASK_CREATED', `Created task "${created.title}" [${created.status || 'todo'}]`);
           return normalized;
@@ -1006,7 +1005,6 @@ export const superAdminService = {
     setUserItem('tasks', tasks);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('tasks_updated'));
-      window.dispatchEvent(new Event('storage'));
     }
     recordScopedAudit('TASK_CREATED', `Created task "${newTask.title}" [${newTask.status}]`);
     return newTask;
@@ -1039,7 +1037,6 @@ export const superAdminService = {
     setUserItem('tasks', updated);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('tasks_updated'));
-      window.dispatchEvent(new Event('storage'));
     }
     recordScopedAudit('TASK_UPDATED', `Updated task details for ID ${taskId}`);
     return updated.find((t) => t.id === taskId || t._id === taskId);
@@ -1060,7 +1057,6 @@ export const superAdminService = {
       setUserItem('tasks', tasks);
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('tasks_updated'));
-        window.dispatchEvent(new Event('storage'));
       }
       recordScopedAudit('TASK_STATUS_UPDATED', `Moved task "${target.title}" to "${status}"`);
     }
@@ -1085,7 +1081,6 @@ export const superAdminService = {
       setUserItem('tasks', tasks);
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('tasks_updated'));
-        window.dispatchEvent(new Event('storage'));
       }
       recordScopedAudit('TASK_ASSIGNED', `Assigned task "${target.title}" to ${target.assigneeName}`);
     }
@@ -1111,7 +1106,6 @@ export const superAdminService = {
     setUserItem('tasks', filtered);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('tasks_updated'));
-      window.dispatchEvent(new Event('storage'));
     }
     recordScopedAudit('TASK_DELETED', `Deleted task "${target?.title || taskId}"`);
     return { success: true, id: taskId };

@@ -261,10 +261,8 @@ export const DashboardPage = () => {
   // Live Backend API Fetch with Graceful Local Fallback
   useEffect(() => {
     loadLiveDashboard();
-    window.addEventListener("storage", loadLiveDashboard);
     window.addEventListener("tasks_updated", loadLiveDashboard);
     return () => {
-      window.removeEventListener("storage", loadLiveDashboard);
       window.removeEventListener("tasks_updated", loadLiveDashboard);
     };
   }, [loadLiveDashboard]);

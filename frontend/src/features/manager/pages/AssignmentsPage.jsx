@@ -91,12 +91,10 @@ export default function AssignmentsPage() {
     };
 
     window.addEventListener("tasks_updated", handleUpdate);
-    window.addEventListener("storage", handleUpdate);
 
     return () => {
       active = false;
       window.removeEventListener("tasks_updated", handleUpdate);
-      window.removeEventListener("storage", handleUpdate);
     };
   }, []);
 

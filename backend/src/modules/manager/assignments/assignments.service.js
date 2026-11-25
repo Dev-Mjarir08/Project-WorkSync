@@ -228,6 +228,17 @@ export const updateAssignment = async (workspaceId, assignmentId, data, actorUse
     }
     if (targetUser) {
       task.assignee = targetUser._id;
+      if (actorUser && targetUser._id.toString() !== actorUser._id.toString()) {
+        Notification.create({
+          recipient: targetUser._id,
+          sender: actorUser._id,
+          workspace: wsId || task.workspace,
+          title: 'Task Assigned',
+          message: `You were assigned to task "${task.title}" by ${actorUser.name}`,
+          type: 'task',
+          metadata: { taskId: task._id.toString() }
+        }).catch(() => {});
+      }
     }
   }
 

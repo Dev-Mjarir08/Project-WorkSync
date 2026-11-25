@@ -168,7 +168,6 @@ export const employeeService = {
       const data = await request("/tasks", withBody("POST", task));
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("tasks_updated"));
-        window.dispatchEvent(new Event("storage"));
       }
       return data?.task || data;
     } catch {
@@ -185,7 +184,6 @@ export const employeeService = {
       setUserItem("employee_tasks", tasks);
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("tasks_updated"));
-        window.dispatchEvent(new Event("storage"));
       }
       return newTask;
     }
@@ -196,7 +194,6 @@ export const employeeService = {
       const res = await request(`/tasks/${taskId}/status`, withBody("PATCH", { status }));
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("tasks_updated"));
-        window.dispatchEvent(new Event("storage"));
       }
       return res;
     } catch {
@@ -205,7 +202,6 @@ export const employeeService = {
       setUserItem("employee_tasks", updated);
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("tasks_updated"));
-        window.dispatchEvent(new Event("storage"));
       }
       return { success: true };
     }
@@ -216,7 +212,6 @@ export const employeeService = {
       const data = await request(`/tasks/${taskId}/move`, withBody("PATCH", move));
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("tasks_updated"));
-        window.dispatchEvent(new Event("storage"));
       }
       return data?.task || data;
     } catch {
@@ -225,7 +220,6 @@ export const employeeService = {
       setUserItem("employee_tasks", updated);
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("tasks_updated"));
-        window.dispatchEvent(new Event("storage"));
       }
       return updated.find((t) => t.id === taskId || t._id === taskId);
     }
@@ -240,7 +234,6 @@ export const employeeService = {
     setUserItem("employee_tasks", filtered);
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("tasks_updated"));
-      window.dispatchEvent(new Event("storage"));
     }
     return { success: true };
   },

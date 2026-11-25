@@ -47,10 +47,8 @@ export const DashboardPage = () => {
   useEffect(() => {
     fetchOverview();
     window.addEventListener('tasks_updated', fetchOverview);
-    window.addEventListener('storage', fetchOverview);
     return () => {
       window.removeEventListener('tasks_updated', fetchOverview);
-      window.removeEventListener('storage', fetchOverview);
     };
   }, []);
 

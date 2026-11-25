@@ -278,10 +278,8 @@ export const Sidebar = ({ activeItem = "", mobileOpen = false, setMobileOpen = (
       setSprintTasks(isEmployee ? getUserItem("employee_tasks", []) : getUserItem("manager_tasks", []));
     };
     syncTasks();
-    window.addEventListener("storage", syncTasks);
     window.addEventListener("tasks_updated", syncTasks);
     return () => {
-      window.removeEventListener("storage", syncTasks);
       window.removeEventListener("tasks_updated", syncTasks);
     };
   }, [isEmployee]);

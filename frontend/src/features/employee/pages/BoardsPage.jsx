@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Kanban,
   Plus,
@@ -17,17 +17,54 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { getCurrentUser, getUserItem, setUserItem } from "../../../utils/userStorage.js";
+import employeeService from "../employeeService.js";
+
+const normalizeColumnStatus = (status) => {
+  const s = String(status || "").toLowerCase().replace(/[\s-]+/g, "_");
+  if (s.includes("progress")) return "in-progress";
+  if (s.includes("review")) return "review";
+  if (s.includes("done") || s.includes("complet")) return "completed";
+  return "todo";
+};
+
+const toBackendStatus = (colId) => {
+  if (colId === "in-progress") return "in_progress";
+  if (colId === "review") return "review";
+  if (colId === "completed") return "done";
+  return "todo";
+};
+
+const normalizeBoardTask = (t) => {
+  const status = normalizeColumnStatus(t.status);
+  const p = String(t.priority || "Medium").toLowerCase();
+  const priority = p.includes("high") || p.includes("crit") ? "High" : (p.includes("low") ? "Low" : "Medium");
+  const project = typeof t.project === "string" ? t.project : (t.project?.name || t.projectName || "WorkSync Platform");
+  return {
+    ...t,
+    id: t.id || t._id,
+    title: t.title || "Untitled Deliverable",
+    project,
+    priority,
+    status,
+    comments: Array.isArray(t.comments) ? t.comments.length : (t.comments || 0),
+    attachments: Array.isArray(t.attachments) ? t.attachments.length : (t.attachments || 0),
+  };
+};
 
 export default function BoardsPage() {
   const currentUser = getCurrentUser();
   const currentUserName = currentUser?.name || currentUser?.email?.split('@')[0] || "Me";
 
   // Board columns and state
-  const [tasks, setTasks] = useState(() => getUserItem("employee_board_tasks", []));
+  const [tasks, setTasks] = useState(() => {
+    const cached = getUserItem("employee_tasks", []);
+    return Array.isArray(cached) ? cached.map(normalizeBoardTask) : [];
+  });
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPriority, setSelectedPriority] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // New task form state
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -43,39 +80,64 @@ export default function BoardsPage() {
     { id: "completed", title: "Completed", color: "bg-emerald-500", badge: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" },
   ];
 
+  const loadLiveTasks = useCallback(async () => {
+    try {
+      const live = await employeeService.getTasks();
+      if (Array.isArray(live)) {
+        const normalized = live.map(normalizeBoardTask);
+        setTasks(normalized);
+        setUserItem("employee_tasks", live);
+      }
+    } catch (e) {
+      console.error("Failed to load employee board tasks:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLiveTasks();
+    window.addEventListener("tasks_updated", loadLiveTasks);
+    return () => {
+      window.removeEventListener("tasks_updated", loadLiveTasks);
+    };
+  }, [loadLiveTasks]);
+
   // Move task to a different column
-  const moveTask = (taskId, newStatus) => {
+  const moveTask = async (taskId, newColId) => {
     setTasks((current) => {
-      const updated = current.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t));
-      setUserItem("employee_board_tasks", updated);
+      const updated = current.map((t) => (t.id === taskId ? { ...t, status: newColId } : t));
       return updated;
     });
+    try {
+      const backendStatus = toBackendStatus(newColId);
+      await employeeService.updateTaskStatus(taskId, backendStatus);
+    } catch (err) {
+      console.error("Failed to update status on server:", err);
+      loadLiveTasks();
+    }
   };
 
   // Add new task handler
-  const handleAddTask = (e) => {
+  const handleAddTask = async (e) => {
     e.preventDefault();
-    if (!newTaskTitle.trim()) return;
+    if (!newTaskTitle.trim() || isSubmitting) return;
 
-    const newTask = {
-      id: Date.now(),
-      title: newTaskTitle,
-      project: newTaskProject,
-      priority: newTaskPriority,
-      status: newTaskColumn,
-      dueDate: "Nov 10, 2026",
-      assignee: currentUserName,
-      comments: 0,
-      attachments: 0,
-    };
-
-    setTasks((current) => {
-      const updated = [...current, newTask];
-      setUserItem("employee_board_tasks", updated);
-      return updated;
-    });
-    setNewTaskTitle("");
-    setIsModalOpen(false);
+    setIsSubmitting(true);
+    try {
+      const backendStatus = toBackendStatus(newTaskColumn);
+      await employeeService.createTask({
+        title: newTaskTitle.trim(),
+        priority: newTaskPriority.toLowerCase(),
+        status: backendStatus,
+        project: newTaskProject
+      });
+      setNewTaskTitle("");
+      setIsModalOpen(false);
+      await loadLiveTasks();
+    } catch (err) {
+      console.error("Failed to create board task:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Filter tasks

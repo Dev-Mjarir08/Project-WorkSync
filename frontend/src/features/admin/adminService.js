@@ -93,7 +93,6 @@ const adminService = {
     setUserItem('admin_tasks', filtered);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('tasks_updated'));
-      window.dispatchEvent(new Event('storage'));
     }
     return { success: true };
   },

@@ -427,7 +427,7 @@ const ReportsPage = () => {
 
   const completionPercentage = totalTasksCount > 0
     ? Math.round((completedTasksCount / totalTasksCount) * 100)
-    : (activeVelocity[activeVelocity.length - 1]?.rate || 0);
+    : 0;
 
   const completedPct = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
   const inProgressPct = totalTasksCount > 0 ? Math.round((inProgressTasksCount / totalTasksCount) * 100) : 0;
@@ -435,11 +435,11 @@ const ReportsPage = () => {
   const atRiskPct = totalTasksCount > 0 ? Math.max(0, 100 - completedPct - inProgressPct - inReviewPct) : 0;
 
   const onTimeTasksCount = Math.max(0, totalTasksCount - atRiskTasksCount);
-  const onTimePercentage = totalTasksCount > 0 ? Math.round((onTimeTasksCount / totalTasksCount) * 100) : 95;
+  const onTimePercentage = totalTasksCount > 0 ? Math.round((onTimeTasksCount / totalTasksCount) * 100) : 0;
 
   const totalTeamCount = activeTeam.length;
   const atRiskTeamCount = activeTeam.filter(m => m.status === "Heavy Load" || m.status === "Attention").length;
-  const teamUtilizationPct = totalTeamCount > 0 ? Math.round(activeTeam.reduce((acc, m) => acc + (m.capacity || 75), 0) / totalTeamCount) : 75;
+  const teamUtilizationPct = totalTeamCount > 0 ? Math.round(activeTeam.reduce((acc, m) => acc + (m.capacity || 0), 0) / totalTeamCount) : 0;
 
   // SVG dimensions for Burndown Chart
   const burndownWidth = 540;

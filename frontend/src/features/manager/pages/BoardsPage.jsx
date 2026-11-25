@@ -102,20 +102,26 @@ const BoardsPage = () => {
         const [boardData, listData, taskData] = await Promise.all([
           managerService.getBoard(activeBoardId),
           managerService.getBoardLists(activeBoardId),
-          managerService.getTasks({ boardId: activeBoardId }),
+          managerService.getTasks(boardId ? { boardId: activeBoardId } : {}),
         ]);
 
         if (!active) return;
         const sortedLists = [...(listData || [])].sort((a, b) => a.position - b.position);
+        const effectiveLists = sortedLists.length > 0 ? sortedLists : [
+          { id: "list-todo", name: "To Do", position: 0 },
+          { id: "list-in-progress", name: "In Progress", position: 1 },
+          { id: "list-review", name: "In Review", position: 2 },
+          { id: "list-done", name: "Done", position: 3 }
+        ];
         setBoard(boardData);
-        setColumns(sortedLists.map((list, index) => ({
+        setColumns(effectiveLists.map((list, index) => ({
           id: list.id || list._id,
           label: list.name,
           status: normalizeStatus(list.name),
           ...COLUMN_STYLES[index % COLUMN_STYLES.length],
         })));
-        setTasks((taskData || []).map((task) => toTaskView(task, sortedLists)));
-        setNewTask((current) => ({ ...current, columnId: current.columnId || sortedLists[0]?.id || "" }));
+        setTasks((taskData || []).map((task) => toTaskView(task, effectiveLists)));
+        setNewTask((current) => ({ ...current, columnId: current.columnId || effectiveLists[0]?.id || "" }));
       } catch (requestError) {
         if (active) setError(requestError.message || "Unable to load this board.");
       } finally {
@@ -124,8 +130,10 @@ const BoardsPage = () => {
     }
 
     loadBoardData();
+    window.addEventListener("tasks_updated", loadBoardData);
     return () => {
       active = false;
+      window.removeEventListener("tasks_updated", loadBoardData);
     };
   }, [boardId]);
 

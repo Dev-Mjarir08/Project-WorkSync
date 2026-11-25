@@ -97,7 +97,6 @@ export const TasksPage = () => {
 
   // Initial Load
   useEffect(() => {
-    loadTasks();
     loadWorkspaces().then(list => {
       setWorkspacesList(list);
       if (list.length > 0 && !newTaskForm.workspaceId) {
@@ -110,6 +109,16 @@ export const TasksPage = () => {
 
   // Filter effect
   useEffect(() => {
+    loadTasks({
+      search,
+      workspace: workspaceFilter,
+      priority: priorityFilter,
+      assignee: assigneeFilter
+    });
+  }, [search, workspaceFilter, priorityFilter, assigneeFilter, loadTasks]);
+
+  // Live sync on task mutation
+  useEffect(() => {
     const reload = () => {
       loadTasks({
         search,
@@ -118,15 +127,11 @@ export const TasksPage = () => {
         assignee: assigneeFilter
       });
     };
-    reload();
-
     window.addEventListener('tasks_updated', reload);
-    window.addEventListener('storage', reload);
     return () => {
       window.removeEventListener('tasks_updated', reload);
-      window.removeEventListener('storage', reload);
     };
-  }, [search, workspaceFilter, priorityFilter, assigneeFilter]);
+  }, [search, workspaceFilter, priorityFilter, assigneeFilter, loadTasks]);
 
   // Tasks grouped by status
   const tasksByColumn = useMemo(() => {
