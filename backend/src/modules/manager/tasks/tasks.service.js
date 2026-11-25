@@ -4,6 +4,7 @@ import { Board } from '../../../models/Board.js';
 import { List } from '../../../models/List.js';
 import { Project } from '../../../models/Project.js';
 import { User } from '../../../models/User.js';
+import { Workspace } from '../../../models/Workspace.js';
 import { WorkspaceMember } from '../../../models/WorkspaceMember.js';
 import { Activity } from '../../../models/Activity.js';
 import { ApiError } from '../../../utils/ApiError.js';
