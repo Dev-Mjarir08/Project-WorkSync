@@ -33,7 +33,17 @@ export const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-access-token']
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'x-access-token',
+    'x-workspace-id',
+    'X-Workspace-Id',
+    'Accept',
+    'Origin'
+  ],
+  exposedHeaders: ['x-workspace-id', 'X-Workspace-Id']
 };
 
 export default corsOptions;
