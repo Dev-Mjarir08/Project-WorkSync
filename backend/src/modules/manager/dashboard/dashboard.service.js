@@ -345,8 +345,10 @@ export const getManagerRecentActivities = async (workspaceId, user, limit = 10) 
     entityType: a.entityType,
     entityId: a.entityId,
     entityName: a.entityName,
+    target: a.entityName || a.description || '',
     metadata: a.metadata,
-    user: a.user
+    user: a.user?.name || a.user?.email || 'Team Member',
+    userObj: a.user
       ? {
           id: a.user._id.toString(),
           name: a.user.name,
@@ -355,6 +357,7 @@ export const getManagerRecentActivities = async (workspaceId, user, limit = 10) 
           role: a.user.role
         }
       : null,
+    avatar: a.user?.avatar || (a.user?.name ? a.user.name.slice(0, 2).toUpperCase() : 'U'),
     createdAt: a.createdAt
   }));
 };

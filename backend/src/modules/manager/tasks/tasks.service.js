@@ -355,11 +355,24 @@ export const updateTask = async (workspaceId, taskId, data, actorUser) => {
   }
   if (!task) throw new ApiError(404, 'Task not found');
 
+  const previousAssignee = task.assignee?.toString();
   if (data.title !== undefined) task.title = data.title.trim();
   if (data.description !== undefined) task.description = data.description;
   if (data.assignee !== undefined || data.assigneeId !== undefined) {
     const rawAssignee = data.assigneeId !== undefined ? data.assigneeId : data.assignee;
     task.assignee = await resolveAssigneeUserId(rawAssignee);
+    if (task.assignee && task.workspace) {
+      const isMember = await WorkspaceMember.findOne({ workspace: task.workspace, user: task.assignee });
+      if (!isMember) {
+        const u = await User.findById(task.assignee).select('role');
+        await WorkspaceMember.create({
+          workspace: task.workspace,
+          user: task.assignee,
+          role: u?.role || 'member',
+          status: 'active'
+        }).catch(() => {});
+      }
+    }
   }
   if (data.priority !== undefined) task.priority = data.priority;
   if (data.status !== undefined) task.status = data.status;
@@ -371,6 +384,18 @@ export const updateTask = async (workspaceId, taskId, data, actorUser) => {
   if (data.project !== undefined) task.project = data.project || null;
 
   await task.save();
+
+  if (task.assignee && task.assignee.toString() !== previousAssignee) {
+    await createNotification({
+      recipient: task.assignee,
+      workspace: workspaceId || task.workspace,
+      sender: actorUser?._id,
+      title: 'Task Assigned',
+      message: `You were assigned to task "${task.title}"`,
+      type: 'task',
+      metadata: { taskId: task._id.toString() }
+    }).catch(() => {});
+  }
 
   await Activity.create({
     user: actorUser?._id,

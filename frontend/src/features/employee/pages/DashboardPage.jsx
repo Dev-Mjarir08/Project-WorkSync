@@ -715,14 +715,14 @@ export default function DashboardPage() {
               ) : (
                 <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
                   {activities.map((act) => {
-                    const Icon = act.icon;
+                    const Icon = act.icon || Activity;
                     return (
                       <div
                         key={act.id}
                         className="flex items-start gap-3.5 rounded-2xl border border-slate-100 bg-slate-50/40 p-4 transition-all hover:shadow-md dark:border-slate-800/60 dark:bg-slate-800/20"
                       >
                         <div
-                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${act.color}`}
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${act.color || "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400"}`}
                         >
                           <Icon className="h-5 w-5" />
                         </div>

@@ -114,6 +114,54 @@ const getProjectName = (project) => {
   return project.name || "General Initiative";
 };
 
+const getActivityUserName = (user) => {
+  if (!user) return "Team Member";
+  if (typeof user === "string") return user;
+  return user.name || user.email || "Team Member";
+};
+
+const getActivityTarget = (target) => {
+  if (!target) return "";
+  if (typeof target === "string") return target;
+  return target.name || target.title || "";
+};
+
+const formatTimeAgo = (dateStr) => {
+  if (!dateStr) return "Just now";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  const diffMs = Date.now() - d.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return "Just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour}h ago`;
+  const diffDay = Math.floor(diffHour / 24);
+  return `${diffDay}d ago`;
+};
+
+const normalizeActivity = (act) => {
+  if (!act) return null;
+  const uName = getActivityUserName(act.user);
+  const tName = getActivityTarget(act.target || act.entityName || act.description);
+  const actAction = typeof act.action === "string" ? act.action : (act.type || "updated");
+  const timeDisplay = act.time || formatTimeAgo(act.createdAt);
+  const avatarText = typeof act.avatar === "string" && act.avatar.length <= 2
+    ? act.avatar
+    : getInitials(uName);
+
+  return {
+    id: act.id || act._id || `act_${Math.random()}`,
+    user: uName,
+    action: actAction,
+    target: tName,
+    time: timeDisplay,
+    avatar: avatarText,
+    color: act.color || getAssigneeGradient(uName),
+  };
+};
+
 const normalizeTask = (t) => {
   const aName = getAssigneeName(t.assignee);
   const pName = getProjectName(t.project);
@@ -151,7 +199,10 @@ export const DashboardPage = () => {
     return Array.isArray(raw) ? raw.map(normalizeTask) : [];
   });
   const [teamMembersData, setTeamMembersData] = useState(() => getUserItem("manager_team", []));
-  const [recentActivities, setRecentActivities] = useState(() => getUserItem("manager_activities", []));
+  const [recentActivities, setRecentActivities] = useState(() => {
+    const raw = getUserItem("manager_activities", []);
+    return Array.isArray(raw) ? raw.map(normalizeActivity).filter(Boolean) : [];
+  });
 
   // Modal form state
   const [newTask, setNewTask] = useState({
@@ -193,8 +244,9 @@ export const DashboardPage = () => {
       }
 
       if (dashData?.recentActivities && Array.isArray(dashData.recentActivities)) {
-        setRecentActivities(dashData.recentActivities);
-        setUserItem("manager_activities", dashData.recentActivities);
+        const normActs = dashData.recentActivities.map(normalizeActivity).filter(Boolean);
+        setRecentActivities(normActs);
+        setUserItem("manager_activities", normActs);
       }
 
       const members = Array.isArray(tm) && tm.length > 0
@@ -674,23 +726,31 @@ export const DashboardPage = () => {
 
                   <div className="space-y-3">
                     {recentActivities.length > 0 ? (
-                      recentActivities.slice(0, 4).map((act) => (
-                        <div key={act.id} className="flex items-start gap-2.5 text-xs">
-                          <div
-                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr ${act.color || "from-blue-600 to-indigo-600"} text-[9px] font-bold text-white shadow-xs`}
-                          >
-                            {act.avatar || "U"}
+                      recentActivities.slice(0, 4).map((act) => {
+                        const uName = getActivityUserName(act.user);
+                        const tName = getActivityTarget(act.target);
+                        const actText = typeof act.action === "string" ? act.action : "updated";
+                        const timeText = act.time || formatTimeAgo(act.createdAt);
+                        const avText = typeof act.avatar === "string" && act.avatar.length <= 2 ? act.avatar : getInitials(uName);
+
+                        return (
+                          <div key={act.id || act._id} className="flex items-start gap-2.5 text-xs">
+                            <div
+                              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr ${act.color || getAssigneeGradient(uName)} text-[9px] font-bold text-white shadow-xs`}
+                            >
+                              {avText}
+                            </div>
+                            <div className="min-w-0 flex-1 leading-snug">
+                              <p className="text-slate-600 text-[11px]">
+                                <span className="font-semibold text-slate-900">{uName}</span>{" "}
+                                {actText}{" "}
+                                {tName && <span className="font-semibold text-blue-600">{tName}</span>}
+                              </p>
+                              <span className="text-[10px] text-slate-400 mt-0.5 block">{timeText}</span>
+                            </div>
                           </div>
-                          <div className="min-w-0 flex-1 leading-snug">
-                            <p className="text-slate-600 text-[11px]">
-                              <span className="font-semibold text-slate-900">{act.user}</span>{" "}
-                              {act.action}{" "}
-                              {act.target && <span className="font-semibold text-blue-600">{act.target}</span>}
-                            </p>
-                            <span className="text-[10px] text-slate-400 mt-0.5 block">{act.time}</span>
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     ) : (
                       <p className="text-[11px] text-slate-500 py-3 text-center">No recent team activities yet.</p>
                     )}

@@ -2,9 +2,39 @@ import mongoose from 'mongoose';
 import { Task } from '../../../models/Task.js';
 import { Board } from '../../../models/Board.js';
 import { List } from '../../../models/List.js';
+import { User } from '../../../models/User.js';
+import { WorkspaceMember } from '../../../models/WorkspaceMember.js';
 import { Activity } from '../../../models/Activity.js';
 import { ApiError } from '../../../utils/ApiError.js';
 import { createNotification } from '../../../utils/createNotification.js';
+
+const resolveAssigneeUserId = async (rawAssignee) => {
+  if (!rawAssignee) return null;
+  if (typeof rawAssignee === 'object' && rawAssignee._id) {
+    rawAssignee = rawAssignee._id.toString();
+  }
+  if (typeof rawAssignee === 'object' && rawAssignee.id) {
+    rawAssignee = rawAssignee.id.toString();
+  }
+  if (mongoose.Types.ObjectId.isValid(rawAssignee)) {
+    const user = await User.findById(rawAssignee).select('_id');
+    if (user) return user._id;
+
+    const member = await WorkspaceMember.findById(rawAssignee).select('user');
+    if (member?.user) return member.user;
+  }
+  if (typeof rawAssignee === 'string' && rawAssignee.trim()) {
+    const user = await User.findOne({
+      $or: [
+        { email: rawAssignee.trim() },
+        { name: rawAssignee.trim() },
+        { name: { $regex: new RegExp(`^${rawAssignee.trim()}$`, 'i') } }
+      ]
+    }).select('_id');
+    if (user) return user._id;
+  }
+  return null;
+};
 
 export const getTasks = async (workspaceId, query = {}) => {
   let wsId = workspaceId && mongoose.Types.ObjectId.isValid(workspaceId)
@@ -93,6 +123,20 @@ export const createTask = async (workspaceId, data, actorUser) => {
   if (!workspaceId) throw new ApiError(400, 'Workspace ID is required');
   if (!data.title || !data.title.trim()) throw new ApiError(400, 'Task title is required');
 
+  const resolvedAssigneeId = await resolveAssigneeUserId(data.assigneeId || data.assignee);
+  if (resolvedAssigneeId && workspaceId) {
+    const isMember = await WorkspaceMember.findOne({ workspace: workspaceId, user: resolvedAssigneeId });
+    if (!isMember) {
+      const u = await User.findById(resolvedAssigneeId).select('role');
+      await WorkspaceMember.create({
+        workspace: workspaceId,
+        user: resolvedAssigneeId,
+        role: u?.role || 'member',
+        status: 'active'
+      }).catch(() => {});
+    }
+  }
+
   const taskData = {
     workspace: workspaceId,
     title: data.title.trim(),
@@ -100,7 +144,7 @@ export const createTask = async (workspaceId, data, actorUser) => {
     board: data.boardId && mongoose.Types.ObjectId.isValid(data.boardId) ? data.boardId : null,
     project: data.projectId && mongoose.Types.ObjectId.isValid(data.projectId) ? data.projectId : null,
     list: data.listId && mongoose.Types.ObjectId.isValid(data.listId) ? data.listId : null,
-    assignee: data.assigneeId && mongoose.Types.ObjectId.isValid(data.assigneeId) ? data.assigneeId : null,
+    assignee: resolvedAssigneeId || null,
     status: data.status ? data.status.toLowerCase() : 'todo',
     priority: data.priority ? data.priority.toLowerCase() : 'medium',
     dueDate: data.dueDate ? new Date(data.dueDate) : null,
@@ -164,13 +208,27 @@ export const updateTask = async (workspaceId, taskId, data, actorUser) => {
   const task = await Task.findOne({ _id: taskId, workspace: workspaceId });
   if (!task) throw new ApiError(404, 'Task not found');
 
+  const previousAssignee = task.assignee?.toString();
   if (data.title !== undefined) task.title = data.title.trim();
   if (data.description !== undefined) task.description = data.description;
   if (data.status !== undefined) task.status = data.status.toLowerCase();
   if (data.priority !== undefined) task.priority = data.priority.toLowerCase();
   if (data.dueDate !== undefined) task.dueDate = data.dueDate ? new Date(data.dueDate) : null;
   if (data.assignee !== undefined || data.assigneeId !== undefined) {
-    task.assignee = data.assigneeId || data.assignee || null;
+    const rawAssignee = data.assigneeId !== undefined ? data.assigneeId : data.assignee;
+    task.assignee = await resolveAssigneeUserId(rawAssignee);
+    if (task.assignee && workspaceId) {
+      const isMember = await WorkspaceMember.findOne({ workspace: workspaceId, user: task.assignee });
+      if (!isMember) {
+        const u = await User.findById(task.assignee).select('role');
+        await WorkspaceMember.create({
+          workspace: workspaceId,
+          user: task.assignee,
+          role: u?.role || 'member',
+          status: 'active'
+        }).catch(() => {});
+      }
+    }
   }
   if (data.project !== undefined || data.projectId !== undefined) {
     task.project = data.projectId || data.project || null;
@@ -193,6 +251,18 @@ export const updateTask = async (workspaceId, taskId, data, actorUser) => {
   }
 
   await task.save();
+
+  if (task.assignee && task.assignee.toString() !== previousAssignee) {
+    await createNotification({
+      recipient: task.assignee,
+      workspace: workspaceId,
+      sender: actorUser?._id,
+      title: 'Task Assigned',
+      message: `You were assigned to task "${task.title}"`,
+      type: 'task',
+      link: '/tasks'
+    }).catch(() => {});
+  }
 
   await Activity.create({
     workspace: workspaceId,

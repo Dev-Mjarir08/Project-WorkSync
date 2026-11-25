@@ -304,13 +304,27 @@ export const updateTask = async (taskId, data, actorAdmin) => {
   const task = await Task.findById(taskId);
   if (!task) throw new ApiError(404, 'Task not found');
 
+  const previousAssignee = task.assignee?.toString();
   if (data.title !== undefined) task.title = data.title.trim();
   if (data.description !== undefined) task.description = data.description;
   if (data.status !== undefined) task.status = data.status.toLowerCase();
   if (data.priority !== undefined) task.priority = data.priority.toLowerCase();
   if (data.dueDate !== undefined) task.dueDate = data.dueDate ? new Date(data.dueDate) : null;
   if (data.assignee !== undefined || data.assigneeId !== undefined) {
-    task.assignee = data.assigneeId || data.assignee || null;
+    const rawAssignee = data.assigneeId !== undefined ? data.assigneeId : data.assignee;
+    task.assignee = await resolveAssigneeUserId(rawAssignee);
+    if (task.assignee && task.workspace) {
+      const isMember = await WorkspaceMember.findOne({ workspace: task.workspace, user: task.assignee });
+      if (!isMember) {
+        const u = await User.findById(task.assignee).select('role');
+        await WorkspaceMember.create({
+          workspace: task.workspace,
+          user: task.assignee,
+          role: u?.role || 'member',
+          status: 'active'
+        }).catch(() => {});
+      }
+    }
   }
   if (data.project !== undefined || data.projectId !== undefined) {
     task.project = data.projectId || data.project || null;
@@ -324,6 +338,18 @@ export const updateTask = async (taskId, data, actorAdmin) => {
   if (data.order !== undefined) task.order = Number(data.order);
 
   await task.save();
+
+  if (task.assignee && task.assignee.toString() !== previousAssignee) {
+    await createNotification({
+      recipient: task.assignee,
+      workspace: task.workspace,
+      sender: actorAdmin?._id,
+      title: 'Task Assigned',
+      message: `You were assigned to task "${task.title}"`,
+      type: 'task',
+      link: '/tasks'
+    }).catch(() => {});
+  }
 
   await recordAudit({
     action: 'Task Updated',
