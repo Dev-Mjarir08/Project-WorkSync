@@ -10,13 +10,25 @@
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas%20Mongoose%209-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Live Demo](https://img.shields.io/badge/Live_Frontend-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://project-work-syncc.vercel.app)
+[![API Server](https://img.shields.io/badge/Live_Backend_API-Vercel-0070F3?style=for-the-badge&logo=vercel&logoColor=white)](https://project-work-sync-backend.vercel.app)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
 <br />
 
-[Explore Features](#-core-features) • [Role Matrix](#-role-based-access-control-rbac) • [System Architecture](#-system-architecture) • [API Reference](#-api-endpoints-reference) • [Getting Started](#-getting-started) • [Demo Credentials](#-pre-seeded-demo-credentials)
+[🌐 Live Demo (Frontend)](https://project-work-syncc.vercel.app) • [📡 Live API (Backend)](https://project-work-sync-backend.vercel.app) • [Explore Features](#-core-features) • [Role Matrix](#-role-based-access-control-rbac) • [System Architecture](#-system-architecture) • [API Reference](#-api-endpoints-reference) • [Getting Started](#-getting-started) • [Demo Credentials](#-pre-seeded-demo-credentials)
 
 </div>
+
+---
+
+## 🌐 Live Deployments
+
+| Component | Platform | Live URL | Status |
+| :--- | :--- | :--- | :---: |
+| **Frontend Web App** | Vercel | [https://project-work-syncc.vercel.app](https://project-work-syncc.vercel.app) | ![Active](https://img.shields.io/badge/Online-Ready-success?style=flat-square) |
+| **Backend REST API** | Vercel | [https://project-work-sync-backend.vercel.app](https://project-work-sync-backend.vercel.app) | ![Active](https://img.shields.io/badge/Online-Ready-success?style=flat-square) |
+| **API Health Check** | Vercel | [https://project-work-sync-backend.vercel.app/api/health](https://project-work-sync-backend.vercel.app/api/health) | ![Active](https://img.shields.io/badge/200_OK-Active-brightgreen?style=flat-square) |
 
 ---
 
@@ -245,9 +257,13 @@ The database comes pre-configured with test users across all four tiers:
   ```bash
   npm run build --prefix frontend
   ```
-* **API Health Check**:
+* **Local API Health Check**:
   ```bash
   curl http://localhost:8081/api/health
+  ```
+* **Live Production Health Check**:
+  ```bash
+  curl https://project-work-sync-backend.vercel.app/api/health
   ```
 
 ---

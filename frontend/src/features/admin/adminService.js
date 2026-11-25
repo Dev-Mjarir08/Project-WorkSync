@@ -1,15 +1,7 @@
 import { getUserItem, setUserItem, getCurrentUser } from '../../utils/userStorage.js';
+import { getApiRoot } from '../../utils/apiConfig.js';
 
-const getApiBaseUrl = () => {
-  if (typeof window !== "undefined" && window.__ENV__?.API_URL) {
-    return `${window.__ENV__.API_URL}/api/v1/admin`;
-  }
-  const viteUrl = typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL;
-  if (viteUrl) {
-    return `${viteUrl.replace(/\/+$/, '')}/api/v1/admin`;
-  }
-  return "http://localhost:8081/api/v1/admin";
-};
+const getApiBaseUrl = () => `${getApiRoot()}/api/v1/admin`;
 
 const API_BASE_URL = getApiBaseUrl();
 

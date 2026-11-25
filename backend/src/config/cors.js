@@ -2,6 +2,8 @@ import { ENV } from './env.js';
 
 const explicitOrigins = [
   ENV.CLIENT_URL,
+  'https://project-work-syncc.vercel.app',
+  'https://project-work-sync-backend.vercel.app',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
@@ -25,7 +27,11 @@ export const corsOptions = {
       return callback(null, true);
     }
 
-    if (explicitOrigins.includes(origin) || explicitOrigins.includes(origin.replace(/\/$/, ''))) {
+    if (
+      explicitOrigins.includes(origin) ||
+      explicitOrigins.includes(origin.replace(/\/$/, '')) ||
+      /^https:\/\/project-work-sync[a-z0-9-]*\.vercel\.app$/.test(origin)
+    ) {
       return callback(null, true);
     }
 

@@ -1,7 +1,8 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { getApiRoot } from '../../utils/apiConfig.js';
 
-const API_BASE_URL = 'http://localhost:8081/api/v1/auth';
-const API_FALLBACK_URL = 'http://localhost:8081/api/auth';
+const API_BASE_URL = `${getApiRoot()}/api/v1/auth`;
+const API_FALLBACK_URL = `${getApiRoot()}/api/auth`;
 
 /**
  * Helper to get safely parsed stored user

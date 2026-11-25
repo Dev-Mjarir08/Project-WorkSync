@@ -5,8 +5,9 @@ import {
   getCurrentUserScope
 } from '../../utils/userStorage.js';
 import { authService } from '../auth/authService.js';
+import { getApiRoot } from '../../utils/apiConfig.js';
 
-const API_BASE_URL = 'http://localhost:8081/api/v1/super-admin';
+const API_BASE_URL = `${getApiRoot()}/api/v1/super-admin`;
 
 const isObjectId = (id) => typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id);
 
@@ -1152,7 +1153,7 @@ export const superAdminService = {
 
   getNotifications: async () => {
     try {
-      const res = await fetch(`http://localhost:8081/api/v1/notifications`, { headers: getAuthHeaders() });
+      const res = await fetch(`${getApiRoot()}/api/v1/notifications`, { headers: getAuthHeaders() });
       if (res.ok) {
         const json = await res.json();
         return json.data?.notifications || json.data || [];
@@ -1162,7 +1163,7 @@ export const superAdminService = {
   },
   markNotificationAsRead: async (notifId) => {
     try {
-      await fetch(`http://localhost:8081/api/v1/notifications/${notifId}/read`, {
+      await fetch(`${getApiRoot()}/api/v1/notifications/${notifId}/read`, {
         method: 'PATCH',
         headers: getAuthHeaders()
       });
@@ -1171,7 +1172,7 @@ export const superAdminService = {
   },
   clearNotifications: async () => {
     try {
-      await fetch(`http://localhost:8081/api/v1/notifications`, {
+      await fetch(`${getApiRoot()}/api/v1/notifications`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
